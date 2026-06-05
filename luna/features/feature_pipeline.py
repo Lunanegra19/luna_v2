@@ -1621,13 +1621,28 @@ class FeaturePipeline:
 
             if len(df_train) < 100:
                 logger.warning("C-03: df_train insuficiente para ADF â€” usando todo el df para FracDiff (fallback)")
-                df = fd.transform(df, cols=["close", "volume"])
+                # Aplicamos log manual al fallback tmb
+                df_log = df.copy()
+                if "close" in df_log.columns: df_log["close"] = np.log(df_log["close"])
+                if "volume" in df_log.columns: df_log["volume"] = np.log1p(df_log["volume"])
+                
+                df_log = fd.transform(df_log, cols=["close", "volume"])
+                # Recuperar las columnas fd al df original
+                if "close_fd" in df_log.columns: df["close_fd"] = df_log["close_fd"]
+                if "volume_fd" in df_log.columns: df["volume_fd"] = df_log["volume_fd"]
             else:
                 # 1) Encontrar d Ã³ptimo sobre el training set (causal)
                 for col in ["close", "volume"]:
                     if col not in df.columns:
                         continue
-                    d_opt = fd.find_optimal_d(df_train[col].dropna(), feature_name=f"{col}[train]")
+                    # [FIX-FRACDIFF-LOG-01] AFML: Aplicar FracDiff a log-precios para estabilizar varianza
+                    series_train = df_train[col].dropna()
+                    if col == "close":
+                        series_train = np.log(series_train)
+                    elif col == "volume":
+                        series_train = np.log1p(series_train)
+                        
+                    d_opt = fd.find_optimal_d(series_train, feature_name=f"{col}[train]")
                     fd.d_values_[col] = d_opt
                     logger.info(f"FracDiff C-03 [{col}]: d_opt={d_opt:.3f} (calculado sobre train â‰¤ {train_cutoff})")
 
@@ -1635,10 +1650,17 @@ class FeaturePipeline:
                 for col in ["close", "volume"]:
                     if col not in df.columns or col not in fd.d_values_:
                         continue
+                    
+                    series_full = df[col]
+                    if col == "close":
+                        series_full = np.log(series_full)
+                    elif col == "volume":
+                        series_full = np.log1p(series_full)
+                        
                     d_opt = fd.d_values_[col]
-                    fd_col = fd._ffd(df[col], d_opt)
+                    fd_col = fd._ffd(series_full, d_opt)
                     df[f"{col}_fd"] = fd_col
-                    logger.info(f"FracDiff [{col}]: d={d_opt:.3f} â†’ {col}_fd")
+                    logger.info(f"FracDiff [{col}]: d={d_opt:.3f} â†’ {col}_fd (log-transformed)")
 
         except ImportError:
             logger.warning("fracdiff_dynamic.py no disponible aÃºn. Saltando FracDiff.")
