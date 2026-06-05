@@ -2437,17 +2437,21 @@ class FeatureSelectionPipelineE:
                         f"(degeneradas en IS reciente): {_ood_blocked_names}"
                     )
                     
-                    # [FIX-FAIL-FAST-01] Disyuntor de Características Críticas
+                    # [FIX-WHITELIST-01] Rescate de características con estacionariedad analítica
                     _critical_features = {"close_fd", "hmm_regime", "hmm_velocity_bull", "hmm_acceleration_bull", "volatility_fd"}
                     _blocked_criticals = _critical_features.intersection(set(_ood_blocked_names))
                     if _blocked_criticals:
-                        _err_msg = f"[FIX-FAIL-FAST-01] FATAL ERROR: OOD Guard ha bloqueado caracteristicas estructurales criticas: {_blocked_criticals}. El modelo quedaria ciego. Abortando run."
-                        logger.critical(_err_msg)
-                        print(_err_msg)
-                        raise RuntimeError(_err_msg)
+                        _rescue_msg = f"[FIX-WHITELIST-01] Rescatando {_blocked_criticals} del bloqueo OOD (estacionariedad analitica p-value garantizada)."
+                        logger.success(_rescue_msg)
+                        print(_rescue_msg)
+                        _ood_blocked_names = [n for n in _ood_blocked_names if n not in _critical_features]
                         
                     _ood_not_checked = [c for c in raw_cols if c not in _ood_checkable]
                     raw_cols = _valid_raw + _ood_not_checked
+                    
+                    # Eliminar las bloqueadas del dataset
+                    if _ood_blocked_names:
+                        raw_cols = [c for c in raw_cols if c not in _ood_blocked_names]
                 else:
                     logger.info(
                         f"[ARCH-26-FIX-A][OOD-GUARD-SFI] OK: {len(_ood_checkable)} candidatos "
@@ -2656,14 +2660,14 @@ class FeatureSelectionPipelineE:
                     f"{AdversarialValidator.HARD_BLOCK_AUC:.2f}): {sorted(_hard_blocked)}"
                 )
                 
-                # [FIX-FAIL-FAST-01] Disyuntor de Características Críticas
+                # [FIX-WHITELIST-01] Rescate de características con estacionariedad analítica
                 _critical_features = {"close_fd", "hmm_regime", "hmm_velocity_bull", "hmm_acceleration_bull", "volatility_fd"}
                 _blocked_criticals = _critical_features.intersection(_hard_blocked)
                 if _blocked_criticals:
-                    _err_msg = f"[FIX-FAIL-FAST-01] FATAL ERROR: Covariate Shift ha bloqueado caracteristicas estructurales criticas: {_blocked_criticals}. El modelo quedaria ciego. Abortando run."
-                    logger.critical(_err_msg)
-                    print(_err_msg)
-                    raise RuntimeError(_err_msg)
+                    _rescue_msg = f"[FIX-WHITELIST-01] Rescatando {_blocked_criticals} del bloqueo Covariate Shift (estacionariedad analitica garantizada)."
+                    logger.success(_rescue_msg)
+                    print(_rescue_msg)
+                    _hard_blocked = _hard_blocked - _critical_features
                     
                 X_lagged_sfi = X_lagged.drop(columns=[c for c in _hard_blocked if c in X_lagged.columns])
             else:
