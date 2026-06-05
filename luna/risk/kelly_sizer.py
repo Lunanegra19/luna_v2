@@ -141,10 +141,11 @@ class KellyPositionSizer:
         self,
         kelly_fraction: float = 0.25,
         min_position:   float = 0.01,
-        max_position:   float = 0.15,
+        max_position:   float = 20.0,
         pt_ratio:       float = 2.0,
         sl_ratio:       float = 1.0,
         probability_cap: float = 0.62,
+        target_sl_pct: float = 0.05,
     ):
         """
         Args:
@@ -162,7 +163,14 @@ class KellyPositionSizer:
         """
         if not 0.0 < kelly_fraction <= 1.0:
             raise ValueError(f"kelly_fraction debe ser (0, 1]. Recibido: {kelly_fraction}")
-        if not 0.0 <= min_position < max_position <= 1.0:
+            
+        # [SOP-R17-FIX] Forzar techo duro en Half-Kelly (0.5). Full-Kelly prohibido institucionalmente.
+        if kelly_fraction > 0.5:
+            logger.warning(f"[SOP-R17] Full-Kelly o fracción > 0.5 ({kelly_fraction}) prohibido por política. Forzando kelly_fraction = 0.5 (Half-Kelly).")
+            print(f"[SOP-R17-FIX] Advertencia: Reduciendo kelly_fraction de {kelly_fraction} a 0.5 (Half-Kelly).")
+            kelly_fraction = 0.5
+            
+        if not 0.0 <= min_position < max_position <= 100.0:
             raise ValueError(f"Rango de posición inválido: [{min_position}, {max_position}]")
         if pt_ratio <= 0 or sl_ratio <= 0:
             raise ValueError(f"pt_ratio y sl_ratio deben ser > 0.")
@@ -175,18 +183,25 @@ class KellyPositionSizer:
         self.pt_ratio       = pt_ratio
         self.sl_ratio       = sl_ratio
         self.probability_cap = probability_cap
+        self.target_sl_pct  = target_sl_pct
+        
+        # [SOP-R17-FIX] Limite matemático estricto de apalancamiento nominal en derivados.
+        # (Para operaciones Spot, el límite efectivo es 1.0 dictado por max_position).
+        self.max_leverage_limit = 20.0 
 
         logger.info(
             f"[KELLY-SIZER] Init: fraction={kelly_fraction:.2f} | "
-            f"range=[{min_position:.1%}, {max_position:.1%}] | "
+            f"range=[{min_position:.1%}, {max_position:.1f}x] | "
             f"PT/SL={pt_ratio:.1f}/{sl_ratio:.1f} | "
-            f"probability_cap={probability_cap:.4f}"
+            f"probability_cap={probability_cap:.4f} | "
+            f"target_sl_pct={target_sl_pct:.1%}"
         )
         print(
             f"[KELLY-SIZER] Init: fraction={kelly_fraction:.2f} | "
-            f"range=[{min_position:.1%}, {max_position:.1%}] | "
+            f"range=[{min_position:.1%}, {max_position:.1f}x] | "
             f"PT/SL={pt_ratio:.1f}/{sl_ratio:.1f} | "
-            f"probability_cap={probability_cap:.4f}"
+            f"probability_cap={probability_cap:.4f} | "
+            f"target_sl_pct={target_sl_pct:.1%}"
         )
 
     def compute_kelly(self, p_win: np.ndarray) -> np.ndarray:
@@ -207,7 +222,7 @@ class KellyPositionSizer:
         p_win = np.clip(p_win, 0.0, self.probability_cap)
         q_loss = 1.0 - p_win
 
-        # Fracción Kelly pura
+        # Fracción Kelly pura (Capital at Risk / VaR)
         f_star = (self.pt_ratio * p_win - self.sl_ratio * q_loss) / (
             self.pt_ratio * self.sl_ratio
         )
@@ -215,12 +230,17 @@ class KellyPositionSizer:
         # Aplicar factor de escala conservador
         f_applied = f_star * self.kelly_fraction
 
+        # [KELLY-FIX 2026-06-05] Convertir Capital en Riesgo (VaR) a Apalancamiento Notional.
+        # El Kelly Sizer arrojaba qué % arriesgar, NO qué posición comprar. Si arriesgas 5% y el SL es 5%,
+        # necesitas una posición del 100% (1.0x).
+        leverage_multiplier = f_applied / self.target_sl_pct
+
         # Kelly negativo (EV < 0) → no operar
-        # Kelly positivo → clampear a [min_position, max_position]
+        # Kelly positivo → clampear leverage a [min_position, max_position]
         f_final = np.where(
             f_star <= 0.0,
             0.0,                                              # EV negativo → no operar
-            np.clip(f_applied, self.min_position, self.max_position),  # EV positivo → clampear
+            np.clip(leverage_multiplier, self.min_position, self.max_position),  # EV positivo → clampear leverage
         )
 
         return f_final
@@ -391,7 +411,7 @@ def build_kelly_sizer_from_settings() -> KellyPositionSizer:
         ks_cfg = getattr(cfg, "kelly_sizer", None)
         kwargs = {}
         if ks_cfg:
-            for k in ["kelly_fraction", "min_position", "max_position", "pt_ratio", "sl_ratio", "probability_cap"]:
+            for k in ["kelly_fraction", "min_position", "max_position", "pt_ratio", "sl_ratio", "probability_cap", "target_sl_pct"]:
                 v = getattr(ks_cfg, k, None)
                 if v is not None:
                     kwargs[k] = float(v)
@@ -430,9 +450,10 @@ def build_kelly_sizer_from_settings() -> KellyPositionSizer:
             f"kelly_fraction={sizer.kelly_fraction:.2f} | "
             f"pt_ratio={sizer.pt_ratio:.3f} | "
             f"sl_ratio={sizer.sl_ratio:.3f} | "
-            f"range=[{sizer.min_position:.1%}, {sizer.max_position:.1%}] | "
+            f"target_sl_pct={sizer.target_sl_pct:.1%} | "
+            f"range=[{sizer.min_position:.1%}, {sizer.max_position:.1f}x] | "
             f"EV mínimo con WR=54%: {(sizer.pt_ratio*0.54 - 1.0*0.46)/(sizer.pt_ratio*1.0):.4f} "
-            f"-> f*={max(0,(sizer.pt_ratio*0.54 - 1.0*0.46)/(sizer.pt_ratio*1.0))*sizer.kelly_fraction:.4f} (Half-Kelly)"
+            f"-> Leverage={max(0,(sizer.pt_ratio*0.54 - 1.0*0.46)/(sizer.pt_ratio*1.0))*sizer.kelly_fraction/sizer.target_sl_pct:.2f}x (Half-Kelly)"
         )
         return sizer
     except Exception as e:

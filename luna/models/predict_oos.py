@@ -817,10 +817,9 @@ class OOSTradesGenerator:
             # Ahora: int(vertical_barrier_hours * 1.5) proporcional al horizonte real del TBM
             try:
                 from config.settings import cfg as _cfg_pr
-                _vbh_pr = int(getattr(_cfg_pr.xgboost, 'vertical_barrier_hours', 72))
-            except Exception:
-                _vbh_pr = 72
-                print('[FIX-03] WARN: No se pudo leer vertical_barrier_hours. Usando fallback vbh=72H')
+                _vbh_pr = int(_cfg_pr.xgboost.vertical_barrier_hours)
+            except Exception as e_vbh:
+                raise RuntimeError(f"Falta vertical_barrier_hours en settings.yaml (SOP No-Fallback): {e_vbh}")
             purge_rows = int(_vbh_pr * 1.5)
             print('[FIX-03] Fallback OOS split: purge_rows=' + str(purge_rows) + ' filas (vbh=' + str(_vbh_pr) + 'H x1.5, antes hardcode 336)')
             # [FIX-SPLIT-PRED-01] Hacer ratio de split temporal train/val de fallback configurable
@@ -982,9 +981,9 @@ class OOSTradesGenerator:
                         _bull_dsr = float(_bull_sig.get("dsr_cpcv_best", _bull_sig.get("dsr_oos", 0.0)))
                         # Leer umbral desde settings — No-Fallback silencioso: 0.0 es el default R5 explicito
                         try:
-                            _min_bull_dsr = float(getattr(_cfg_xgb.xgboost, "bull_gate_min_dsr", 0.0))
-                        except Exception:
-                            _min_bull_dsr = 0.0
+                            _min_bull_dsr = float(_cfg_xgb.xgboost.bull_gate_min_dsr)
+                        except Exception as e_bull:
+                            raise RuntimeError(f"Falta bull_gate_min_dsr en settings.yaml (SOP No-Fallback): {e_bull}")
                         if _bull_dsr <= _min_bull_dsr:
                             _g2_disabled_agents = list(_g2_disabled_agents) + ["bull"]
                             _bull_gate_msg = (
@@ -1295,22 +1294,20 @@ class OOSTradesGenerator:
             # Antes: _vb_h leidÃ³ de temporal_splits.embargo_hours (96H embargo CV != horizonte trade TBM).
             try:
                 from config.settings import cfg as _cfg
-                _min_ret = float(getattr(_cfg.xgboost, 'tbm_min_return', 0.005))
-            except Exception:
-                _min_ret = 0.005
-
+                _min_ret = float(_cfg.xgboost.tbm_min_return)
+            except Exception as e_minret:
+                raise RuntimeError(f"Falta tbm_min_return en settings.yaml (SOP No-Fallback): {e_minret}")
             try:
                 from config.settings import cfg as _cfg_tbm
-                _vb_h    = int(getattr(_cfg_tbm.xgboost, 'vertical_barrier_hours', 72))  # [FIX-01] fallback unificado a 72H
-                _dyn_min = int(getattr(_cfg_tbm.xgboost, 'dynamic_horizon_min_h', 48))
-                _embargo = int(getattr(_cfg_tbm.sop, 'embargo_hours', 168))
-                _dynamic_barrier = bool(getattr(_cfg_tbm.xgboost, 'dynamic_barrier', True))
-                _lin_decay = bool(getattr(_cfg_tbm.xgboost, 'linear_decay_pt', False))
-                _pt_decay_frac = float(getattr(_cfg_tbm.xgboost, 'pt_decay_fraction', 0.75))
-            except Exception:
-                _vb_h, _dyn_min, _embargo, _dynamic_barrier = 72, 48, 168, True  # [FIX-01] Antes: 168H → ahora 72H consistente con settings.yaml
-                _lin_decay, _pt_decay_frac = False, 0.75
-                print(f"[FIX-01] WARN: No se pudo leer cfg para TBM barriers. Usando fallbacks: vb_h={_vb_h}H, embargo={_embargo}H")
+                _vb_h    = int(_cfg_tbm.xgboost.vertical_barrier_hours)
+                _dyn_min = int(_cfg_tbm.xgboost.dynamic_horizon_min_h)
+                _embargo = int(_cfg_tbm.sop.embargo_hours)
+                _dynamic_barrier = bool(_cfg_tbm.xgboost.dynamic_barrier)
+                _lin_decay = bool(_cfg_tbm.xgboost.linear_decay_pt)
+                _pt_decay_frac = float(_cfg_tbm.xgboost.pt_decay_fraction)
+                _funding_series_oos = df_oos["FundingRate"] if "FundingRate" in df_oos.columns else None
+            except Exception as e_tbm2:
+                raise RuntimeError(f"Faltan parametros de riesgo TBM en settings.yaml (SOP No-Fallback): {e_tbm2}")
 
 
             # [FIX-OBS-01] Barreras PT/SL dinámicas por trade (TBM Vectorizado)
@@ -1368,19 +1365,20 @@ class OOSTradesGenerator:
                 dynamic_horizon_max_h=_dyn_max,
                 linear_decay_pt=_lin_decay,
                 pt_decay_fraction=_pt_decay_frac,
+                funding_series=_funding_series_oos,
             )
 
-            # Ã¢â€â‚¬Ã¢â€â‚¬ Construir DataFrame de trades con P3 drawdown stop Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-            # P3-FIX: detener trades cuando equity cae >max_dd_stop_pct desde el mÃƒÂ¡ximo.
+            # ── Construir DataFrame de trades con P3 drawdown stop ──
+            # P3-FIX: detener trades cuando equity cae >max_dd_stop_pct desde el máximo.
             # Esto limita el MaxDD=99.8% que resulta de operar durante rachas negativas largas.
             try:
                 from config.settings import cfg as _cfg_risk
-                MAX_DD_STOP = float(getattr(_cfg_risk.position_sizer, 'max_dd_stop_pct', 25.0)) / 100.0
-            except Exception:
-                MAX_DD_STOP = 0.25  # 25% drawdown stop (fallback)
-            logger.info(f"  [P3-FIX] Drawdown stop activo: >{MAX_DD_STOP:.0%} desde mÃƒÂ¡ximo → pausa de trades")
+                MAX_DD_STOP = float(_cfg_risk.position_sizer.max_dd_stop_pct) / 100.0
+            except Exception as e_dd:
+                raise RuntimeError(f"Falta max_dd_stop_pct en settings.yaml (SOP No-Fallback): {e_dd}")
+            logger.info(f"  [P3-FIX] Drawdown stop activo: >{MAX_DD_STOP:.0%} desde máximo → pausa de trades")
 
-            # â”€â”€ TRIBE-2 (M-14 Fix B3): usar Kelly Fraccional actualizado desde PositionSizer â”€â”€
+            # ─ TRIBE-2 (M-14 Fix B3): usar Kelly Fraccional actualizado desde PositionSizer ─
             try:
                 from luna.risk.kelly_sizer import build_kelly_sizer_from_settings
                 _kelly_sizer_instance = build_kelly_sizer_from_settings()
@@ -1390,13 +1388,13 @@ class OOSTradesGenerator:
 
             trade_records = []
             # BUG-4 fix (M-14): capital multiplicativo (compounding real)
-            # ANTES: running_equity += ret_net â† lineal, subestima DD real
-            # AHORA: capital *= (1 + ret_kelly) â† compounding correcto
+            # ANTES: running_equity += ret_net ← lineal, subestima DD real
+            # AHORA: capital *= (1 + ret_kelly) ← compounding correcto
             capital        = 1.0
             peak_capital   = 1.0
             dd_stop_active = False
             dd_stop_time   = None
-            # alias aditivo para mÃ©tricas downstream (run_statistical_validation.py usa cumsum)
+            # alias aditivo para métricas downstream (run_statistical_validation.py usa cumsum)
             running_equity = 0.0
             peak_equity    = 0.0
 
@@ -1423,6 +1421,13 @@ class OOSTradesGenerator:
             _h5_gates_applied = 0  # contador de trades silenciados por H5
             print(f"[H5-ROLL-SR-GATE] Inicializado: history=deque(maxlen={_h5_window}) | threshold={_h5_threshold}")
 
+            # [SOP-COST-FIX 2026-06-05] Cargar costo transaccional (SOP R6) sin fallback
+            try:
+                from config.settings import cfg as _cfg_cost
+                _GLOBAL_COST_RT = float(_cfg_cost.sop.cost_pct)
+            except Exception as _e_cost:
+                raise RuntimeError(f"CRITICAL: Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback: {_e_cost}")
+
             for t in signal_times:
                 if t not in tbm_result.index:
                     continue
@@ -1430,15 +1435,15 @@ class OOSTradesGenerator:
                 if pd.isna(row.get("ret", np.nan)):
                     continue
 
-                # P3: drawdown stop â€” usando capital multiplicativo (BUG-4 fix M-14)
+                # P3: drawdown stop — usando capital multiplicativo (BUG-4 fix M-14)
                 current_dd_pct = (peak_capital - capital) / peak_capital
                 if current_dd_pct > MAX_DD_STOP:  # BUG-A05 FIX: eliminar condicion peak>1.0
                     if not dd_stop_active:
-                        logger.warning(f"  [P3-FIX] Drawdown stop activado en {t}: DD={current_dd_pct:.1%} > {MAX_DD_STOP:.0%} Ã¢â‚¬â€ omitiendo trades hasta recuperación")
+                        logger.warning(f"  [P3-FIX] Drawdown stop activado en {t}: DD={current_dd_pct:.1%} > {MAX_DD_STOP:.0%} — omitiendo trades hasta recuperación")
                         dd_stop_active = True
-                    continue  # Ã¢â€ Â omitir este trade
+                    continue  # ← omitir este trade
 
-                # Reactivar si la equity se recuperó hasta Ã¢â€°Â¤50% del max_dd_stop
+                # Reactivar si la equity se recuperó hasta ≤50% del max_dd_stop
                 if dd_stop_active and current_dd_pct < MAX_DD_STOP * 0.5:
                     dd_stop_active = False
                     logger.info(f"  [P3-FIX] Drawdown stop desactivado en {t}: equity recuperada")
@@ -1499,8 +1504,9 @@ class OOSTradesGenerator:
                 #   Con Kelly=5%: costo efectivo era 0.15%/0.05=3x el retorno ajustado → destruia todo P&L.
                 # FIX: ret_kelly = (ret_raw - cost_rt) * kelly
                 #   El costo 0.15% se aplica al retorno bruto ANTES del escalado Kelly.
-                #   Equivalente matematico: cost_efectivo = 0.0015 * kelly (proporcional a posicion real).
-                _COST_RT = 0.0015  # 0.15% round-trip (taker fee x2 + slippage x2, SOP R6)
+                #   Equivalente matematico: cost_efectivo = cost_rt * kelly (proporcional a posicion real).
+                _COST_RT = _GLOBAL_COST_RT  # [SOP-COST-FIX] Valor leido de settings (No-Fallback)
+
                 ret_kelly    = (ret_raw_tbm - _COST_RT) * _eff_mult  # [FIX-COST-RT-01] costo sobre posicion real
                 ret_bruto    = ret_raw_tbm - _COST_RT                # retorno bruto sin Kelly (para is_win TBM puro)
                 logger.debug(
@@ -1632,15 +1638,9 @@ class OOSTradesGenerator:
                             continue
 
                         try:
-                            # [FIX-05] Leer cost_pct de cfg en lugar de hardcode 0.0015
-                            try:
-                                from config.settings import cfg as _cfg_cost_f5
-                                _COST_RT_F5 = float(getattr(_cfg_cost_f5.sop, 'cost_pct', 0.0015))
-                            except Exception:
-                                _COST_RT_F5 = 0.0015  # fallback documentado
-                                print(f"[FIX-05] WARN: No se pudo leer sop.cost_pct de cfg, usando fallback={_COST_RT_F5}")
-                            ret_bruto = float(_raw_ret) - _COST_RT_F5
-                            print(f"[FIX-05] Trade cost aplicado: cost_rt={_COST_RT_F5:.4f}, ret_raw={float(_raw_ret):.4f}, ret_bruto={ret_bruto:.4f}")
+                            # [SOP-COST-FIX] Usar costo global unificado sin fallback
+                            ret_bruto = float(_raw_ret) - _GLOBAL_COST_RT
+                            print(f"[FIX-05] Trade cost aplicado: cost_rt={_GLOBAL_COST_RT:.4f}, ret_raw={float(_raw_ret):.4f}, ret_bruto={ret_bruto:.4f}")
                         except Exception:
                             continue
 

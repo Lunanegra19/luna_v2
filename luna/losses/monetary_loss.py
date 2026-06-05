@@ -23,13 +23,9 @@ def get_monetary_pnl_loss():
         pt_mult = float(cfg.xgboost.pt_mult_min)
         sl_mult = float(cfg.xgboost.sl_mult_min)
         min_return = float(getattr(cfg.xgboost, 'tbm_min_return', 0.005))
-        cost_pct = float(getattr(cfg.sop, 'cost_pct', 0.0015))
-    except ImportError:
-        # Fallback parameters if run in isolation
-        pt_mult = 1.6
-        sl_mult = 1.0
-        min_return = 0.005
-        cost_pct = 0.0015
+        cost_pct = float(cfg.sop.cost_pct)
+    except Exception as e:
+        raise RuntimeError(f"Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback (SOP R6): {e}")
         
     # Calcular el valor esperado (Expected Value) asimétrico de los trades
     reward = (pt_mult * min_return) - cost_pct

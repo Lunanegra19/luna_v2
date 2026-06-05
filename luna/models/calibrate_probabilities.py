@@ -750,7 +750,10 @@ class MetaLabelerV2Calibrator:
             _mt_min_tr = int(getattr(_cfg_meta_cal.metalabeler, 'meta_min_trades',  20))
             _xgb_opt_t_global = float(xgb_sig.get("optimal_threshold", 0.50))
             _xgb_opt_t_regime = xgb_sig.get("optimal_threshold_per_regime", {})
-            COST_PCT_META = 0.0015  # identico a XGBoost calibrador
+            try:
+                COST_PCT_META = float(_cfg_meta_cal.sop.cost_pct)
+            except Exception as e_cost:
+                raise RuntimeError(f"Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback (SOP R6): {e_cost}")
 
             # Mascara XGBoost adaptada para Idea I4 (Regímenes HMM)
             # Primero buscamos si HMM_Regime está disponible en validation (creado en L158-180)

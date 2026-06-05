@@ -68,7 +68,7 @@ if str(ROOT) not in sys.path:
 # Sin hardcodes: si cambias el valor en settings.yaml, el módulo lo recibe automáticamente.
 try:
     from config.settings import cfg as _cfg_meta
-    COST_PCT           = float(getattr(_cfg_meta.sop,       'cost_pct',           0.0015))
+    COST_PCT           = float(_cfg_meta.sop.cost_pct)
     EMBARGO_H          = int(getattr(_cfg_meta.sop,         'embargo_hours',      96))
     SEQ_LEN            = int(getattr(_cfg_meta.metalabeler, 'seq_len',            48))
     LSTM_HIDDEN        = int(getattr(_cfg_meta.metalabeler, 'lstm_hidden',        32))

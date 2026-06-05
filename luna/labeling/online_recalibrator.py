@@ -35,16 +35,14 @@ def calculate_online_threshold(
         _pt_decay_frac = float(getattr(_cfg.xgboost, 'pt_decay_fraction', 0.75))
         # [FIX-A] leer cost_pct de cfg si no fue pasado como argumento
         if cost_pct_meta is None:
-            cost_pct_meta = float(getattr(_cfg.sop, 'cost_pct', 0.0015))
-            print(f"[FIX-A] online_recalibrator: cost_pct_meta={cost_pct_meta:.4f} (leido de sop.cost_pct)")
+            cost_pct_meta = float(_cfg.sop.cost_pct)
         # [FIX-A] n_target desde metalabeler.meta_min_trades (ya existe en settings)
         _n_target_cfg = int(getattr(_cfg.metalabeler, 'meta_min_trades', 30))
-    except Exception:
+    except Exception as e:
+        if "cost_pct" in str(e) or cost_pct_meta is None:
+            raise RuntimeError(f"Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback (SOP R6): {e}")
         _lin_decay = False
         _pt_decay_frac = 0.75
-        if cost_pct_meta is None:
-            cost_pct_meta = 0.0015
-            print("[FIX-A] WARN: No se pudo leer cfg en online_recalibrator. cost_pct_meta=0.0015 (fallback)")
         _n_target_cfg = 30  # fallback documentado
         print(f"[FIX-A] WARN: No se pudo leer meta_min_trades de cfg. n_target fallback={_n_target_cfg}")
 

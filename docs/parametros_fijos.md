@@ -642,3 +642,7 @@ Este parÃ¡metro afecta directamente el entrenamiento del modelo. No hay fallback
 `settings.yaml` no carga, el script lanza `RuntimeError` (comportamiento existente).
 
 *Fecha: 2026-06-01 | FIX-BEAR-COLLAPSE-01*
+
+### SOP-COST-SPOT
+- **cost_pct**:  .0025 (0.25%)
+- **Justificación**: Representa el peor caso absoluto operando en mercado Spot: Taker (0.10%) + Taker (0.10%) + Slippage conservador (0.05%). Fuerza a los agentes a encontrar estructuras macro tolerantes a alta fricción y elimina el sesgo optimista de la ejecución Maker en derivados.

@@ -47,10 +47,14 @@ class OODGuardTrainer:
             # Sin este fix: OOD Guard usa solo SFI features → distribución N-dim diverge
             # del XGBoost que también recibe HMM_Regime, KMeans_Tribe_ID, etc.
             _pass_through = _feat_json.get("pass_through_features", [])
-            features = list(dict.fromkeys(features + _pass_through))  # dedup preservando orden
+            # [FIX-OOD-PASSTHROUGH-01] SOP V10: Las variables estructurales (passthrough)
+            # como close_fd estan matematicamente blindadas. Incluirlas en el OOD Guard 
+            # provoca censura empirica (bloqueo por Covariate Shift).
+            # Por tanto, el OOD Guard evaluara UNICAMENTE las variables SFI.
+            features = list(dict.fromkeys(features))  # Solo SFI, excluimos _pass_through
             logger.info(
-                f"[P1-N3] OOD Guard: {len(features)} features "
-                f"({len(_feat_json['selected_features'])} SFI + {len(_pass_through)} pass_through)"
+                f"[FIX-OOD-PASSTHROUGH-01] OOD Guard: {len(features)} features SFI puros. "
+                f"Ignorando {len(_pass_through)} pass_through para evitar censura estructural."
             )
 
         use_cols = [c for c in features if c in df.columns]

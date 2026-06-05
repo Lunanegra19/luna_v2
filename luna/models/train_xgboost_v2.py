@@ -123,7 +123,7 @@ try:
     CPCV_GROUPS   = int(_cpcv_n)
     PURGE_H       = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))
     EMBARGO_H     = PURGE_H
-    COST_PCT      = float(getattr(_cfg_xgb.sop,  'cost_pct',      0.0015))
+    COST_PCT      = float(_cfg_xgb.sop.cost_pct)
     
     print("[LUNA-V2-CONFIG] STRICT CONF VALIDATION: Passed! All settings.yaml keys validated as critical and compliant.")
     logger.info("[LUNA-V2-CONFIG] STRICT CONF VALIDATION: Passed!")
@@ -727,6 +727,8 @@ class XGBoostTrainer:
         _side_val = -1.0 if self.native_direction == "short" else 1.0
         _sides_series = pd.Series(_side_val, index=events_idx)
 
+        _funding_series = df_final["FundingRate"] if "FundingRate" in df_final.columns else None
+
         tbm_result = apply_triple_barrier(
             price_series=price_series,
             event_times=events_idx,
@@ -739,6 +741,7 @@ class XGBoostTrainer:
             dynamic_horizon_max_h=_dyn_max,
             linear_decay_pt=_lin_decay,
             pt_decay_fraction=_pt_decay_frac,
+            funding_series=_funding_series,
         )
         
         # tbm_result contiene las etiquetas (1=PT, -1=SL, 0=T1) en la columna "bin" o "meta_label". 
@@ -2120,10 +2123,9 @@ class XGBoostTrainer:
                 # Permitir EV negativo hasta -ev_tolerance en el weak learner aislado.
                 try:
                     from config.settings import cfg as _cfg_ev
-                    _ev_tol = float(getattr(_cfg_ev.xgboost, 'ev_tolerance_pct', 0.010))
-                except Exception:
-                    _ev_tol = 0.010
-                    print(f"[FIX-B] WARN: No se pudo leer xgboost.ev_tolerance_pct. Usando fallback={_ev_tol:.3f}")  # debug
+                    _ev_tol = float(_cfg_ev.xgboost.ev_tolerance_pct)
+                except Exception as e_ev:
+                    raise RuntimeError(f"Falta ev_tolerance_pct en settings.yaml (SOP No-Fallback): {e_ev}")
                 ev_adjusted = ev + _ev_tol
                 print(f"[FIX-B] EV calibrador: ev={ev:.4f}, ev_tol={_ev_tol:.4f}, ev_adjusted={ev_adjusted:.4f} (threshold={t:.3f})")  # debug
                 
@@ -2222,9 +2224,9 @@ class XGBoostTrainer:
         # El pipeline downstream maneja self.final_model=None como 0 trades (correcto).
         try:
             from config.settings import cfg as _cfg_gate
-            _min_viable = int(getattr(_cfg_gate.xgboost, 'min_viable_train_samples', 200))
-        except Exception:
-            _min_viable = 200
+            _min_viable = int(_cfg_gate.xgboost.min_viable_train_samples)
+        except Exception as e_minviable:
+            raise RuntimeError(f"Falta min_viable_train_samples en settings.yaml (SOP No-Fallback): {e_minviable}")
         _n_train_gate = len(self.X)
         if _n_train_gate < _min_viable:
             print(  # RULE[fixbugsprints.md]
@@ -2527,12 +2529,12 @@ class XGBoostTrainer:
                 from luna.features.tbm import apply_triple_barrier as _atb_cd
                 try:
                     from config.settings import cfg as _cfg_cd
-                    _pt_cd = float(getattr(_cfg_cd.xgboost, 'pt_mult_min', 1.8))
-                    _sl_cd = float(getattr(_cfg_cd.xgboost, 'sl_mult_min', 1.5))
-                    _vb_cd = int(getattr(_cfg_cd.xgboost, 'vertical_barrier_hours', 72))
-                    _mr_cd = float(getattr(_cfg_cd.xgboost, 'tbm_min_return', 0.003))
-                except Exception:
-                    _pt_cd, _sl_cd, _vb_cd, _mr_cd = 1.8, 1.5, 72, 0.003
+                    _pt_cd = float(_cfg_cd.xgboost.pt_mult_min)
+                    _sl_cd = float(_cfg_cd.xgboost.sl_mult_min)
+                    _vb_cd = int(_cfg_cd.xgboost.vertical_barrier_hours)
+                    _mr_cd = float(_cfg_cd.xgboost.tbm_min_return)
+                except Exception as e_cd:
+                    raise RuntimeError(f"Faltan parametros TBM en settings.yaml (SOP No-Fallback): {e_cd}")
 
                 _tbm_cd = _atb_cd(
                     price_series=_df_cd["close"],
@@ -2755,9 +2757,9 @@ class XGBoostTrainer:
                         
                         try:
                             from config.settings import cfg as _cfg_oof
-                            _embargo_gap = int(getattr(_cfg_oof.xgboost, 'embargo_hours', 96))
-                        except Exception:
-                            _embargo_gap = 96
+                            _embargo_gap = int(_cfg_oof.sop.embargo_hours)
+                        except Exception as e_emb:
+                            raise RuntimeError(f"Falta embargo_hours en cfg.sop (SOP No-Fallback): {e_emb}")
                             
                         _n_splits_cal = 5 if len(self.X) >= 500 else 3
                         _tscv_cal = TimeSeriesSplit(n_splits=_n_splits_cal, gap=_embargo_gap)

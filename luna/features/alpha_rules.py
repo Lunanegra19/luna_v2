@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-05 06:38 UTC
+Timestamp: 2026-06-05 14:05 UTC
 Golden Rules: 15  |  Genetic Rules: 7
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """
@@ -128,17 +128,17 @@ GOLDEN_RULES: list[dict] = [
 GENETIC_RULES: list[dict] = [
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(Master_Causal_Signal >= 0.3232) & (CPI_YoY <= 1.3738)',
+        'pandas_eval': '(Master_Causal_Signal >= 0.3231) & (CPI_YoY <= 1.3738)',
         'win_rate':    73.0,
         'ev_pct':      1.32,
-        'description': '`Master_Causal_Signal >= 0.3232`<br>**AND** `CPI_YoY <= 1.3738`',
+        'description': '`Master_Causal_Signal >= 0.3231`<br>**AND** `CPI_YoY <= 1.3738`',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(CPI_YoY <= 1.3738) & (Master_Causal_Signal >= 0.3232)',
+        'pandas_eval': '(CPI_YoY <= 1.3738) & (Master_Causal_Signal >= 0.3231)',
         'win_rate':    73.0,
         'ev_pct':      1.32,
-        'description': '`CPI_YoY <= 1.3738`<br>**AND** `Master_Causal_Signal >= 0.3232`',
+        'description': '`CPI_YoY <= 1.3738`<br>**AND** `Master_Causal_Signal >= 0.3231`',
     },
     {
         'type':        'genetic_rule',

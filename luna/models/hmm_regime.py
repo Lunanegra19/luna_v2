@@ -1135,10 +1135,16 @@ class HMMRegimeModel:
                         )
                         print(f"[FIX-HMM-MI-CRITICAL] Shield empeoro MI: {mi:.5f}->{mi2:.5f} "
                               f"(delta={mi2-mi:+.5f}). post_ath_bear forzando demasiados estados.")
+                        # [SOP-R16-FAIL-FAST] Si la informacion mutua post-shield es deficiente, abortar.
+                        raise RuntimeError(f"SOP-R9 Violada: Informacion mutua HMM_PostShield={mi2:.5f} < {min_mi2}. Posible colapso de estados.")
                     else:
                         logger.info(f"[HMM] MI_PostShield={mi2:.5f} (Verdadero impacto OOS)")
-        except Exception:
-            pass
+        except RuntimeError as e:
+            # Re-lanzar el error critico R9 para aplicar Fail-Fast
+            logger.error(f"[FAIL-FAST] Abortando por SOP-R9: {e}")
+            raise
+        except Exception as e:
+            logger.debug(f"[HMM] Error calculando MI_PostShield: {e}")
 
     def _apply_risk_off_shield(self, df_input, predicted_labels):
         """

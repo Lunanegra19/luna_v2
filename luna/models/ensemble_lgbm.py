@@ -197,7 +197,7 @@ try:
 
 
 
-    COST_PCT      = float(getattr(_cfg_xgb.sop,  'cost_pct',      0.0015))
+    COST_PCT      = float(_cfg_xgb.sop.cost_pct)
 
 
 

@@ -258,10 +258,10 @@ def apply_pt_sl_on_t1(
         
     return out
 
-def get_bins(events: pd.DataFrame, close: pd.Series) -> pd.DataFrame:
+def get_bins(events: pd.DataFrame, close: pd.Series, funding_series: pd.Series = None) -> pd.DataFrame:
     """
     Genera las etiquetas de 1 (rentable) y 0 (no rentable) basadas en qué
-    barrera se tocó primero.
+    barrera se tocó primero. Aplica Arrastre de Funding Rate si funding_series es provisto.
     """
     events_ = events.dropna(subset=['t1']).copy()
     out = pd.DataFrame(index=events_.index)
@@ -295,6 +295,38 @@ def get_bins(events: pd.DataFrame, close: pd.Series) -> pd.DataFrame:
         index=out.index
     )
     out['ret'] = _touch_prices / _entry_prices - 1
+
+    # [R14: Funding Rate Drag] Restar acumulado de Funding Rate pagado
+    if funding_series is not None:
+        try:
+            # Calcular suma acumulada del Funding Rate
+            _funding_sorted = funding_series.sort_index().fillna(0.0)
+            _funding_cumsum = _funding_sorted.cumsum()
+            
+            # Obtener el Funding Acumulado en el momento de entrada (out.index) y en la salida (out['first_touch'])
+            _funding_entry = pd.Series(
+                _funding_cumsum.reindex(out.index, method='nearest', tolerance=pd.Timedelta('2H')).values,
+                index=out.index
+            )
+            _funding_exit = pd.Series(
+                _funding_cumsum.reindex(out['first_touch'], method='nearest', tolerance=pd.Timedelta('2H')).values,
+                index=out.index
+            )
+            
+            _funding_drag = _funding_exit - _funding_entry
+            
+            # Convencion: Long (1) paga Funding si es positivo, Short (-1) paga Funding negativo
+            # Por tanto el costo arrastrado es: FundingRate * side
+            _side = events_.get('side', 1.0)
+            _cost_paid = _funding_drag * _side
+            
+            # Descontar el costo pagado del retorno
+            out['ret'] -= _cost_paid
+            
+            _n_impacted = (_cost_paid != 0).sum()
+            logger.debug(f"[R14 Funding Drag] Aplicado descuento de Funding Rate a {_n_impacted} eventos en TBM.")
+        except Exception as _e_fund:
+            logger.warning(f"[R14 Funding Drag] Error calculando drag: {_e_fund}")
 
     # Advertir si quedan NaN (indica gap de datos > 2H en la ruta del trade)
     _n_nan = out['ret'].isna().sum()
@@ -362,12 +394,13 @@ def apply_triple_barrier(
     pt_sl_multiplier: list = [2.0, 1.0],
     vertical_barrier_hours: int = 96,
     vol_span_hours: int = 720,
-    min_return: float = 0.0015,
+    min_return: float = None,
     dynamic_barrier: bool = False,
     dynamic_horizon_min_h: int = 48,
     dynamic_horizon_max_h: int = 168,
     linear_decay_pt: bool = False,
     pt_decay_fraction: float = 0.75,
+    funding_series: pd.Series = None,
 ) -> pd.DataFrame:
     """
     Orquestador maestro para el Triple Barrier Method.
@@ -385,6 +418,7 @@ def apply_triple_barrier(
                                dynamic_horizon_max_h según la volatilidad actual.
         dynamic_horizon_min_h: Horizonte mínimo en horas (default 48H).
         dynamic_horizon_max_h: Horizonte máximo en horas (default 168H = 1 semana).
+        funding_series:        Serie del Funding Rate horario para descuento continuo (R14).
         
     Returns:
         DataFrame indexado por event_times con: 
@@ -392,6 +426,15 @@ def apply_triple_barrier(
     """
     # 1. Volatilidad Dinámica
     volatility = get_daily_volatility(price_series, span=vol_span_hours)
+    
+    # 1b. Enforce No-Fallback for min_return if not provided
+    if min_return is None:
+        try:
+            from config.settings import cfg as _cfg_tbm
+            min_return = float(_cfg_tbm.xgboost.tbm_min_return)
+        except Exception as e_tbm:
+            raise RuntimeError(f"Falta min_return y no se pudo leer cfg.xgboost.tbm_min_return en settings.yaml. Política No-Fallback: {e_tbm}")
+
     
     # 2. Time Stop (t1) -> Horizonte fijo o dinámico (Mejora 4)
     if dynamic_barrier:
@@ -496,7 +539,7 @@ def apply_triple_barrier(
     )
 
     # 4. Asignar etiquetas Finales (Meta-Labels)
-    labels = get_bins(events, price_series)
+    labels = get_bins(events, price_series, funding_series)
 
     # 5. Cruzar información y devolver set consolidado
     result = events.join(labels[['first_touch', 'ret', 'bin', 'meta_label']])

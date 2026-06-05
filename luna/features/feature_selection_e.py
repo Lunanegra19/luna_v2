@@ -159,7 +159,7 @@ try:
     SFI_EMBARGO_H         = int(getattr(_cfg_sfi.sop,      'embargo_hours',  24))  # LdP: cooldown post-test
     SFI_N_ESTIMATORS      = int(getattr(_cfg_sfi.features, 'sfi_n_estimators', 200))
     SFI_MAX_DEPTH         = int(getattr(_cfg_sfi.features, 'sfi_max_depth',      4))
-    SFI_COST_ROUNDTRIP    = float(getattr(_cfg_sfi.sop,    'cost_pct',       0.0015))  # compartido
+    SFI_COST_ROUNDTRIP    = float(_cfg_sfi.sop.cost_pct)
     SFI_MIN_SHARPE        = float(getattr(_cfg_sfi.features,'sfi_min_sharpe',  0.05))  # floor DSR-null (MEJORA-SFI-SHARPE-01)
     SFI_DSR_N_TRIALS      = int(getattr(_cfg_sfi.stat,     'n_trials_total',  600))
     FORWARD_ENABLED       = False  # Etapa E: controlado por código (no por cfg aún)
@@ -178,22 +178,7 @@ try:
         f"{SFI_MACRO_MIN_SLOTS+SFI_ONCHAIN_MIN_SLOTS+SFI_CALENDAR_MIN_SLOTS}/{SFI_TOP_N_FEATURES})"
     )
 except Exception as _e_sfi:
-    import warnings as _wsfi
-    _wsfi.warn(f"[FeatureSelectionE] settings.yaml no disponible, usando defaults: {_e_sfi}")
-    CLUSTER_FIXED_N       = 15
-    MAX_LAG_HOURS         = 500
-    SFI_TOP_N_FEATURES    = 15
-    SFI_N_GROUPS          = 6
-    SFI_PURGE_H           = 96
-    SFI_EMBARGO_H         = 96
-    SFI_N_ESTIMATORS      = 200
-    SFI_MAX_DEPTH         = 4
-    SFI_COST_ROUNDTRIP    = 0.0015
-    SFI_MIN_SHARPE        = 0.05
-    SFI_DSR_N_TRIALS      = 600
-    FORWARD_ENABLED       = False
-    FORWARD_MAX_FEATURES  = 25
-    FORWARD_MIN_IMPROVE   = 0.00
+    raise RuntimeError(f"CRITICAL: settings.yaml no disponible o faltan parametros criticos (SOP No-Fallback). Error: {_e_sfi}")
 
 
 

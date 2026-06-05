@@ -254,7 +254,7 @@ features:
   - MVRV_Proxy
   - SSR_ZScore
   - SSR
-  - Stablecoins_Delta_30d
+  - Stablecoins_Delta_30d_milag12h
   - Stablecoin_Cap_Delta
   - Puell_Multiple
   - puell_multiple_proxy
@@ -316,7 +316,7 @@ features:
   - MVRV_Proxy
   - SSR_ZScore
   - SSR
-  - Stablecoins_Delta_30d
+  - Stablecoins_Delta_30d_milag12h
   - Stablecoin_Cap_Delta
   - Puell_Multiple
   - puell_multiple_proxy
@@ -388,7 +388,10 @@ hmm:
 kelly_sizer:
   enabled: true
   kelly_fraction: 0.5
-  max_position: 0.15
+  # [KELLY-FIX 2026-06-05] Ceiling absoluto OOS (SOP-R17). Antes: 0.15 (15% account). Ahora: 20.0 (20x nominal leverage)
+  max_position: 20.0
+  # [KELLY-FIX 2026-06-05] Escala la fraccion de riesgo (VaR) por el SL% esperado para obtener el apalancamiento teorico
+  target_sl_pct: 0.05
   pt_ratio: 1.2
   sl_ratio: 1.0
   # [OOF-CALIB-V2 2026-06-03] Limitar probabilidad maxima para Kelly para evitar sobreexposicion en colas
@@ -501,7 +504,8 @@ project:
   version: 1.0.0
 sop:
   annual_factor: 93.6
-  cost_pct: 0.0015
+  # [SOP-COST-SPOT 2026-06-05] Peor caso Spot: Double Taker (0.10% x2) + Slippage (0.05%) = 0.25%
+  cost_pct: 0.0025
   cpcv_groups: 10
   embargo_hours: 96
   purge_hours: 96
@@ -537,14 +541,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 24
-  hmm_train_end: 2025-03-31
+  hmm_train_end: 2024-12-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-06-30
-  holdout_start: 2025-04-01
-  train_end: 2025-01-31
+  holdout_end: 2025-03-31
+  holdout_start: 2025-01-01
+  train_end: 2024-10-31
   train_start: '2017-08-17'
-  validation_end: 2025-03-31
-  validation_start: 2025-02-01
+  validation_end: 2024-12-31
+  validation_start: 2024-11-01
 wfb:
   ensemble_consensus_threshold: 3
   consensus_bucket_hours: 2
@@ -658,7 +662,7 @@ xgboost:
     reg_lambda_min: 0.01
     subsample_max: 0.85
     subsample_min: 0.5
-  optuna_seed: 42
+  optuna_seed: 85320
   optuna_trials: 100
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
