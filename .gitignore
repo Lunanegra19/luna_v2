@@ -7,7 +7,10 @@ __pycache__/
 *.so
 
 # Carpetas de Datos (Data Lake y Modelos persistentes)
+# Excluir todo data/ excepto raw seeds e histórico (disaster recovery)
 data/
+!data/raw/
+!data/historical/
 logs/
 scratch/
 graphify-out/

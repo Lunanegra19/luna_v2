@@ -1,0 +1,11 @@
+{
+  "sources": {
+    "OI": "bybit",
+    "FundingRate": "bybit",
+    "DVOL": "deribit",
+    "LSR": "bybit",
+    "ETF_Flow": "yfinance"
+  },
+  "ts": "2026-06-04 13:09:14.242439+00:00",
+  "strategy": "bybit_first"
+}
