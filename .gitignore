@@ -27,3 +27,6 @@ Thumbs.db
 venv/
 env/
 .venv/
+
+*.tar.gz
+*.zip
