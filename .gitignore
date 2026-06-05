@@ -1,0 +1,29 @@
+# Entornos y Secretos
+.env
+.wfb_lock
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Carpetas de Datos (Data Lake y Modelos persistentes)
+data/
+logs/
+scratch/
+graphify-out/
+graphify/out/
+
+# Herramientas de depuración y dumps
+tools/dumps/
+*.txt
+
+# Archivos del orquestador y OS
+.gemini/
+.agents/
+.DS_Store
+Thumbs.db
+
+# Virtual Environments
+venv/
+env/
+.venv/

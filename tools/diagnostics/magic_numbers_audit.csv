@@ -1,0 +1,1798 @@
+fichero,linea,valor,categoria,contexto
+luna/ai_mining/advanced_engine.py,341,0.7,AI_MINING,"ax1.scatter(np.where(labels==-1)[0],pr[labels==-1],color=""#e74c3c"",s=12,alpha=0.7,label=""Anomalía"",zorder=5)"
+luna/ai_mining/advanced_engine.py,368,0.4,AI_MINING,"ax2.axvspan(start,df.index[i],alpha=0.4,color=colors.get(rid,""gray"")); start=None"
+luna/ai_mining/deep_discovery_engine.py,52,60,AI_MINING,"POPULATION_SIZE  = int(getattr(_dd, ""genetic_population_size"", 60))"
+luna/ai_mining/deep_discovery_engine.py,54,0.25,AI_MINING,"MUTATION_RATE    = float(getattr(_dd, ""genetic_mutation_rate"", 0.25))"
+luna/ai_mining/deep_discovery_engine.py,55,0.70,AI_MINING,"CROSSOVER_RATE   = float(getattr(_dd, ""genetic_crossover_rate"", 0.70))"
+luna/features/alpha_rules.py,265,0.6,AI_MINING,combined = 0.6 * df['alpha_golden_score'] + 0.4 * df['alpha_genetic_score']
+luna/features/alpha_rules.py,265,0.4,AI_MINING,combined = 0.6 * df['alpha_golden_score'] + 0.4 * df['alpha_genetic_score']
+luna/features/feature_selection_e.py,122,0.009,AI_MINING,"""genetic_rule_0"",  # NASDAQ_RetÃ¢â°Â¥0.009 AND active_addr AND T10Y2Y  WR=59.5%"
+luna/features/feature_selection_e.py,122,59.5,AI_MINING,"""genetic_rule_0"",  # NASDAQ_RetÃ¢â°Â¥0.009 AND active_addr AND T10Y2Y  WR=59.5%"
+luna/features/feature_selection_e.py,123,56.4,AI_MINING,"""genetic_rule_1"",  # NASDAQ_Ret AND SSR AND T10Y2Y AND KShape     WR=56.4%"
+luna/features/feature_selection_e.py,124,56.4,AI_MINING,"""genetic_rule_2"",  # NASDAQ_Ret AND KShape AND SSR AND T10Y2Y     WR=56.4%"
+luna/features/fracdiff_dynamic.py,38,0.05,AI_MINING,"fd = FracDiffDynamic(alpha=0.05, d_min=0.1, d_max=1.0, step=0.1)"
+luna/features/fracdiff_dynamic.py,38,0.1,AI_MINING,"fd = FracDiffDynamic(alpha=0.05, d_min=0.1, d_max=1.0, step=0.1)"
+luna/features/fracdiff_dynamic.py,43,0.05,AI_MINING,"alpha: float = 0.05,"
+luna/features/fracdiff_dynamic.py,51,0.05,AI_MINING,alpha:     Nivel de significancia ADF (default 0.05)
+luna/models/ensemble_lgbm.py,2262,0.5,AI_MINING,alpha=0.5 â†’ suave â€” ratio aÃ±o0:aÃ±o-1 â‰ˆ 1.6:1  (DEFAULT)
+luna/models/ensemble_lgbm.py,2262,1.6,AI_MINING,alpha=0.5 â†’ suave â€” ratio aÃ±o0:aÃ±o-1 â‰ˆ 1.6:1  (DEFAULT)
+luna/models/ensemble_lgbm.py,2266,2.7,AI_MINING,alpha=1.0 â†’ moderado â€” ratio â‰ˆ 2.7:1
+luna/models/ensemble_lgbm.py,2270,1.6,AI_MINING,alpha=1.6 â†’ agresivo â€” ratio â‰ˆ 5.0:1  (equivalente al esquema anterior 5x/1x)
+luna/models/ensemble_lgbm.py,2270,5.0,AI_MINING,alpha=1.6 â†’ agresivo â€” ratio â‰ˆ 5.0:1  (equivalente al esquema anterior 5x/1x)
+luna/models/ensemble_lgbm.py,2302,0.5,AI_MINING,"_alpha = float(getattr(_cfg_sw.xgboost, 'weight_decay_alpha', 0.5))"
+luna/models/ensemble_lgbm.py,2314,0.5,AI_MINING,_alpha = 0.5
+luna/models/ensemble_lgbm.py,4860,0.5,AI_MINING,"_alpha_log = float(getattr(_cfg_log.xgboost, 'weight_decay_alpha', 0.5))"
+luna/models/ensemble_lgbm.py,4868,0.5,AI_MINING,_alpha_log = 0.5
+luna/models/hmm_regime.py,1624,0.3,AI_MINING,"ax.plot(df_plot.index, df_plot['close'], color='black', alpha=0.3, linewidth=1)"
+luna/models/train_metalabeler_v2.py,79,0.5,AI_MINING,"WEIGHT_DECAY_ALPHA = float(getattr(_cfg_meta.metalabeler, 'weight_decay_alpha', 0.5))"
+luna/models/train_metalabeler_v2.py,409,365.0,AI_MINING,_sw = np.exp(-WEIGHT_DECAY_ALPHA * (days_from_end / 365.0))
+luna/models/train_xgboost_v2.py,949,0.5,AI_MINING,alpha=0.5 â†’ suave â€” ratio aÃ±o0:aÃ±o-1 â‰ˆ 1.6:1  (DEFAULT)
+luna/models/train_xgboost_v2.py,949,1.6,AI_MINING,alpha=0.5 â†’ suave â€” ratio aÃ±o0:aÃ±o-1 â‰ˆ 1.6:1  (DEFAULT)
+luna/models/train_xgboost_v2.py,950,2.7,AI_MINING,alpha=1.0 â†’ moderado â€” ratio â‰ˆ 2.7:1
+luna/models/train_xgboost_v2.py,951,1.6,AI_MINING,alpha=1.6 â†’ agresivo â€” ratio â‰ˆ 5.0:1  (equivalente al esquema anterior 5x/1x)
+luna/models/train_xgboost_v2.py,951,5.0,AI_MINING,alpha=1.6 â†’ agresivo â€” ratio â‰ˆ 5.0:1  (equivalente al esquema anterior 5x/1x)
+luna/models/train_xgboost_v2.py,973,0.5,AI_MINING,"_alpha = float(getattr(_cfg_sw.xgboost, 'weight_decay_alpha', 0.5))"
+luna/models/train_xgboost_v2.py,976,0.5,AI_MINING,_alpha = 0.5
+luna/models/train_xgboost_v2.py,1359,0.5,AI_MINING,"'reg_alpha': 0.5,"
+luna/models/train_xgboost_v2.py,2009,0.5,AI_MINING,"_alpha_log = float(getattr(_cfg_log.xgboost, 'weight_decay_alpha', 0.5))"
+luna/models/train_xgboost_v2.py,2011,0.5,AI_MINING,_alpha_log = 0.5
+luna/monitoring/statistical_audit.py,80,0.05,AI_MINING,"self.ALPHA_BINOMIAL  = float(_s.get(""alpha_binomial"", 0.05))"
+luna/monitoring/statistical_audit.py,94,0.05,AI_MINING,"self.ALPHA_BINOMIAL, self.MAX_DRAWDOWN = 0.05, 0.60"
+luna/monitoring/statistical_audit.py,94,0.60,AI_MINING,"self.ALPHA_BINOMIAL, self.MAX_DRAWDOWN = 0.05, 0.60"
+luna/reports/generate_tearsheet.py,308,0.11,AI_MINING,"alpha=0.11, zorder=0, linewidth=0)"
+luna/reports/generate_tearsheet.py,312,0.11,AI_MINING,"alpha=0.11, zorder=0, linewidth=0)"
+luna/reports/generate_tearsheet.py,338,0.75,AI_MINING,"ax.scatter(ts_list, prices, color=color, s=18, alpha=0.75,"
+luna/reports/generate_tearsheet.py,342,0.75,AI_MINING,"alpha=0.75, label=label, zorder=zorder, edgecolors=""none"")"
+luna/reports/generate_tearsheet.py,358,0.25,AI_MINING,"ax.legend(fontsize=8, framealpha=0.25,"
+luna/reports/generate_tearsheet.py,480,0.02,AI_MINING,"left=-max_n * 0.02, color=color, alpha=0.06, zorder=0)"
+luna/reports/generate_tearsheet.py,480,0.06,AI_MINING,"left=-max_n * 0.02, color=color, alpha=0.06, zorder=0)"
+luna/reports/generate_tearsheet.py,523,0.4,AI_MINING,"linestyle="":"", alpha=0.4, zorder=1)"
+luna/reports/generate_tearsheet.py,542,0.25,AI_MINING,"ax.legend(handles=[win_p, loss_p], fontsize=8, framealpha=0.25,"
+luna/reports/generate_tearsheet.py,561,0.07,AI_MINING,"where=cum_ret.values >= 1.0, color=_GREEN, alpha=0.07)"
+luna/reports/generate_tearsheet.py,563,0.12,AI_MINING,"where=cum_ret.values < 1.0, color=_RED, alpha=0.12)"
+luna/reports/generate_tearsheet.py,574,0.45,AI_MINING,"linewidth=1.0, linestyle=""--"", alpha=0.45, zorder=2, label=""BTC B&H"")"
+luna/reports/generate_tearsheet.py,606,0.2,AI_MINING,"ax.legend(fontsize=8, framealpha=0.2, facecolor=_PANEL, edgecolor=_BORDER,"
+luna/reports/generate_tearsheet.py,661,0.05,AI_MINING,"ax.fill_between(x, vals, 0, where=vals >= 0, color=_GREEN, alpha=0.05)"
+luna/reports/generate_tearsheet.py,662,0.08,AI_MINING,"ax.fill_between(x, vals, 0, where=vals < 0,  color=_RED,   alpha=0.08)"
+luna/reports/generate_tearsheet.py,684,0.2,AI_MINING,"ax.legend(fontsize=7, framealpha=0.2, facecolor=_PANEL,"
+luna/reports/generate_tearsheet.py,690,0.55,AI_MINING,"alpha=0.55, linestyle="":"", zorder=2, label=f""WR {window}T"")"
+luna/reports/generate_tearsheet.py,691,0.4,AI_MINING,"ax2.axhline(50, color=_PURPLE, linewidth=0.4, linestyle="":"", alpha=0.3)"
+luna/reports/generate_tearsheet.py,691,0.3,AI_MINING,"ax2.axhline(50, color=_PURPLE, linewidth=0.4, linestyle="":"", alpha=0.3)"
+luna/reports/generate_tearsheet.py,691,50,AI_MINING,"ax2.axhline(50, color=_PURPLE, linewidth=0.4, linestyle="":"", alpha=0.3)"
+luna/reports/generate_tearsheet.py,719,1.4,AI_MINING,"ax.plot(x, ma.values, color=_YELLOW, linewidth=1.4, alpha=0.9,"
+luna/reports/generate_tearsheet.py,719,0.9,AI_MINING,"ax.plot(x, ma.values, color=_YELLOW, linewidth=1.4, alpha=0.9,"
+luna/reports/generate_tearsheet.py,723,0.7,AI_MINING,"ax.axhline(0, color=_WHITE, linewidth=0.7, linestyle=""--"", alpha=0.4)"
+luna/reports/generate_tearsheet.py,723,0.4,AI_MINING,"ax.axhline(0, color=_WHITE, linewidth=0.7, linestyle=""--"", alpha=0.4)"
+luna/reports/generate_tearsheet.py,727,0.7,AI_MINING,"ax.axhline(exp_val, color=_BLUE, linewidth=1.0, linestyle="":"", alpha=0.7,"
+luna/reports/generate_tearsheet.py,761,0.2,AI_MINING,"ax.legend(fontsize=7, framealpha=0.2, facecolor=_PANEL,"
+luna/reports/generate_tearsheet.py,856,0.4,AI_MINING,"ax.axhline(y - 0.4, color=_BORDER, linewidth=0.5, alpha=0.5)"
+luna/reports/generate_tearsheet.py,856,0.5,AI_MINING,"ax.axhline(y - 0.4, color=_BORDER, linewidth=0.5, alpha=0.5)"
+luna/reports/generate_tearsheet.py,900,0.70,AI_MINING,"ax.hist(wins.values,   bins=bins, color=_GREEN, alpha=0.70,"
+luna/reports/generate_tearsheet.py,902,0.70,AI_MINING,"ax.hist(losses.values, bins=bins, color=_RED,   alpha=0.70,"
+luna/reports/generate_tearsheet.py,904,0.9,AI_MINING,"ax.axvline(0, color=_WHITE, linewidth=0.9, linestyle=""--"", alpha=0.5)"
+luna/reports/generate_tearsheet.py,904,0.5,AI_MINING,"ax.axvline(0, color=_WHITE, linewidth=0.9, linestyle=""--"", alpha=0.5)"
+luna/reports/generate_tearsheet.py,907,0.2,AI_MINING,"ax.legend(fontsize=8, framealpha=0.2, facecolor=_PANEL,"
+luna/reports/generate_tearsheet.py,924,0.50,AI_MINING,"alpha=0.50, line_kws={""linewidth"": 1.4, ""color"": _PURPLE})"
+luna/reports/generate_tearsheet.py,924,1.4,AI_MINING,"alpha=0.50, line_kws={""linewidth"": 1.4, ""color"": _PURPLE})"
+luna/reports/generate_tearsheet.py,934,0.7,AI_MINING,"ax.axvline(0,        color=_GRAY,    linestyle=""--"", linewidth=0.7, alpha=0.5)"
+luna/reports/generate_tearsheet.py,934,0.5,AI_MINING,"ax.axvline(0,        color=_GRAY,    linestyle=""--"", linewidth=0.7, alpha=0.5)"
+luna/reports/generate_tearsheet.py,944,0.7,AI_MINING,"bbox=dict(facecolor=_BG, edgecolor=""none"", alpha=0.7, pad=1))"
+luna/reports/generate_tearsheet.py,977,0.5,AI_MINING,"min_wins = binom.ppf(1 - alpha, max(n_tr, 1), 0.5)"
+luna/reports/generate_tearsheet.py,1034,0.08,AI_MINING,"facecolor=col, alpha=0.08,"
+luna/reports/generate_tearsheet.py,1064,0.68,AI_MINING,"facecolor=col, alpha=0.68))"
+luna/reports/generate_tearsheet.py,1097,0.2,AI_MINING,"fontsize=7, framealpha=0.2,"
+luna/reports/generate_tearsheet.py,1114,0.5,AI_MINING,"min_wins = binom.ppf(1 - alpha, max(n_tr, 1), 0.5)"
+luna/reports/generate_tearsheet.py,1152,0.08,AI_MINING,"facecolor=col, alpha=0.08,"
+luna/reports/generate_tearsheet.py,1159,0.40,AI_MINING,"ax.barh(y, norm_v, height=0.40, color=col, alpha=0.70, left=0, zorder=2)"
+luna/reports/generate_tearsheet.py,1159,0.70,AI_MINING,"ax.barh(y, norm_v, height=0.40, color=col, alpha=0.70, left=0, zorder=2)"
+luna/reports/generate_tearsheet.py,1193,0.2,AI_MINING,"fontsize=7, framealpha=0.2, facecolor=_PANEL,"
+luna/reports/generate_tearsheet.py,1240,0.72,AI_MINING,"bars = ax.bar(xs, wrs, color=colors_b, alpha=0.72, width=0.55, zorder=2)"
+luna/reports/generate_tearsheet.py,1240,0.55,AI_MINING,"bars = ax.bar(xs, wrs, color=colors_b, alpha=0.72, width=0.55, zorder=2)"
+luna/reports/generate_tearsheet.py,1243,50.0,AI_MINING,"ax.axhline(50.0, color=_YELLOW, linewidth=1.0, linestyle=""--"", alpha=0.7,"
+luna/reports/generate_tearsheet.py,1243,0.7,AI_MINING,"ax.axhline(50.0, color=_YELLOW, linewidth=1.0, linestyle=""--"", alpha=0.7,"
+luna/reports/generate_tearsheet.py,1243,50,AI_MINING,"ax.axhline(50.0, color=_YELLOW, linewidth=1.0, linestyle=""--"", alpha=0.7,"
+luna/reports/generate_tearsheet.py,1270,0.2,AI_MINING,"ax.legend(fontsize=8, framealpha=0.2, facecolor=_PANEL,"
+luna/reports/generate_tearsheet.py,1335,0.75,AI_MINING,"alpha=0.75, edgecolor=_BORDER, linewidth=0.4, zorder=2)"
+luna/reports/generate_tearsheet.py,1335,0.4,AI_MINING,"alpha=0.75, edgecolor=_BORDER, linewidth=0.4, zorder=2)"
+luna/reports/generate_tearsheet.py,1340,1.8,AI_MINING,"color=_YELLOW, linewidth=1.8, linestyle=""--"", alpha=0.9,"
+luna/reports/generate_tearsheet.py,1340,0.9,AI_MINING,"color=_YELLOW, linewidth=1.8, linestyle=""--"", alpha=0.9,"
+luna/reports/generate_tearsheet.py,1359,0.2,AI_MINING,"ax.legend(fontsize=8, framealpha=0.2, facecolor=_PANEL,"
+luna/reports/generate_tearsheet.py,1389,0.75,AI_MINING,"bars       = ax.bar(x, wrs, color=bar_colors, alpha=0.75, width=0.55, zorder=2)"
+luna/reports/generate_tearsheet.py,1389,0.55,AI_MINING,"bars       = ax.bar(x, wrs, color=bar_colors, alpha=0.75, width=0.55, zorder=2)"
+luna/reports/generate_tearsheet.py,1391,1.2,AI_MINING,"ax.axhline(50, color=_YELLOW, linewidth=1.2, linestyle=""--"", alpha=0.7, label=""50% (señal mínima)"")"
+luna/reports/generate_tearsheet.py,1391,0.7,AI_MINING,"ax.axhline(50, color=_YELLOW, linewidth=1.2, linestyle=""--"", alpha=0.7, label=""50% (señal mínima)"")"
+luna/reports/generate_tearsheet.py,1391,50,AI_MINING,"ax.axhline(50, color=_YELLOW, linewidth=1.2, linestyle=""--"", alpha=0.7, label=""50% (señal mínima)"")"
+luna/reports/generate_tearsheet.py,1422,0.2,AI_MINING,"ax.legend(fontsize=8, framealpha=0.2, facecolor=_PANEL, edgecolor=_BORDER, labelcolor=""white"")"
+luna/reports/generate_tearsheet.py,1447,1.2,AI_MINING,"ax.plot(df_all.index, df_all['close'] / 1000, color=_GRAY, linewidth=1.2, alpha=0.5)"
+luna/reports/generate_tearsheet.py,1447,0.5,AI_MINING,"ax.plot(df_all.index, df_all['close'] / 1000, color=_GRAY, linewidth=1.2, alpha=0.5)"
+luna/reports/generate_tearsheet.py,1488,0.2,AI_MINING,"ax.legend(fontsize=8, framealpha=0.2, facecolor=_PANEL, edgecolor=_BORDER, labelcolor=""white"", loc=loc)"
+luna/reports/generate_tearsheet.py,1588,1.5,AI_MINING,"edgecolor=v_color, linewidth=1.5, alpha=0.9))"
+luna/reports/generate_tearsheet.py,1588,0.9,AI_MINING,"edgecolor=v_color, linewidth=1.5, alpha=0.9))"
+scripts/pre_flight/plot_timelines.py,29,0.5,AI_MINING,"ax.plot(df_all_unique.index, df_all_unique['close'], color='gray', linewidth=1, alpha=0.5, label='BTC Close Price')"
+scripts/pre_flight/plot_timelines.py,58,0.1,AI_MINING,"ax.grid(color='white', alpha=0.1)"
+scripts/pre_flight/test_invariants.py,298,5.0,AI_MINING,"assert isinstance(alpha, (int, float)) and 0.0 <= float(alpha) <= 5.0, ("
+scripts/pre_flight/test_v5_bugs.py,171,0.6,AI_MINING,alpha_combined = 0.6 * alpha_golden_score + 0.4 * alpha_genetic_score * 2 - 1
+scripts/pre_flight/test_v5_bugs.py,171,0.4,AI_MINING,alpha_combined = 0.6 * alpha_golden_score + 0.4 * alpha_genetic_score * 2 - 1
+luna/calibration/temperature_scaler.py,99,0.5,COST,3. Si mejora < min_improvement_pct → aplicar TemperatureScaler(T=0.5).
+luna/data/fetch_altcoins.py,112,30,COST,.pct_change(30).mean(axis=1)
+luna/data/fetch_altcoins_coingecko.py,119,30,COST,"df[""Altseason_Score""] = df[altcols].pct_change(30).mean(axis=1)"
+luna/data/fetch_binance.py,8,0.15,COST,- R6: costos 0.15% → misma fuente de datos para backtest y live
+luna/data/fetch_binance.py,208,30,COST,"df[""Altseason_Score""] = df[altcols].pct_change(30).mean(axis=1)"
+luna/data/fetch_defi.py,171,365,COST,"df[""Stablecoin_Cap_YoY""]   = df[""Stablecoin_Cap""].pct_change(365)"
+luna/data/fetch_macro.py,375,30,COST,"""Fed_Liq_Pct30d"":      net_liq.pct_change(30),"
+luna/data/fetch_macro.py,482,0.20,COST,"df[""VIX_Spike""]    = (df[""VIX""].pct_change(1) > 0.20).astype(int)  # +20% en 1d"
+luna/data/fetch_mempool.py,230,90,COST,_ma  = df[fee_col].rolling(90).mean()
+luna/data/fetch_mempool.py,231,90,COST,_std = df[fee_col].rolling(90).std()
+luna/data/fetch_onchain.py,139,30,COST,"chg30 = raw.pct_change(30).rename(""hashrate_chg_30d"")"
+luna/data/fetch_onchain.py,570,30,COST,ma30  = fees.rolling(30).mean()
+luna/data/fetch_onchain.py,571,30,COST,std30 = fees.rolling(30).std()
+luna/data/historical_data_bridge.py,364,30,COST,"mkt_daily[""DXY_Slope30d""] = mkt_daily[""DXY""].pct_change(30)"
+luna/data/historical_data_bridge.py,451,365,COST,"df[""Stablecoin_Cap_YoY""]   = df[""Stablecoin_Cap""].pct_change(365)"
+luna/features/alpha_rules.py,21,60.36,COST,"'ev_pct':      60.36,"
+luna/features/alpha_rules.py,28,60.36,COST,"'ev_pct':      60.36,"
+luna/features/alpha_rules.py,35,56.97,COST,"'ev_pct':      56.97,"
+luna/features/alpha_rules.py,42,72.62,COST,"'ev_pct':      72.62,"
+luna/features/alpha_rules.py,49,72.62,COST,"'ev_pct':      72.62,"
+luna/features/alpha_rules.py,56,72.62,COST,"'ev_pct':      72.62,"
+luna/features/alpha_rules.py,63,72.62,COST,"'ev_pct':      72.62,"
+luna/features/alpha_rules.py,70,72.62,COST,"'ev_pct':      72.62,"
+luna/features/alpha_rules.py,77,67.05,COST,"'ev_pct':      67.05,"
+luna/features/alpha_rules.py,84,67.09,COST,"'ev_pct':      67.09,"
+luna/features/alpha_rules.py,91,38.34,COST,"'ev_pct':      38.34,"
+luna/features/alpha_rules.py,98,38.34,COST,"'ev_pct':      38.34,"
+luna/features/alpha_rules.py,105,38.34,COST,"'ev_pct':      38.34,"
+luna/features/alpha_rules.py,112,38.34,COST,"'ev_pct':      38.34,"
+luna/features/alpha_rules.py,119,38.34,COST,"'ev_pct':      38.34,"
+luna/features/alpha_rules.py,133,0.89,COST,"'ev_pct':      0.89,"
+luna/features/alpha_rules.py,140,0.56,COST,"'ev_pct':      0.56,"
+luna/features/alpha_rules.py,147,0.56,COST,"'ev_pct':      0.56,"
+luna/features/alpha_rules.py,154,0.57,COST,"'ev_pct':      0.57,"
+luna/features/alpha_rules.py,161,0.42,COST,"'ev_pct':      0.42,"
+luna/features/alpha_rules.py,168,0.19,COST,"'ev_pct':      0.19,"
+luna/features/alpha_rules.py,175,0.19,COST,"'ev_pct':      0.19,"
+luna/features/alpha_rules.py,182,0.19,COST,"'ev_pct':      0.19,"
+luna/features/feature_pipeline.py,188,365,COST,"stab[""Stablecoin_Cap_YoY""]   = stab[""Stablecoin_Cap""].pct_change(365*24)"
+luna/features/feature_pipeline.py,392,0.5,COST,"proxy = proxy + df[""Stablecoin_Cap""].pct_change(7*24).fillna(0) * 0.5"
+luna/features/feature_pipeline.py,537,365,COST,"df[""yield_curve_pct_1y""] = df[""YieldCurve_10Y3M""].pct_change(365 * 24)"
+luna/features/feature_pipeline.py,539,365,COST,"df[""yield_curve_pct_1y""] = df[""T10Y2Y""].pct_change(365 * 24)"
+luna/features/feature_pipeline.py,647,90,COST,"fr_pct = df[""FundingRate""].rolling(90*24, min_periods=48).rank(pct=True)"
+luna/features/feature_pipeline.py,648,90,COST,"oi_pct = df[""OI_BTC""].rolling(90*24, min_periods=48).rank(pct=True)"
+luna/features/feature_pipeline.py,682,30,COST,"df[""mc_dxy_slope_30d""] = dxy.pct_change(30 * 24)"
+luna/features/feature_pipeline.py,739,365,COST,"df[""mc_m2_uk_yoy_z90d""] = m2uk.pct_change(365*24)"
+luna/features/feature_pipeline.py,749,30,COST,"df[""oc_hashrate_chg_30d""] = hr.pct_change(30*24)"
+luna/features/feature_pipeline.py,822,30,COST,"df[""ms_stablecoin_flow_30d""] = df[""Stablecoin_Cap""].pct_change(30 * 24)"
+luna/features/feature_pipeline.py,837,90,COST,"df[""dv_funding_pct_90d""] = fr.rolling(90*24).rank(pct=True)"
+luna/features/feature_pipeline.py,904,30,COST,"realized_vol_30d = df[""close""].pct_change(1).rolling(30*24).std() * np.sqrt(365*24) * 100"
+luna/features/feature_pipeline.py,904,365,COST,"realized_vol_30d = df[""close""].pct_change(1).rolling(30*24).std() * np.sqrt(365*24) * 100"
+luna/features/feature_pipeline.py,929,0.90,COST,if _cvd_nan_pct > 0.90:
+luna/features/feature_pipeline.py,1117,90,COST,"df[""vol_percentile_90d""] = ewm_vol.rolling(90 * 24).rank(pct=True)"
+luna/features/feature_pipeline.py,1122,30,COST,vol_30d = close_r.pct_change().rolling(30 * 24).std().clip(lower=1e-9)
+luna/features/feature_pipeline.py,1148,30,COST,"df[""funding_regime""] = fr.rolling(30 * 24).rank(pct=True)"
+luna/features/feature_pipeline.py,1260,96,COST,_dxy_slope = _dxy_raw.pct_change(96)
+luna/features/feature_pipeline.py,1867,0.20,COST,high_nan = nan_pct[nan_pct > 0.20].sort_values(ascending=False)
+luna/features/feature_selection_e.py,146,0.0015,COST,"SFI_COST_ROUNDTRIP    = float(getattr(_cfg_sfi.sop,    'cost_pct',       0.0015))  # compartido"
+luna/features/feature_selection_e.py,163,0.0015,COST,SFI_COST_ROUNDTRIP    = 0.0015
+luna/features/feature_selection_e.py,314,0.85,COST,"_max_nan = float(getattr(_cfg_sfi.features, 'sfi_max_nan_pct', 0.85))"
+luna/features/feature_selection_e.py,849,0.15,COST,R6 SOP: aplica costos 0.15% round-trip a los retornos de cada fold.
+luna/features/feature_selection_e.py,1211,0.85,COST,if _nan_pct > 0.85 or _nunique <= 1:
+luna/features/feature_selection_e.py,2024,0.10,COST,"_hmax_nan = float(getattr(_cfg_sfi.features, 'sfi_holdout_max_nan_pct', 0.10))"
+luna/features/feature_selection_e.py,2028,0.45,COST,_max_trailing_nan_pct = 0.45  # Permite hasta 45% de trailing NaNs (aprox 2.5 meses en un holdout de 6m)
+luna/features/feature_selection_e.py,2028,2.5,COST,_max_trailing_nan_pct = 0.45  # Permite hasta 45% de trailing NaNs (aprox 2.5 meses en un holdout de 6m)
+luna/labeling/online_recalibrator.py,14,0.0015,COST,cost_pct_meta: float = 0.0015
+luna/live/live_inference.py,291,30,COST,historical_vol = float(pct_changes.rolling(30 * 24).std().iloc[-1])
+luna/live/position_sizer.py,148,0.10,COST,if current_pnl_pct >= 0.10 and mvrv_zscore > 2.5:
+luna/live/position_sizer.py,148,2.5,COST,if current_pnl_pct >= 0.10 and mvrv_zscore > 2.5:
+luna/live/reconciliation.py,16,0.5,COST,"Si existe una desviación abrupta (>0.5% por fees o Thelizamientos no trackeados), forzará"
+luna/live/reconciliation.py,20,0.005,COST,ALLOWED_DEVIATION_PCT = 0.005 # 0.5% of Theviation tolerance
+luna/live/reconciliation.py,20,0.5,COST,ALLOWED_DEVIATION_PCT = 0.005 # 0.5% of Theviation tolerance
+luna/losses/monetary_loss.py,26,0.0015,COST,"cost_pct = float(getattr(cfg.sop, 'cost_pct', 0.0015))"
+luna/losses/monetary_loss.py,32,0.0015,COST,cost_pct = 0.0015
+luna/models/calibrate_probabilities.py,749,0.0015,COST,COST_PCT_META = 0.0015  # identico a XGBoost calibrador
+luna/models/calibrate_probabilities.py,966,0.05,COST,"_edge_pct_cal      = float(getattr(_cfg_dynmeta_cal.metalabeler, 'meta_v2_dynamic_edge_pct', 0.05))"
+luna/models/calibrate_probabilities.py,970,0.05,COST,"_edge_pct_cal, _floor_abs_cal = 0.05, 0.38"
+luna/models/calibrate_probabilities.py,970,0.38,COST,"_edge_pct_cal, _floor_abs_cal = 0.05, 0.38"
+luna/models/ensemble_lgbm.py,33,0.15,COST,- R6 (Costos TransacciÃƒÂ³n): 0.15% RT aplicado a las simulaciones de Sharpe.
+luna/models/ensemble_lgbm.py,186,0.0015,COST,"COST_PCT      = float(getattr(_cfg_xgb.sop,  'cost_pct',      0.0015))"
+luna/models/ensemble_lgbm.py,1739,0.20,COST,if _pct_missing > 0.20:
+luna/models/ensemble_lgbm.py,3548,0.40,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/ensemble_lgbm.py,3548,0.75,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/ensemble_lgbm.py,3548,0.01,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/ensemble_lgbm.py,3548,0.30,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/ensemble_lgbm.py,3548,30,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/ensemble_lgbm.py,4237,0.60,COST,_max_density_pct = 0.60
+luna/models/hmm_regime.py,233,720,COST,df['close_ret_720h'] = df['close'].pct_change(720) * 100
+luna/models/hmm_regime.py,716,720,COST,train_mask_df['ret_30d'] = train_mask_df['close'].pct_change(720) * 100
+luna/models/hmm_regime.py,745,365,COST,vol = _cls.resample('D').last().pct_change().dropna().std() * np.sqrt(365) * 100
+luna/models/hmm_regime.py,928,720,COST,ret_720h = close.pct_change(720)
+luna/models/predict_oos.py,1167,0.5,COST,if dd_stop_active and current_dd_pct < MAX_DD_STOP * 0.5:
+luna/models/predict_oos.py,1194,0.0015,COST,"_COST_RT = 0.0015  # 0.15% round-trip (taker fee x2 + slippage x2, SOP R6)"
+luna/models/predict_oos.py,1194,0.15,COST,"_COST_RT = 0.0015  # 0.15% round-trip (taker fee x2 + slippage x2, SOP R6)"
+luna/models/predict_oos.py,1611,0.5,COST,"sh = (df_trades[""return_pct""].mean() / std_r) * (n_per_year ** 0.5)"
+luna/models/signal_filter.py,952,720,COST,ret_30d = close_s.pct_change(720) * 100
+luna/models/train_metalabeler_v2.py,27,0.15,COST,- R6: Costos 0.15% round-trip en evaluación de retornos
+luna/models/train_metalabeler_v2.py,70,0.0015,COST,"COST_PCT           = float(getattr(_cfg_meta.sop,       'cost_pct',           0.0015))"
+luna/models/train_metalabeler_v2.py,1358,0.20,COST,META_MIN_DENSITY_PCT = 0.20  # min 20% de trades del baseline
+luna/models/train_metalabeler_v2.py,1411,0.05,COST,"_edge_pct_dyn  = float(getattr(_cfg_dynmeta.metalabeler, 'meta_v2_dynamic_edge_pct', 0.05))"
+luna/models/train_metalabeler_v2.py,1415,0.05,COST,"_edge_pct_dyn, _floor_abs_dyn = 0.05, 0.38"
+luna/models/train_metalabeler_v2.py,1415,0.38,COST,"_edge_pct_dyn, _floor_abs_dyn = 0.05, 0.38"
+luna/models/train_xgboost_v2.py,10,0.15,COST,- R6 (Costos TransacciÃƒÂ³n): 0.15% RT aplicado a las simulaciones de Sharpe.
+luna/models/train_xgboost_v2.py,55,0.0015,COST,"COST_PCT      = float(getattr(_cfg_xgb.sop,  'cost_pct',      0.0015))"
+luna/models/train_xgboost_v2.py,688,0.40,COST,high_nan = nan_pct[nan_pct > 0.40]
+luna/models/train_xgboost_v2.py,724,0.20,COST,if _pct_missing > 0.20:
+luna/models/train_xgboost_v2.py,1334,0.10,COST,min_train_pct = 0.10
+luna/models/train_xgboost_v2.py,1525,0.40,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/train_xgboost_v2.py,1525,0.75,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/train_xgboost_v2.py,1525,0.01,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/train_xgboost_v2.py,1525,0.30,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/train_xgboost_v2.py,1525,30,COST,"t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30"
+luna/models/train_xgboost_v2.py,1774,0.60,COST,_max_density_pct = 0.60
+luna/reports/generate_tearsheet.py,621,0.40,COST,"ax.fill_between(x, dd_pct, 0, color=_RED, alpha=0.40)"
+luna/reports/generate_validation_report.py,527,0.15,COST,| Costos de transaccion | 0.15% round-trip | OK Conservador |
+luna/reports/generate_validation_report.py,557,0.15,COST,cost_fee:         0.15%
+luna/reports/generate_validation_report.py,602,0.15,COST,R6  – Costos 0.15% minimos                      OK 0.15% descontados en todos los retornos
+luna/utils/ood_feature_guard.py,43,0.95,COST,max_constant_pct:    0.95   # >95% mismo valor → bloqueada
+luna/utils/ood_feature_guard.py,60,0.95,COST,_DEFAULT_MAX_CONSTANT_PCT    = 0.95   # >95% mismo valor → BLOQUEADA
+luna/utils/passthrough_rules.py,18,0.1,COST,- min_var_pct: al menos P% de filas con activacion (default=0.1%)
+luna/utils/passthrough_rules.py,38,0.001,COST,"min_var_pct: float = 0.001,"
+luna/utils/passthrough_rules.py,47,0.1,COST,- min_var_pct: floor relativo (default=0.1% de filas activas)
+luna/utils/passthrough_rules.py,57,0.001,COST,min_var_pct: Fraccion minima de filas con activacion (0.001 = 0.1%).
+luna/utils/passthrough_rules.py,57,0.1,COST,min_var_pct: Fraccion minima de filas con activacion (0.001 = 0.1%).
+luna/utils/pipeline_invariants.py,231,365,COST,"sharpe = (df[""return_pct""].mean() / std_r) * np.sqrt(365 * 24)"
+luna/utils/pipeline_invariants.py,345,0.95,COST,"max_constant_pct: float = 0.95,"
+luna/utils/pipeline_invariants.py,365,0.95,COST,max_constant_pct: Fracción máxima de valores idénticos (0.95 = 95%).
+luna/utils/pipeline_invariants.py,365,95,COST,max_constant_pct: Fracción máxima de valores idénticos (0.95 = 95%).
+luna/validation/phase_gates.py,107,0.50,COST,DATA_MAX_NAN_PCT       = 0.50    # G0
+scripts/data_integrity_check.py,706,0.98,COST,"df, context=context, min_days_frozen=min_days, max_constant_pct=0.98"
+scripts/data_integrity_check.py,868,50.0,COST,_WARN_HIGH_NAN_PCT        = 50.0  # % NaN a partir del cual la feature degrada el SFI
+scripts/evaluate_ensemble_wfb.py,113,0.5,COST,sharpe = (df_seed_trades['return_pct'].mean() / std_r) * (n_per_year ** 0.5)
+scripts/evaluate_ensemble_wfb.py,149,0.5,COST,sharpe_portfolio = (df_portfolio['return_pct'].mean() / std_r) * (n_per_year ** 0.5)
+scripts/pre_flight/test_data.py,34,0.80,COST,bad = nan_pct[(nan_pct > 0.80) & (~nan_pct.index.isin(KNOWN_STRUCTURAL_NAN))]
+scripts/pre_flight/test_data.py,35,0.80,COST,known_bad = nan_pct[(nan_pct > 0.80) & (nan_pct.index.isin(KNOWN_STRUCTURAL_NAN))]
+scripts/pre_flight/test_data.py,38,0.50,COST,warn = nan_pct[(nan_pct > 0.50) & (~nan_pct.index.isin(KNOWN_STRUCTURAL_NAN))]
+scripts/pre_flight/test_data.py,229,0.95,COST,elif nan_pct > 0.95:
+scripts/pre_flight/test_env.py,1390,0.15,COST,El retorno en oos_trades.parquet debe ser NETO de costos (0.15% round-trip).
+scripts/pre_flight/test_env.py,1417,0.15,COST,"cfg_cost = float(getattr(getattr(cfg2, ""costs"", object()), ""round_trip_pct"", 0.15)) / 100"
+scripts/pre_flight/test_env.py,1418,0.0010,COST,"assert cost >= 0.0010, ("
+scripts/pre_flight/test_invariants.py,614,0.05,COST,"assert nan_pct < 0.05, ("
+scripts/pre_flight/test_math.py,52,0.0015,COST,"assert cost >= 0.0015, f""SFI_COST_ROUNDTRIP={cost} < 0.0015"""
+scripts/pre_flight/test_math.py,107,0.0015,COST,"assert cost >= 0.0015, f""COST_PCT literal={cost} < 0.0015 en MetaLabelerV2"""
+scripts/pre_flight/test_math.py,111,0.0015,COST,"cfg_cost = float(getattr(getattr(_cfg(), ""sop"", object()), ""cost_pct"", 0.0015))"
+scripts/pre_flight/test_math.py,112,0.0015,COST,"assert cfg_cost >= 0.0015, f""cfg.sop.cost_pct={cfg_cost} < 0.0015"""
+scripts/pre_flight/test_r14_fixes.py,30,0.95,COST,if nan_pct >= 0.95:
+scripts/pre_flight/test_r14_fixes.py,62,0.10,COST,"tag = ""[AVISO-pre-run14-data]"" if nan_pct >= 0.10 else ""OK"""
+scripts/pre_flight/test_r14_fixes.py,301,0.95,COST,if nan_pct > 0.95:
+scripts/pre_flight/test_sop.py,89,0.0015,COST,"assert cost >= 0.0015, f""COST_PCT={cost} < 0.0015 en settings"""
+scripts/pre_flight/test_temporal.py,206,65.0,COST,if pct_t < 65.0:
+scripts/pre_flight/test_temporal.py,208,8.0,COST,if pct_h < 8.0:
+luna/features/feature_selection_e.py,1153,30,CV_PARAMS,"_n_obs_oob = max(int(_n_obs_common_preview * _k_test / max(self.n_groups, 1)), 30)"
+luna/models/ensemble_lgbm.py,157,600,CV_PARAMS,"OPTUNA_TRIALS = int(getattr(_cfg_xgb.xgboost, 'optuna_trials', 600))"
+luna/models/ensemble_lgbm.py,2055,4.0,CV_PARAMS,_eta_h = OPTUNA_TRIALS * n_paths_total * 4.0 / 3600  # ~4s/fold estimado
+luna/models/ensemble_lgbm.py,2083,4.0,CV_PARAMS,"_math.comb(10, 2) * OPTUNA_TRIALS * 4.0 / 3600,"
+luna/models/ensemble_lgbm.py,2143,12.000,CV_PARAMS,"- En CPCV C(10,2)=45 paths, cada path OOS tiene ~12.000 observaciones."
+luna/models/ensemble_lgbm.py,3204,42,CV_PARAMS,"_optuna_seed = int(getattr(_cfg_xgb.xgboost, 'optuna_seed', 42))"
+luna/models/ensemble_lgbm.py,5215,30,CV_PARAMS,"trials_per_regime = max(30, OPTUNA_TRIALS // n_regimes)"
+luna/models/train_xgboost_v2.py,47,600,CV_PARAMS,"OPTUNA_TRIALS = int(getattr(_cfg_xgb.xgboost, 'optuna_trials', 600))"
+luna/models/train_xgboost_v2.py,861,4.0,CV_PARAMS,_eta_h = OPTUNA_TRIALS * n_paths_total * 4.0 / 3600  # ~4s/fold estimado
+luna/models/train_xgboost_v2.py,868,4.0,CV_PARAMS,"_math.comb(10, 2) * OPTUNA_TRIALS * 4.0 / 3600,"
+luna/models/train_xgboost_v2.py,886,12.000,CV_PARAMS,"- En CPCV C(10,2)=45 paths, cada path OOS tiene ~12.000 observaciones."
+luna/models/train_xgboost_v2.py,1129,0.5,CV_PARAMS,"_fl_gamma_min = float(getattr(_cfg_opts.xgboost.optuna_search_space, 'focal_loss_gamma_min', 0.5))"
+luna/models/train_xgboost_v2.py,1130,4.0,CV_PARAMS,"_fl_gamma_max = float(getattr(_cfg_opts.xgboost.optuna_search_space, 'focal_loss_gamma_max', 4.0))"
+luna/models/train_xgboost_v2.py,1435,42,CV_PARAMS,"_optuna_seed = int(getattr(_cfg_xgb.xgboost, 'optuna_seed', 42))"
+luna/models/train_xgboost_v2.py,2437,30,CV_PARAMS,"trials_per_regime = max(30, OPTUNA_TRIALS // n_regimes)"
+luna/features/autoencoder_features.py,31,0.2,NN_ARCH,"nn.Dropout(0.2),"
+luna/features/autoencoder_features.py,36,0.1,NN_ARCH,"nn.Dropout(0.1),"
+luna/models/train_autoencoder.py,33,0.2,NN_ARCH,"def __init__(self, input_dim: int, latent_dim: int = 32, dropout_rate: float = 0.2):"
+luna/models/train_metalabeler_v2.py,73,32,NN_ARCH,"LSTM_HIDDEN        = int(getattr(_cfg_meta.metalabeler, 'lstm_hidden',        32))"
+luna/models/train_metalabeler_v2.py,167,0.5,NN_ARCH,"def __init__(self, input_dim: int, hidden_dim: int = LSTM_HIDDEN, dropout: float = 0.5):"
+luna/models/train_metalabeler_v2.py,1521,0.5,NN_ARCH,"""dropout"": 0.5,"
+luna/reports/generate_validation_report.py,161,32,NN_ARCH,"ml2_hidden   = ml2.get(""lstm_hidden"", 32)"
+luna/ai_mining/advanced_engine.py,45,0.05,OTHER,ISOLATION_CONT   = 0.05
+luna/ai_mining/advanced_engine.py,100,0.001,OTHER,"stars = ""***"" if p<0.001 else ""**"" if p<0.01 else ""*"" if p<0.05 else """""
+luna/ai_mining/advanced_engine.py,100,0.01,OTHER,"stars = ""***"" if p<0.001 else ""**"" if p<0.01 else ""*"" if p<0.05 else """""
+luna/ai_mining/advanced_engine.py,100,0.05,OTHER,"stars = ""***"" if p<0.001 else ""**"" if p<0.01 else ""*"" if p<0.05 else """""
+luna/ai_mining/advanced_engine.py,143,0.9,OTHER,"def tail_dependence(self, x, y, q=0.9):"
+luna/ai_mining/advanced_engine.py,206,0.75,OTHER,n=len(X); Xt=X.iloc[:int(n*0.75)]; yt=y.iloc[:int(n*0.75)]
+luna/ai_mining/advanced_engine.py,266,0.5,OTHER,mu=float(sig.mean()); s=float(sig.std()+1e-8); k=0.5*s; h=5*s
+luna/ai_mining/advanced_engine.py,324,0.1,OTHER,"im=ax.imshow(mat,cmap=""RdYlGn"",aspect=""auto"",vmin=-0.1,vmax=0.1)"
+luna/ai_mining/advanced_engine.py,340,0.7,OTHER,"ax1.plot(pr,color=""#3498db"",linewidth=0.7,label=""BTC Price"")"
+luna/ai_mining/advanced_engine.py,344,0.6,OTHER,"ax2.plot(raw,color=""#9b59b6"",linewidth=0.6)"
+luna/ai_mining/advanced_engine.py,345,1.5,OTHER,"ax2.axhline(np.percentile(raw,ISOLATION_CONT*100),color=""#e74c3c"",linestyle=""--"",linewidth=1.5,label=""Umbral"")"
+luna/ai_mining/advanced_engine.py,360,0.7,OTHER,"ax1.plot(df.index,df[""close""].values,color=""#3498db"",linewidth=0.7)"
+luna/ai_mining/advanced_engine.py,423,0.01,OTHER,"+(1 if abs(te)>0.01 else 0)+(1 if tail[""lambda_upper""]>0.3 else 0)+(1 if sp[""max_coherence""]>0.3 else 0)})"
+luna/ai_mining/advanced_engine.py,423,0.3,OTHER,"+(1 if abs(te)>0.01 else 0)+(1 if tail[""lambda_upper""]>0.3 else 0)+(1 if sp[""max_coherence""]>0.3 else 0)})"
+luna/ai_mining/advanced_engine.py,558,0.2,OTHER,if lu > 0.2 or ll > 0.2:
+luna/ai_mining/advanced_engine.py,637,0.01,OTHER,if abs(te) > 0.01:
+luna/ai_mining/advanced_engine.py,639,0.2,OTHER,if tail > 0.2:
+luna/ai_mining/bayesian_causal_engine.py,223,90,OTHER,"mu90  = col.rolling(90 * 24, min_periods=24).mean()"
+luna/ai_mining/bayesian_causal_engine.py,224,90,OTHER,"std90 = col.rolling(90 * 24, min_periods=24).std().replace(0, 1)"
+luna/ai_mining/bayesian_causal_engine.py,402,0.5,OTHER,time.sleep(0.5)
+luna/ai_mining/cluster_pattern_engine.py,257,50.0,OTHER,"""fomc_wr"":     round(float(fomc_wr.iloc[1]) * 100, 1) if len(fomc_wr) > 1 else 50.0,"
+luna/ai_mining/cluster_pattern_engine.py,258,50.0,OTHER,"""nonfomc_wr"":  round(float(nonfomc_wr.iloc[1]) * 100, 1) if len(nonfomc_wr) > 1 else 50.0,"
+luna/ai_mining/cluster_pattern_engine.py,309,50.0,OTHER,"fomc_wr = season.get(""fomc_wr"", 50.0)"
+luna/ai_mining/cluster_pattern_engine.py,309,50,OTHER,"fomc_wr = season.get(""fomc_wr"", 50.0)"
+luna/ai_mining/cluster_pattern_engine.py,310,50.0,OTHER,"nonfomc_wr = season.get(""nonfomc_wr"", 50.0)"
+luna/ai_mining/cluster_pattern_engine.py,310,50,OTHER,"nonfomc_wr = season.get(""nonfomc_wr"", 50.0)"
+luna/ai_mining/deep_discovery_engine.py,60,0.25,OTHER,MUTATION_RATE    = 0.25   # fallback — overridden by settings.yaml (0.10)
+luna/ai_mining/deep_discovery_engine.py,60,0.10,OTHER,MUTATION_RATE    = 0.25   # fallback — overridden by settings.yaml (0.10)
+luna/ai_mining/deep_discovery_engine.py,61,0.70,OTHER,CROSSOVER_RATE   = 0.70   # fallback
+luna/ai_mining/deep_discovery_engine.py,63,0.56,OTHER,MIN_WIN_RATE     = 0.56   # umbral genético (un poco más laxo que golden)
+luna/ai_mining/deep_discovery_engine.py,66,0.10,OTHER,ELITE_FRAC       = 0.10   # top 10% pasan directamente a la siguiente gen
+luna/ai_mining/deep_discovery_engine.py,232,0.75,OTHER,"X_tr, y_tr = X.iloc[:int(n*0.75)], y.iloc[:int(n*0.75)]"
+luna/ai_mining/deep_discovery_engine.py,233,0.75,OTHER,"X_te, y_te = X.iloc[int(n*0.75):], y.iloc[int(n*0.75):]"
+luna/ai_mining/deep_discovery_engine.py,262,0.90,OTHER,if cumulative / total >= 0.90:
+luna/ai_mining/deep_discovery_engine.py,340,1.5,OTHER,"axes[k+1].plot(hist_n, color=color, linewidth=1.5)"
+luna/ai_mining/deep_discovery_engine.py,346,1.01,OTHER,"fontsize=12, fontweight=""bold"", y=1.01)"
+luna/ai_mining/deep_discovery_engine.py,371,0.25,OTHER,"""q25"": col.quantile(0.25),"
+luna/ai_mining/deep_discovery_engine.py,372,0.50,OTHER,"""q50"": col.quantile(0.50),"
+luna/ai_mining/deep_discovery_engine.py,372,50,OTHER,"""q50"": col.quantile(0.50),"
+luna/ai_mining/deep_discovery_engine.py,373,0.75,OTHER,"""q75"": col.quantile(0.75),"
+luna/ai_mining/deep_discovery_engine.py,373,75,OTHER,"""q75"": col.quantile(0.75),"
+luna/ai_mining/deep_discovery_engine.py,608,60,OTHER,"wr_str = f""**{d['win_rate']}%**"" if d['win_rate'] >= 60 else f""{d['win_rate']}%"""
+luna/ai_mining/deep_discovery_engine.py,641,42,OTHER,random.seed(42)
+luna/ai_mining/deep_discovery_engine.py,642,42,OTHER,np.random.seed(42)
+luna/ai_mining/export_alpha_rules.py,232,0.5,OTHER,return 0.5
+luna/ai_mining/export_alpha_rules.py,241,0.5,OTHER,return 0.5
+luna/ai_mining/export_alpha_rules.py,408,0.56,OTHER,"default_wr_by_bias = {'LARGA': 0.56, 'NEUTRAL': 0.50, 'CORTA': 0.44}"
+luna/ai_mining/export_alpha_rules.py,408,0.50,OTHER,"default_wr_by_bias = {'LARGA': 0.56, 'NEUTRAL': 0.50, 'CORTA': 0.44}"
+luna/ai_mining/export_alpha_rules.py,408,0.44,OTHER,"default_wr_by_bias = {'LARGA': 0.56, 'NEUTRAL': 0.50, 'CORTA': 0.44}"
+luna/ai_mining/export_alpha_rules.py,414,0.50,OTHER,"wr_map_final[tid] = default_wr_by_bias.get(bias_val, 0.50)"
+luna/ai_mining/master_pattern_engine.py,11,30,OTHER,que maximicen Win Rate con >= 30 ocurrencias (significancia R8)
+luna/ai_mining/master_pattern_engine.py,44,0.58,OTHER,MIN_WIN_RATE     = 0.58  # mínimo WR para considerar una regla válida
+luna/ai_mining/master_pattern_engine.py,163,0.01,OTHER,return (ret24 > 0.01).astype(int)
+luna/ai_mining/master_pattern_engine.py,174,0.25,OTHER,"q25, q75 = col.quantile(0.25), col.quantile(0.75)"
+luna/ai_mining/master_pattern_engine.py,174,0.75,OTHER,"q25, q75 = col.quantile(0.25), col.quantile(0.75)"
+luna/ai_mining/master_pattern_engine.py,174,75,OTHER,"q25, q75 = col.quantile(0.25), col.quantile(0.75)"
+luna/ai_mining/master_pattern_engine.py,196,0.25,OTHER,"quantiles[var] = (col.quantile(0.25), col.quantile(0.75))"
+luna/ai_mining/master_pattern_engine.py,196,0.75,OTHER,"quantiles[var] = (col.quantile(0.25), col.quantile(0.75))"
+luna/ai_mining/master_pattern_engine.py,196,75,OTHER,"quantiles[var] = (col.quantile(0.25), col.quantile(0.75))"
+luna/ai_mining/master_pattern_engine.py,218,0.9,OTHER,"if max(wr_h, wr_l) < MIN_WIN_RATE * 0.9:"
+luna/calibration/temperature_scaler.py,12,0.57,OTHER,"Convierte {0.57, 0.59, 0.61} en {0.45, 0.59, 0.73} con T=0.5."
+luna/calibration/temperature_scaler.py,12,0.59,OTHER,"Convierte {0.57, 0.59, 0.61} en {0.45, 0.59, 0.73} con T=0.5."
+luna/calibration/temperature_scaler.py,12,0.61,OTHER,"Convierte {0.57, 0.59, 0.61} en {0.45, 0.59, 0.73} con T=0.5."
+luna/calibration/temperature_scaler.py,12,0.45,OTHER,"Convierte {0.57, 0.59, 0.61} en {0.45, 0.59, 0.73} con T=0.5."
+luna/calibration/temperature_scaler.py,12,0.73,OTHER,"Convierte {0.57, 0.59, 0.61} en {0.45, 0.59, 0.73} con T=0.5."
+luna/calibration/temperature_scaler.py,12,0.5,OTHER,"Convierte {0.57, 0.59, 0.61} en {0.45, 0.59, 0.73} con T=0.5."
+luna/calibration/temperature_scaler.py,13,0.5,OTHER,T > 1.0: SOFTENING  → comprime hacia 0.5 (modelos overconfident).
+luna/calibration/temperature_scaler.py,54,0.57,OTHER,p=0.57 → logit=-0.241 → logit/T=-0.482 → p'=0.382
+luna/calibration/temperature_scaler.py,54,0.241,OTHER,p=0.57 → logit=-0.241 → logit/T=-0.482 → p'=0.382
+luna/calibration/temperature_scaler.py,54,0.482,OTHER,p=0.57 → logit=-0.241 → logit/T=-0.482 → p'=0.382
+luna/calibration/temperature_scaler.py,55,0.59,OTHER,p=0.59 → logit=-0.041 → logit/T=-0.082 → p'=0.479
+luna/calibration/temperature_scaler.py,55,0.041,OTHER,p=0.59 → logit=-0.041 → logit/T=-0.082 → p'=0.479
+luna/calibration/temperature_scaler.py,55,0.082,OTHER,p=0.59 → logit=-0.041 → logit/T=-0.082 → p'=0.479
+luna/calibration/temperature_scaler.py,56,0.62,OTHER,p=0.62 → logit=+0.489 → logit/T=+0.978 → p'=0.727
+luna/calibration/temperature_scaler.py,56,0.489,OTHER,p=0.62 → logit=+0.489 → logit/T=+0.978 → p'=0.727
+luna/calibration/temperature_scaler.py,56,0.978,OTHER,p=0.62 → logit=+0.489 → logit/T=+0.978 → p'=0.727
+luna/calibration/temperature_scaler.py,59,0.5,OTHER,"def __init__(self, temperature: float = 0.5):"
+luna/calibration/temperature_scaler.py,91,0.5,OTHER,"temperature:   float = 0.5,"
+luna/data/btc_supply.py,24,25.0,OTHER,"{'date': '2012-11-28', 'block': 210_000,  'reward': 25.0},"
+luna/data/btc_supply.py,25,12.5,OTHER,"{'date': '2016-07-09', 'block': 420_000,  'reward': 12.5},"
+luna/data/btc_supply.py,26,6.25,OTHER,"{'date': '2020-05-11', 'block': 630_000,  'reward':  6.25},"
+luna/data/btc_supply.py,27,3.125,OTHER,"{'date': '2024-04-20', 'block': 840_000,  'reward':  3.125},"
+luna/data/btc_supply.py,30,50.0,OTHER,INITIAL_REWARD = 50.0
+luna/data/fetch_altcoins_coingecko.py,81,65,OTHER,time.sleep(65)
+luna/data/fetch_altcoins_coingecko.py,98,1.5,OTHER,time.sleep(1.5)  # Rate limit gentil (30 req/min Demo)
+luna/data/fetch_altcoins_coingecko.py,98,30,OTHER,time.sleep(1.5)  # Rate limit gentil (30 req/min Demo)
+luna/data/fetch_binance.py,92,1.5,OTHER,"wait = round(1.5 ** attempt, 1)  # 1.0s, 1.5s (vs anterior: 2s, 4s, 8s)"
+luna/data/fetch_binance.py,99,1.5,OTHER,"wait = round(1.5 ** attempt, 1)"
+luna/data/fetch_binance.py,103,500,OTHER,if resp is None or resp.status_code >= 500:
+luna/data/fetch_binance.py,119,0.1,OTHER,time.sleep(0.1)  # rate limit Binance: 1200 requests/min
+luna/data/fetch_binance.py,169,1.2,OTHER,Fuente alternativa a yfinance para entornos donde yfinance 1.2.x falla.
+luna/data/fetch_binance_l2.py,49,0.98,OTHER,bid_cutoff = mid_price * 0.98
+luna/data/fetch_binance_l2.py,50,1.02,OTHER,ask_cutoff = mid_price * 1.02
+luna/data/fetch_bybit.py,88,1.5,OTHER,"wait = round(1.5 ** attempt, 1)"
+luna/data/fetch_bybit.py,95,1.5,OTHER,"wait = round(1.5 ** attempt, 1)"
+luna/data/fetch_bybit.py,101,500,OTHER,if resp is None or resp.status_code >= 500:
+luna/data/fetch_cohorts_divisibility.py,39,30,OTHER,t_start = t_now - (30 * 24 * 60 * 60)
+luna/data/fetch_crossasset.py,50,60,OTHER,"wait = int(r.headers.get(""Retry-After"", 60))"
+luna/data/fetch_crossasset.py,93,0.2,OTHER,time.sleep(0.2)
+luna/data/fetch_defi.py,198,0.5,OTHER,time.sleep(0.5)  # rate limit DeFi Llama
+luna/data/fetch_derivatives.py,8,0.1,OTHER,- FundingRate   ← señal contrarian en extremos (±0.1%)
+luna/data/fetch_derivatives.py,186,0.1,OTHER,Extremos ±0.1% → señal contrarian. Kill-switch si > 0.1%.
+luna/data/fetch_derivatives.py,568,0.0005,OTHER,"fr > 0.0005,  1,   # caro ponerse long → presión a la baja"
+luna/data/fetch_derivatives.py,569,0.0001,OTHER,"np.where(fr < -0.0001, -1,  # caro ponerse short → presión al alza"
+luna/data/fetch_macro.py,12,0.346,OTHER,- YieldCurve_10Y3M  ← TE_net=0.346 (mayor de todos)
+luna/data/fetch_macro.py,14,0.285,OTHER,"- M2_USA / M2_YoY   ← lag 42d (R1), TE_net=0.285"
+luna/data/fetch_macro.py,111,42,OTHER,SAFETY LAG: aplicar shift(42) en feature_pipeline.py (NO aqui).
+luna/data/fetch_macro.py,112,42,OTHER,Correlacion BTC-M2 documentada con lag ~6 semanas (42 dias).
+luna/data/fetch_macro.py,160,42,OTHER,SAFETY LAG: aplicar shift(42) en pipeline.
+luna/data/fetch_macro.py,176,42,OTHER,SAFETY LAG: aplicar shift(42) en pipeline.
+luna/data/fetch_macro.py,191,0.35,OTHER,"Pesos aproximados por tamaño de economía: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,191,0.30,OTHER,"Pesos aproximados por tamaño de economía: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,191,0.25,OTHER,"Pesos aproximados por tamaño de economía: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,191,0.10,OTHER,"Pesos aproximados por tamaño de economía: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,193,42,OTHER,SAFETY LAG: aplicar shift(42) en pipeline.
+luna/data/fetch_macro.py,196,0.35,OTHER,"""M2SL"":              0.35,   # USA"
+luna/data/fetch_macro.py,197,0.30,OTHER,"""MYAGM2CNM189N"":     0.30,   # China (N = serie activa)"
+luna/data/fetch_macro.py,198,0.25,OTHER,"""MABMM301EZM189N"":   0.25,   # EU"
+luna/data/fetch_macro.py,199,0.10,OTHER,"""MABMM301JPM189N"":   0.10,   # Japan"
+luna/data/fetch_macro.py,229,0.35,OTHER,"Pesos: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,229,0.30,OTHER,"Pesos: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,229,0.25,OTHER,"Pesos: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,229,0.10,OTHER,"Pesos: USA 0.35, China 0.30, EU 0.25, Japan 0.10."
+luna/data/fetch_macro.py,232,0.35,OTHER,"""M2_USA_raw"":   0.35,"
+luna/data/fetch_macro.py,233,0.30,OTHER,"""M2_China_raw"": 0.30,"
+luna/data/fetch_macro.py,234,0.25,OTHER,"""M2_EU_raw"":    0.25,"
+luna/data/fetch_macro.py,235,0.10,OTHER,"""M2_Japan_raw"": 0.10,"
+luna/data/fetch_macro.py,256,0.268,OTHER,SHAP #1 en Correlaciones. TE_net=0.268. Safety lag: 14d.
+luna/data/fetch_macro.py,301,0.346,OTHER,- YieldCurve_10Y3M: TE_net=0.346 (el mayor de TODOS los indicadores).
+luna/data/fetch_macro.py,302,79.1,OTHER,- YieldCurve_30Y10Y: Golden Rule Correlaciones (WR 79.1%).
+luna/data/fetch_macro.py,302,79,OTHER,- YieldCurve_30Y10Y: Golden Rule Correlaciones (WR 79.1%).
+luna/data/fetch_macro.py,366,90,OTHER,ma90    = net_liq.rolling(90).mean()
+luna/data/fetch_macro.py,367,90,OTHER,std90   = net_liq.rolling(90).std()
+luna/data/fetch_macro.py,468,30,OTHER,"df[""DXY_Slope30d""] = df[""DXY""].rolling(30).apply("
+luna/data/fetch_macro.py,474,90,OTHER,"ma90 = df[""DXY""].rolling(90).mean()"
+luna/data/fetch_macro.py,475,90,OTHER,"std90 = df[""DXY""].rolling(90).std()"
+luna/data/fetch_macro.py,706,90,OTHER,ma90_3 = g3_liq.rolling(90).mean()
+luna/data/fetch_macro.py,707,90,OTHER,std90_3 = g3_liq.rolling(90).std()
+luna/data/fetch_macro.py,714,90,OTHER,ma90_4 = g4_liq.rolling(90).mean()
+luna/data/fetch_macro.py,715,90,OTHER,std90_4 = g4_liq.rolling(90).std()
+luna/data/fetch_macro.py,801,90,OTHER,"_dxy_ma   = df[""DXY""].rolling(90).mean()"
+luna/data/fetch_macro.py,802,90,OTHER,"_dxy_std  = df[""DXY""].rolling(90).std()"
+luna/data/fetch_mempool.py,220,90,OTHER,"ma  = df[""unconfirmed_count""].rolling(90).mean()"
+luna/data/fetch_mempool.py,221,90,OTHER,"std = df[""unconfirmed_count""].rolling(90).std()"
+luna/data/fetch_mempool.py,228,0.1,OTHER,"if c in df.columns and df[c].notna().mean() > 0.1), None)"
+luna/data/fetch_onchain.py,50,429,OTHER,GET con reintentos y manejo de rate limiting (429).
+luna/data/fetch_onchain.py,57,60,OTHER,"wait = int(r.headers.get(""Retry-After"", 60))"
+luna/data/fetch_onchain.py,137,30,OTHER,"ma30  = raw.rolling(30).mean().rename(""hashrate_30d_ma"")"
+luna/data/fetch_onchain.py,138,60,OTHER,"ma60  = raw.rolling(60).mean().rename(""hashrate_60d_ma"")"
+luna/data/fetch_onchain.py,178,0.5,OTHER,> 4: zona de venta (históricamente tops). < 0.5: zona de compra.
+luna/data/fetch_onchain.py,186,365,OTHER,ma365 = rev_daily.rolling(365).mean()
+luna/data/fetch_onchain.py,200,6.25,OTHER,"reward = pd.Series(6.25, index=close.index)"
+luna/data/fetch_onchain.py,201,12.5,OTHER,"reward.loc[close.index < pd.Timestamp(""2020-05-11"", tz=""UTC"")] = 12.5"
+luna/data/fetch_onchain.py,202,3.125,OTHER,"reward.loc[close.index >= pd.Timestamp(""2024-04-20"", tz=""UTC"")] = 3.125"
+luna/data/fetch_onchain.py,207,365,OTHER,ma365 = daily_issuance.rolling(365).mean()
+luna/data/fetch_onchain.py,296,30,OTHER,obv_ma30 = obv.rolling(30).mean()
+luna/data/fetch_onchain.py,318,90,OTHER,realized_90d = close.rolling(90).mean()
+luna/data/fetch_onchain.py,356,54.0,OTHER,"""2019-01-01"": 54.0,"
+luna/data/fetch_onchain.py,357,66.0,OTHER,"""2020-01-01"": 66.0,"
+luna/data/fetch_onchain.py,358,69.0,OTHER,"""2021-01-01"": 69.0,"
+luna/data/fetch_onchain.py,359,40.0,OTHER,"""2021-06-01"": 40.0,  # peak alt season"
+luna/data/fetch_onchain.py,360,41.0,OTHER,"""2022-01-01"": 41.0,"
+luna/data/fetch_onchain.py,362,48.0,OTHER,"""2023-06-01"": 48.0,"
+luna/data/fetch_onchain.py,363,53.0,OTHER,"""2024-01-01"": 53.0,"
+luna/data/fetch_onchain.py,364,58.0,OTHER,"""2025-01-01"": 58.0,"
+luna/data/fetch_onchain.py,374,1.5,OTHER,time.sleep(1.5)  # rate limit CoinGecko
+luna/data/fetch_onchain.py,408,54.0,OTHER,"""2019-01-01"": 54.0, ""2020-01-01"": 66.0, ""2021-01-01"": 69.0,"
+luna/data/fetch_onchain.py,408,66.0,OTHER,"""2019-01-01"": 54.0, ""2020-01-01"": 66.0, ""2021-01-01"": 69.0,"
+luna/data/fetch_onchain.py,408,69.0,OTHER,"""2019-01-01"": 54.0, ""2020-01-01"": 66.0, ""2021-01-01"": 69.0,"
+luna/data/fetch_onchain.py,409,40.0,OTHER,"""2021-06-01"": 40.0, ""2022-01-01"": 41.0, ""2022-12-01"": 38.0,"
+luna/data/fetch_onchain.py,409,41.0,OTHER,"""2021-06-01"": 40.0, ""2022-01-01"": 41.0, ""2022-12-01"": 38.0,"
+luna/data/fetch_onchain.py,409,38.0,OTHER,"""2021-06-01"": 40.0, ""2022-01-01"": 41.0, ""2022-12-01"": 38.0,"
+luna/data/fetch_onchain.py,410,48.0,OTHER,"""2023-06-01"": 48.0, ""2024-01-01"": 53.0, ""2025-01-01"": 58.0,"
+luna/data/fetch_onchain.py,410,53.0,OTHER,"""2023-06-01"": 48.0, ""2024-01-01"": 53.0, ""2025-01-01"": 58.0,"
+luna/data/fetch_onchain.py,410,58.0,OTHER,"""2023-06-01"": 48.0, ""2024-01-01"": 53.0, ""2025-01-01"": 58.0,"
+luna/data/fetch_onchain.py,482,90,OTHER,ma90  = ssr.rolling(90).mean()
+luna/data/fetch_onchain.py,483,90,OTHER,std90 = ssr.rolling(90).std()
+luna/data/fetch_onchain.py,505,350,OTHER,"ma350 = close.rolling(350).mean().rename(""pi_cycle_ma350"")"
+luna/data/fetch_onchain.py,543,30,OTHER,ma30  = whale_usd.rolling(30).mean()
+luna/data/fetch_onchain.py,544,30,OTHER,std30 = whale_usd.rolling(30).std()
+luna/data/historical_data_bridge.py,217,0.5,OTHER,"oi_series = df.get(""OI_USD"", pd.Series(0.5, index=df.index))"
+luna/data/historical_data_bridge.py,366,90,OTHER,"ma90 = mkt_daily[""DXY""].rolling(90).mean()"
+luna/data/historical_data_bridge.py,367,90,OTHER,"std90 = mkt_daily[""DXY""].rolling(90).std()"
+luna/data/m2_global_fetcher.py,74,0.40,OTHER,"(df_merged[""US_M2_YoY""] * 0.40) +"
+luna/data/m2_global_fetcher.py,75,0.25,OTHER,"(df_merged[""EU_M2_YoY""] * 0.25) +"
+luna/data/m2_global_fetcher.py,76,0.25,OTHER,"(df_merged[""CN_M2_YoY""] * 0.25) +"
+luna/data/m2_global_fetcher.py,77,0.10,OTHER,"(df_merged[""JP_M2_YoY""] * 0.10)"
+luna/database/db_manager.py,71,50,OTHER,"component VARCHAR(50) UNIQUE NOT NULL,"
+luna/database/db_manager.py,136,5000.0,OTHER,"VALUES (1, 5000.0, 5000.0, %s)"
+luna/database/db_manager.py,136,5000,OTHER,"VALUES (1, 5000.0, 5000.0, %s)"
+luna/features/alpha_rules.py,132,72.9,OTHER,"'win_rate':    72.9,"
+luna/features/alpha_rules.py,139,62.2,OTHER,"'win_rate':    62.2,"
+luna/features/alpha_rules.py,146,62.2,OTHER,"'win_rate':    62.2,"
+luna/features/alpha_rules.py,153,62.1,OTHER,"'win_rate':    62.1,"
+luna/features/alpha_rules.py,160,59.9,OTHER,"'win_rate':    59.9,"
+luna/features/alpha_rules.py,167,59.4,OTHER,"'win_rate':    59.4,"
+luna/features/alpha_rules.py,174,59.4,OTHER,"'win_rate':    59.4,"
+luna/features/alpha_rules.py,181,59.4,OTHER,"'win_rate':    59.4,"
+luna/features/alpha_rules.py,209,0.531,OTHER,"TRIBE_WR_MAP: dict[int, float] = {2: 0.531, 1: 0.529, 0: 0.494, 3: 0.46}"
+luna/features/alpha_rules.py,209,0.529,OTHER,"TRIBE_WR_MAP: dict[int, float] = {2: 0.531, 1: 0.529, 0: 0.494, 3: 0.46}"
+luna/features/alpha_rules.py,209,0.494,OTHER,"TRIBE_WR_MAP: dict[int, float] = {2: 0.531, 1: 0.529, 0: 0.494, 3: 0.46}"
+luna/features/alpha_rules.py,209,0.46,OTHER,"TRIBE_WR_MAP: dict[int, float] = {2: 0.531, 1: 0.529, 0: 0.494, 3: 0.46}"
+luna/features/alpha_rules.py,382,0.5,OTHER,df['tribe_wr_historical'] = df[tribe_col].map(TRIBE_WR_MAP).fillna(0.5)
+luna/features/autoencoder_features.py,30,0.2,OTHER,"nn.LeakyReLU(0.2),"
+luna/features/autoencoder_features.py,35,0.2,OTHER,"nn.LeakyReLU(0.2),"
+luna/features/autoencoder_features.py,46,0.2,OTHER,"nn.LeakyReLU(0.2),"
+luna/features/autoencoder_features.py,50,0.2,OTHER,"nn.LeakyReLU(0.2),"
+luna/features/calendar_features.py,104,365,OTHER,"df[""cal_days_to_fomc""] = pd.Series(days_to_fomc.values, index=df.index).fillna(365).astype(int)"
+luna/features/calendar_features.py,166,31,OTHER,"df[""cal_deribit_expiry_days""] = pd.Series(days_to_expiry.values, index=df.index).fillna(31).astype(int)"
+luna/features/calendar_features.py,305,42000.0,OTHER,"df_test = pd.DataFrame({""close"": 42000.0}, index=idx)"
+luna/features/feature_pipeline.py,361,90,OTHER,"mu90  = col.rolling(90 * 24, min_periods=24).mean()"
+luna/features/feature_pipeline.py,362,90,OTHER,"std90 = col.rolling(90 * 24, min_periods=24).std().replace(0, 1)"
+luna/features/feature_pipeline.py,388,90,OTHER,"mz = (df[""MVRV_Proxy""] - df[""MVRV_Proxy""].rolling(90*24, min_periods=24).mean()) / \"
+luna/features/feature_pipeline.py,389,90,OTHER,"df[""MVRV_Proxy""].rolling(90*24, min_periods=24).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,390,0.5,OTHER,proxy = proxy + mz.fillna(0) * 0.5
+luna/features/feature_pipeline.py,554,90,OTHER,sc_m = sc.rolling(90 * 24).mean()
+luna/features/feature_pipeline.py,555,90,OTHER,sc_s = sc.rolling(90 * 24).std().clip(lower=1e-9)
+luna/features/feature_pipeline.py,600,0.1,OTHER,"_kz_r = float(getattr(getattr(_cfg_kz, 'features', {}), 'kalman_r', 0.1))"
+luna/features/feature_pipeline.py,602,0.1,OTHER,"_kz_q, _kz_r = 1e-4, 0.1"
+luna/features/feature_pipeline.py,671,90,OTHER,"df[""mc_vix_raw_z90d""]  = (vix - vix.rolling(90*24).mean()) / (vix.rolling(90*24).std().clip(lower=1e-9))"
+luna/features/feature_pipeline.py,680,90,OTHER,"df[""mc_dxy_raw_z90d""] = (dxy - dxy.rolling(90*24).mean()) / (dxy.rolling(90*24).std().clip(lower=1e-9))"
+luna/features/feature_pipeline.py,686,30,OTHER,"df[""mc_btc_dxy_ratio_z30d""] = (btc_dxy - btc_dxy.rolling(30*24).mean()) / btc_dxy.rolling(30*24).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,694,90,OTHER,"df[""mc_sp500_raw_z90d""]   = (sp - sp.rolling(90*24).mean()) / (sp.rolling(90*24).std().clip(lower=1e-9))"
+luna/features/feature_pipeline.py,700,30,OTHER,"df[""mc_btc_sp500_ratio_z30d""] = (btc_sp500 - btc_sp500.rolling(30*24).mean()) / btc_sp500.rolling(30*24).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,705,30,OTHER,covar_30d = btc_ret.rolling(30*24).cov(sp500_ret)
+luna/features/feature_pipeline.py,706,30,OTHER,var_sp_30d = sp500_ret.rolling(30*24).var().clip(lower=1e-9)
+luna/features/feature_pipeline.py,716,30,OTHER,"df[""mc_yield_curve_velocity_30d""] = yc.diff(30 * 24).abs()"
+luna/features/feature_pipeline.py,723,90,OTHER,"df[""mc_unemploy_rate_raw_z90d""]      = (unr - unr.rolling(90*24).mean()) / (unr.rolling(90*24).std().clip(lower=1e-9))"
+luna/features/feature_pipeline.py,724,30,OTHER,"df[""mc_unemploy_rate_delta_3m_z90d""]  = unr.diff(3*30*24)  # delta 3 meses en horas"
+luna/features/feature_pipeline.py,731,90,OTHER,"df[""mc_m2_usa_raw_z90d""] = (m2 - m2.rolling(90*24).mean()) / (m2.rolling(90*24).std().clip(lower=1e-9))"
+luna/features/feature_pipeline.py,738,90,OTHER,"df[""mc_m2_uk_raw_z90d""] = (m2uk - m2uk.rolling(90*24).mean()) / (m2uk.rolling(90*24).std().clip(lower=1e-9))"
+luna/features/feature_pipeline.py,770,0.1,OTHER,if aa_series is not None and aa_series.notna().mean() > 0.1:
+luna/features/feature_pipeline.py,776,90,OTHER,"df[""oc_nvt_proxy_z90d""] = (nvt_proxy - nvt_proxy.rolling(90*24).mean()) / nvt_proxy.rolling(90*24).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,785,30,OTHER,obv_ma30 = obv.rolling(30*24).mean()
+luna/features/feature_pipeline.py,790,0.5,OTHER,"if ""OBV_Momentum"" not in df.columns or df[""OBV_Momentum""].isna().mean() > 0.5:"
+luna/features/feature_pipeline.py,798,90,OTHER,realized_90d = close_s.rolling(90*24).mean()
+luna/features/feature_pipeline.py,803,25.0,OTHER,"(pd.Timestamp(""2012-11-28"", tz=""UTC""), 25.0),"
+luna/features/feature_pipeline.py,804,12.5,OTHER,"(pd.Timestamp(""2016-07-09"", tz=""UTC""), 12.5),"
+luna/features/feature_pipeline.py,805,6.25,OTHER,"(pd.Timestamp(""2020-05-11"", tz=""UTC""), 6.25),"
+luna/features/feature_pipeline.py,806,3.125,OTHER,"(pd.Timestamp(""2024-04-20"", tz=""UTC""), 3.125),"
+luna/features/feature_pipeline.py,808,50.0,OTHER,"reward_s = pd.Series(50.0, index=close_s.index)"
+luna/features/feature_pipeline.py,808,50,OTHER,"reward_s = pd.Series(50.0, index=close_s.index)"
+luna/features/feature_pipeline.py,814,365,OTHER,ma365h = daily_issuance.rolling(365*24).mean()
+luna/features/feature_pipeline.py,818,90,OTHER,"df[""oc_puell_multiple_proxy_z90d""] = (pm_proxy - pm_proxy.rolling(90*24).mean()) / pm_proxy.rolling(90*24).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,843,0.9,OTHER,"if ""LongShortRatio"" not in df.columns or df[""LongShortRatio""].isna().mean() > 0.9:"
+luna/features/feature_pipeline.py,870,0.5,OTHER,if nan_la > 0.5:
+luna/features/feature_pipeline.py,872,5.0,OTHER,if lsr.max() > 5.0:
+luna/features/feature_pipeline.py,900,30,OTHER,"df[""dv_dvol_z30d""] = (dvol - dvol.rolling(30*24).mean()) / dvol.rolling(30*24).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,963,5.0,OTHER,"df[""timing_vol_divergence""] = (ret_24h_abs / (vol_ratio + 1e-6)).clip(upper=5.0)"
+luna/features/feature_pipeline.py,998,72,OTHER,"'cal_day_of_week':   (72,  'cal_day_of_week_milag72h'),    # Ciclo semanal con lag 3d"
+luna/features/feature_pipeline.py,999,336,OTHER,"'ETH_Return_1d':     (336, 'ETH_Return_1d_milag336h'),     # ETH momentum 14d"
+luna/features/feature_pipeline.py,1001,72,OTHER,"'M2_YoY_Chg_z90d':  (72,  'M2_YoY_Chg_z90d_milag72h'),   # Liquidez M2 con 3d lag"
+luna/features/feature_pipeline.py,1002,336,OTHER,"'ECBASSETS':         (336, 'ECBASSETS_milag336h'),          # Balance BCE 14d lag"
+luna/features/feature_pipeline.py,1003,72,OTHER,"'SP500_Ret':         (72,  'SP500_Ret_milag72h'),           # S&P 500 retorno 3d lag"
+luna/features/feature_pipeline.py,1004,72,OTHER,"'DXY_Slope30d_z90d': (72,  'DXY_Slope30d_z90d_milag72h'), # Tendencia DXY 3d lag"
+luna/features/feature_pipeline.py,1006,72,OTHER,"'pi_cycle_ma111':    (72,  'pi_cycle_ma111_milag72h'),      # Pi Cycle indicator 3d"
+luna/features/feature_pipeline.py,1007,500,OTHER,"'EURUSD':            (500, 'EURUSD_milag500h'),             # EUR/USD tipo de cambio"
+luna/features/feature_pipeline.py,1008,48,OTHER,"'GBTC_Low':          (48,  'GBTC_Low_milag48h'),            # GBTC minimo 2d lag"
+luna/features/feature_pipeline.py,1014,48,OTHER,"'FearGreed':          (48,  'FearGreed_milag48h'),            # Miedo extremo precede recuperacion"
+luna/features/feature_pipeline.py,1015,72,OTHER,"'Stablecoin_Cap':     (72,  'Stablecoin_Cap_milag72h'),       # Acumulacion estables antes de rebote"
+luna/features/feature_pipeline.py,1094,0.001,OTHER,if nan_before > nan_after + 0.001:
+luna/features/feature_pipeline.py,1127,90,OTHER,ath_90d = close_r.rolling(90 * 24).max().clip(lower=1e-8)
+luna/features/feature_pipeline.py,1246,90,OTHER,_m2_z = (_m2_raw - _m2_raw.rolling(90 * 24).mean()) / _m2_raw.rolling(90 * 24).std().clip(lower=1e-9)
+luna/features/feature_pipeline.py,1275,90,OTHER,"_t_mean = _tension.rolling(90 * 24, min_periods=24 * 7).mean()"
+luna/features/feature_pipeline.py,1276,90,OTHER,"_t_std  = _tension.rolling(90 * 24, min_periods=24 * 7).std().clip(lower=1e-9)"
+luna/features/feature_pipeline.py,1302,0.4,OTHER,R7: NUNCA d_val=0.4 fijo.
+luna/features/feature_pipeline.py,1432,1.5,OTHER,_pt = 1.5
+luna/features/feature_pipeline.py,1433,1.5,OTHER,_sl = 1.5
+luna/features/feature_pipeline.py,1434,0.005,OTHER,"_min_ret = float(getattr(cfg.sop, 'tbm_min_return', 0.005)) if hasattr(cfg, 'sop') else 0.005"
+luna/features/feature_pipeline.py,1751,0.1,OTHER,"_kz_r = float(getattr(getattr(_cfg_kz, 'features', {}), 'kalman_r', 0.1))"
+luna/features/feature_pipeline.py,1806,0.5,OTHER,_oracle_feat_val = (_oracle_score - 0.5) * 2.0
+luna/features/feature_selection_e.py,106,2.66,OTHER,"""golden_rule_0"",   # Fed_Net_Liq Ã¢â°Â¤ -727k AND SSR Ã¢â°Â¥ 2.66      WR=88.9%"
+luna/features/feature_selection_e.py,106,88.9,OTHER,"""golden_rule_0"",   # Fed_Net_Liq Ã¢â°Â¤ -727k AND SSR Ã¢â°Â¥ 2.66      WR=88.9%"
+luna/features/feature_selection_e.py,107,88.9,OTHER,"""golden_rule_1"",   # Fed_Net_Liq AND SP500_AboveMA200 AND SSR  WR=88.9%"
+luna/features/feature_selection_e.py,108,2.22,OTHER,"""golden_rule_2"",   # MVRVÃ¢â°Â¥2.22 AND FearGreedÃ¢â°Â¥84 AND SSR        WR=82.6%"
+luna/features/feature_selection_e.py,108,82.6,OTHER,"""golden_rule_2"",   # MVRVÃ¢â°Â¥2.22 AND FearGreedÃ¢â°Â¥84 AND SSR        WR=82.6%"
+luna/features/feature_selection_e.py,109,1.6,OTHER,"""golden_rule_3"",   # YieldCurveÃ¢â°Â¥1.6 AND FundingRateÃ¢â°Â¤-0.0002   WR=81.2%"
+luna/features/feature_selection_e.py,109,0.0002,OTHER,"""golden_rule_3"",   # YieldCurveÃ¢â°Â¥1.6 AND FundingRateÃ¢â°Â¤-0.0002   WR=81.2%"
+luna/features/feature_selection_e.py,109,81.2,OTHER,"""golden_rule_3"",   # YieldCurveÃ¢â°Â¥1.6 AND FundingRateÃ¢â°Â¤-0.0002   WR=81.2%"
+luna/features/feature_selection_e.py,113,76.5,OTHER,"""golden_rule_7"",   # Funding AND Whale_Vol AND MasterCausal     WR=76.5%"
+luna/features/feature_selection_e.py,114,99.58,OTHER,"""golden_rule_8"",   # DXYÃ¢â°Â¥99.58 AND Whale_Vol_ZScore             WR=71.9%"
+luna/features/feature_selection_e.py,114,71.9,OTHER,"""golden_rule_8"",   # DXYÃ¢â°Â¥99.58 AND Whale_Vol_ZScore             WR=71.9%"
+luna/features/feature_selection_e.py,115,99.58,OTHER,"""golden_rule_9"",   # Fed_Net_Liq AND DXYÃ¢â°Â¥99.58                 WR=70.2%"
+luna/features/feature_selection_e.py,115,70.2,OTHER,"""golden_rule_9"",   # Fed_Net_Liq AND DXYÃ¢â°Â¥99.58                 WR=70.2%"
+luna/features/feature_selection_e.py,116,1.14,OTHER,"""golden_rule_10"",  # T10Y2YÃ¢â°Â¥1.14 AND MVRV_ProxyÃ¢â°Â¥2.22          WR=70.0%"
+luna/features/feature_selection_e.py,116,2.22,OTHER,"""golden_rule_10"",  # T10Y2YÃ¢â°Â¥1.14 AND MVRV_ProxyÃ¢â°Â¥2.22          WR=70.0%"
+luna/features/feature_selection_e.py,116,70.0,OTHER,"""golden_rule_10"",  # T10Y2YÃ¢â°Â¥1.14 AND MVRV_ProxyÃ¢â°Â¥2.22          WR=70.0%"
+luna/features/feature_selection_e.py,117,70.0,OTHER,"""golden_rule_11"",  # T10Y2Y AND SP500_AboveMA200 AND MVRV      WR=70.0%"
+luna/features/feature_selection_e.py,118,70.0,OTHER,"""golden_rule_12"",  # T10Y2Y AND MVRV AND SSR                   WR=70.0%"
+luna/features/feature_selection_e.py,119,69.8,OTHER,"""golden_rule_13"",  # FundingRate AND Master_Causal              WR=69.8%"
+luna/features/feature_selection_e.py,120,2.22,OTHER,"""golden_rule_14"",  # MVRV_ProxyÃ¢â°Â¥2.22 AND SSRÃ¢â°Â¥2.66              WR=69.0%"
+luna/features/feature_selection_e.py,120,2.66,OTHER,"""golden_rule_14"",  # MVRV_ProxyÃ¢â°Â¥2.22 AND SSRÃ¢â°Â¥2.66              WR=69.0%"
+luna/features/feature_selection_e.py,120,69.0,OTHER,"""golden_rule_14"",  # MVRV_ProxyÃ¢â°Â¥2.22 AND SSRÃ¢â°Â¥2.66              WR=69.0%"
+luna/features/feature_selection_e.py,422,30,OTHER,"_k_max = int(getattr(_cfg_sfi.features, 'sfi_n_clusters_max', 30))"
+luna/features/feature_selection_e.py,436,0.20,OTHER,"trim_lo = max(0, int(len(gaps) * 0.20))   # ignorar 20% menor"
+luna/features/feature_selection_e.py,437,0.90,OTHER,"trim_hi = max(trim_lo + 1, int(len(gaps) * 0.90))  # ignorar 10% mayor"
+luna/features/feature_selection_e.py,481,0.5,OTHER,fwd_ret = y.reindex(X.index).fillna(0.5).values.astype(float)
+luna/features/feature_selection_e.py,568,48,OTHER,"LAG_CANDIDATES = [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 240, 336, 500]"
+luna/features/feature_selection_e.py,568,72,OTHER,"LAG_CANDIDATES = [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 240, 336, 500]"
+luna/features/feature_selection_e.py,568,96,OTHER,"LAG_CANDIDATES = [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 240, 336, 500]"
+luna/features/feature_selection_e.py,568,336,OTHER,"LAG_CANDIDATES = [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 240, 336, 500]"
+luna/features/feature_selection_e.py,568,500,OTHER,"LAG_CANDIDATES = [1, 2, 4, 6, 12, 24, 48, 72, 96, 120, 168, 240, 336, 500]"
+luna/features/feature_selection_e.py,796,0.5772156649,OTHER,em_gamma = 0.5772156649
+luna/features/feature_selection_e.py,809,8760.0,OTHER,freq = 8760.0 if n_obs > 1000 else 252.0
+luna/features/feature_selection_e.py,809,252.0,OTHER,freq = 8760.0 if n_obs > 1000 else 252.0
+luna/features/feature_selection_e.py,813,6.0,OTHER,efectos_independientes = 6.0
+luna/features/feature_selection_e.py,870,0.05,OTHER,"learning_rate=0.05,"
+luna/features/feature_selection_e.py,923,365,OTHER,ann_factor = np.sqrt(365 * 24)
+luna/features/feature_selection_e.py,948,8760.0,OTHER,freq_eff = 8760.0 / _tbm_h
+luna/features/feature_selection_e.py,1015,0.5,OTHER,"""stability_score"": 0.5,"
+luna/features/feature_selection_e.py,1080,0.05,OTHER,"learning_rate=0.05,"
+luna/features/feature_selection_e.py,1156,365,OTHER,ann_factor = np.sqrt(365 * 24)
+luna/features/feature_selection_e.py,1195,0.5,OTHER,"_stab_penalty_w = float(getattr(_cfg_sfi.features, 'stability_penalty_weight', 0.5))"
+luna/features/feature_selection_e.py,1197,0.5,OTHER,_stab_penalty_w = 0.5
+luna/features/feature_selection_e.py,1235,0.50,OTHER,if _stab_score < 0.50:
+luna/features/feature_selection_e.py,1454,999.0,OTHER,return -999.0
+luna/features/feature_selection_e.py,1467,9.55,OTHER,"ann_factor = np.sqrt((365 * 24) / _tbm_h)  # sqrt(8760/96)=9.55, NO sqrt(8760)=93.6"
+luna/features/feature_selection_e.py,1467,93.6,OTHER,"ann_factor = np.sqrt((365 * 24) / _tbm_h)  # sqrt(8760/96)=9.55, NO sqrt(8760)=93.6"
+luna/features/feature_selection_e.py,1467,365,OTHER,"ann_factor = np.sqrt((365 * 24) / _tbm_h)  # sqrt(8760/96)=9.55, NO sqrt(8760)=93.6"
+luna/features/feature_selection_e.py,1467,8760,OTHER,"ann_factor = np.sqrt((365 * 24) / _tbm_h)  # sqrt(8760/96)=9.55, NO sqrt(8760)=93.6"
+luna/features/feature_selection_e.py,1495,365,OTHER,_ann = np.sqrt(365 * 24)  # fallback 1H si el fold es muy pequeno
+luna/features/feature_selection_e.py,1556,0.05,OTHER,"model = LGBMClassifier(n_estimators=100, max_depth=4, learning_rate=0.05,"
+luna/features/feature_selection_e.py,1576,0.10,OTHER,"n_prune = max(1, int(len(current_features) * 0.10))"
+luna/features/feature_selection_e.py,1622,0.90,OTHER,2. Hard block (AUC > hard_block_auc=0.90): marca passed=False directamente.
+luna/features/feature_selection_e.py,1624,0.90,OTHER,"Con AUC>0.90, el clasificador distingue casi perfectamente train de holdout:"
+luna/features/feature_selection_e.py,1628,0.95,OTHER,HARD_BLOCK_AUC: float = 0.95
+luna/features/feature_selection_e.py,1641,0.5,OTHER,"return 1.0, 0.5"
+luna/features/feature_selection_e.py,1651,0.5,OTHER,"return 1.0, 0.5"
+luna/features/feature_selection_e.py,1660,0.1,OTHER,"model = XGBClassifier(n_estimators=20, max_depth=3, learning_rate=0.1, n_jobs=1, missing=np.nan, verbosity=0)"
+luna/features/feature_selection_e.py,1666,0.5,OTHER,aucs.append(0.5)
+luna/features/feature_selection_e.py,2026,0.10,OTHER,_hmax_nan = 0.10
+luna/features/feature_selection_e.py,2256,0.5,OTHER,adv_aucs = {c: 0.5 for c in X_lagged.columns}
+luna/features/feature_selection_e.py,2296,0.99,OTHER,"_pen_list = [(k, v, adv_aucs[k]) for k, v in adv_penalties.items() if v < 0.99]"
+luna/features/feature_selection_e.py,2389,0.05,OTHER,"_m = XGBClassifier(n_estimators=40, max_depth=3, learning_rate=0.05,"
+luna/features/feature_selection_e.py,2409,5.0,OTHER,_darwin_scores = (_mean_imp / (1.0 + _std_imp * 5.0)) * _adf_mults  # FIX-ADV-ARCH-01: _adv_mults eliminado (no usar holdout en scoring Darwiniano)
+luna/features/feature_selection_e.py,2445,0.95,OTHER,if _max_corr < 0.95:
+luna/features/feature_selection_e.py,2478,0.001,OTHER,"_min_hits_pt = max(10, int(_n_rows_pt * 0.001))"
+luna/features/feature_selection_e.py,2482,4320,OTHER,"_tail_len = min(_n_rows_pt, 4320)"
+luna/features/feature_selection_shap.py,46,0.001,OTHER,"selector = SHAPFeatureSelector(n_top_features=25, min_abs_shap=0.001)"
+luna/features/feature_selection_shap.py,93,5000,OTHER,"n_sample = min(len(X_arr), 5000)"
+luna/features/feature_selection_shap.py,95,42,OTHER,_rng_shap = np.random.default_rng(42)
+luna/features/feature_selection_shap.py,157,42,OTHER,_rng_shap_inter = np.random.default_rng(42)
+luna/features/fracdiff_dynamic.py,7,0.4,OTHER,REGLA R7: d ≠ 0.4 FIJO.
+luna/features/fracdiff_dynamic.py,8,0.4,OTHER,- V9.4 fracasó parcialmente usando d=0.4 fijo para todo el período.
+luna/features/fracdiff_dynamic.py,9,0.3,OTHER,- El d óptimo varía entre 0.3 y 1.0 según el régimen del mercado.
+luna/features/fracdiff_dynamic.py,44,0.1,OTHER,"d_min: float = 0.1,"
+luna/features/fracdiff_dynamic.py,46,0.05,OTHER,"step:  float = 0.05,"
+luna/features/fracdiff_dynamic.py,130,50,OTHER,if len(clean) >= 50:
+luna/features/fracdiff_dynamic.py,230,0.4,OTHER,"Prohibido usar d fijo 0.4 (V9.4 falló por esto, SOP R7)."
+luna/features/kalman_normalizer.py,27,0.01,OTHER,- R bajo (0.01): se fía mucho del dato actual (más reactivo).
+luna/features/kalman_normalizer.py,28,0.1,OTHER,- Default: 0.1 (razonable para datos financieros horarios).
+luna/features/kalman_normalizer.py,62,0.1,OTHER,"obs_noise: float = 0.1,"
+luna/features/kalman_normalizer.py,67,0.1,OTHER,obs_noise (R):     confianza en la observación. Default 0.1.
+luna/features/rolling_normalization.py,146,7.0,OTHER,_clip_bound = 7.0 if col in MACRO_WIDE_CLIP_COLS else 5.0
+luna/features/rolling_normalization.py,146,5.0,OTHER,_clip_bound = 7.0 if col in MACRO_WIDE_CLIP_COLS else 5.0
+luna/features/rolling_normalization.py,188,3600,OTHER,"return ""1H"" if median_diff_s <= 3600 else ""1D"""
+luna/features/rule_validator.py,41,0.95,OTHER,"ci: float = 0.95) -> tuple[float, float, float]:"
+luna/features/rule_validator.py,58,42,OTHER,rng = np.random.default_rng(42)
+luna/features/rule_validator.py,140,0.5,OTHER,"result = binomtest(n_wins, n_hits, p=0.5, alternative='greater')"
+luna/features/rule_validator.py,148,0.05,OTHER,valid = p_value < 0.05
+luna/features/tbm.py,30,30,OTHER,span=720 asume datos horarios (30 días).
+luna/features/tbm.py,152,3600.0,OTHER,"vb_h = max(1.0, (t1_time - loc_time) / 3600.0)"
+luna/features/tbm.py,161,3600.0,OTHER,h_elapsed = (close_times_sec[j] - loc_time) / 3600.0
+luna/features/tbm.py,186,0.005,OTHER,"min_ret: float = 0.005,"
+luna/features/tbm.py,365,0.0015,OTHER,"min_return: float = 0.0015,"
+luna/labeling/online_recalibrator.py,69,0.50,OTHER,"return 0.50, -1.0"
+luna/labeling/online_recalibrator.py,75,0.25,OTHER,"mt_min, mt_max, mt_step = 0.25, 0.65, 0.01"
+luna/labeling/online_recalibrator.py,75,0.65,OTHER,"mt_min, mt_max, mt_step = 0.25, 0.65, 0.01"
+luna/labeling/online_recalibrator.py,75,0.01,OTHER,"mt_min, mt_max, mt_step = 0.25, 0.65, 0.01"
+luna/labeling/online_recalibrator.py,77,0.50,OTHER,best_t = 0.50
+luna/live/live_inference.py,296,0.50,OTHER,if final_confidence < 0.50:
+luna/live/position_sizer.py,62,0.02,OTHER,"'UNKNOWN':           0.02,  # 2%: régimen no determinado"
+luna/live/position_sizer.py,68,0.5,OTHER,"'MEDIUM': 0.5,   # Reducción 50% si hay riesgo de cambio (10-25%)"
+luna/live/position_sizer.py,69,0.1,OTHER,"'HIGH':   0.1,   # Reducción 90% si cambio inminente (> 25%)"
+luna/live/position_sizer.py,80,0.70,OTHER,self.conf_tier_1 = 0.70  # Full size
+luna/live/position_sizer.py,81,0.60,OTHER,self.conf_tier_2 = 0.60  # Half size
+luna/live/position_sizer.py,82,0.50,OTHER,self.conf_tier_3 = 0.50  # Quarter size
+luna/live/position_sizer.py,87,0.50,OTHER,"0: 0.50,"
+luna/live/position_sizer.py,102,0.52,OTHER,WR >= 0.52 → 0.75
+luna/live/position_sizer.py,102,0.75,OTHER,WR >= 0.52 → 0.75
+luna/live/position_sizer.py,103,0.50,OTHER,WR >= 0.50 → 0.50
+luna/live/position_sizer.py,104,0.50,OTHER,WR < 0.50  → 0.30 (proteccion capital)
+luna/live/position_sizer.py,104,0.30,OTHER,WR < 0.50  → 0.30 (proteccion capital)
+luna/live/position_sizer.py,110,0.58,OTHER,if wr >= 0.58:
+luna/live/position_sizer.py,112,0.55,OTHER,elif wr >= 0.55:
+luna/live/position_sizer.py,114,0.52,OTHER,elif wr >= 0.52:
+luna/live/position_sizer.py,115,0.65,OTHER,mult[tribe_id] = 0.65
+luna/live/position_sizer.py,116,0.50,OTHER,elif wr >= 0.50:
+luna/live/position_sizer.py,117,0.45,OTHER,mult[tribe_id] = 0.45
+luna/live/position_sizer.py,119,0.30,OTHER,mult[tribe_id] = 0.30
+luna/live/position_sizer.py,145,2.5,OTHER,"Si estamos flotando > +10% de ganancia, y MVRV Z-Score > 2.5 (sobrecalentamiento de blockchain),"
+luna/live/position_sizer.py,156,0.5,OTHER,return 0.5
+luna/live/position_sizer.py,158,0.25,OTHER,return 0.25
+luna/live/position_sizer.py,168,0.5,OTHER,"return float(np.clip(ratio, 0.5, 1.5))"
+luna/live/position_sizer.py,168,1.5,OTHER,"return float(np.clip(ratio, 0.5, 1.5))"
+luna/live/position_sizer.py,293,0.05,OTHER,safe_capacity = min_liquidity * 0.05 # Thevemos usar menos del 5% natural del orderbook publico
+luna/live/position_sizer.py,297,0.1,OTHER,"return float(np.clip(penalty, 0.1, 1.0))"
+luna/live/position_sizer.py,337,0.5,OTHER,dd_mult = 0.5 if current_drawdown >= 0.10 else 1.0
+luna/live/position_sizer.py,337,0.10,OTHER,dd_mult = 0.5 if current_drawdown >= 0.10 else 1.0
+luna/live/position_sizer.py,415,0.55,OTHER,"win_rate:              Win rate histórico (fracción, ej: 0.55)."
+luna/live/risk_monitor.py,186,4200,OTHER,is_blocked = monitor.check_system_health(4200)
+luna/live/run_kraken_xgboost_demo.py,89,50.0,OTHER,self.fixed_size_usd = 50.0  # Fricción mínima
+luna/live/run_kraken_xgboost_demo.py,152,60,OTHER,time.sleep(60)
+luna/live/run_luna_live.py,126,60,OTHER,time.sleep(60) # Micro-sleep thentras esperamos reset manual.
+luna/live/run_luna_live.py,149,0.001,OTHER,"current_volatility=decision.get(""current_vol"", 0.001),"
+luna/live/run_luna_live.py,150,0.001,OTHER,"historical_volatility=decision.get(""historical_vol"", 0.001)"
+luna/losses/monetary_loss.py,25,0.005,OTHER,"min_return = float(getattr(cfg.xgboost, 'tbm_min_return', 0.005))"
+luna/losses/monetary_loss.py,31,0.005,OTHER,min_return = 0.005
+luna/losses/monetary_loss.py,39,1.3,OTHER,penalty_fp = risk / min_return       # ~1.3
+luna/losses/monetary_loss.py,40,1.3,OTHER,penalty_fn = reward / min_return     # ~1.3
+luna/losses/monetary_loss.py,44,1.5,OTHER,risk_aversion = 1.5
+luna/models/calibrate_probabilities.py,214,5.0,OTHER,"df_val[""timing_vol_divergence""] = (_r24h_abs / (_vol_ratio + 1e-6)).clip(upper=5.0)"
+luna/models/calibrate_probabilities.py,396,0.003,OTHER,"_tbm_min_return = float(getattr(cfg.xgboost, 'tbm_min_return', 0.003))"
+luna/models/calibrate_probabilities.py,405,0.003,OTHER,_tbm_min_return  = 0.003
+luna/models/calibrate_probabilities.py,406,96,OTHER,"_vb_min_h, _vb_max_h = 24, 96"
+luna/models/calibrate_probabilities.py,601,0.5,OTHER,_ts_scaler = _TemperatureScaler(temperature=0.5)
+luna/models/calibrate_probabilities.py,743,0.25,OTHER,"_mt_min    = float(getattr(_cfg_meta_cal.metalabeler, 'meta_sweep_min',  0.25))"
+luna/models/calibrate_probabilities.py,744,0.65,OTHER,"_mt_max    = float(getattr(_cfg_meta_cal.metalabeler, 'meta_sweep_max',  0.65))"
+luna/models/calibrate_probabilities.py,745,0.01,OTHER,"_mt_step   = float(getattr(_cfg_meta_cal.metalabeler, 'meta_sweep_step', 0.01))"
+luna/models/calibrate_probabilities.py,805,0.003,OTHER,"_m_ret = float(getattr(cfg.xgboost, 'tbm_min_return', 0.003))"
+luna/models/calibrate_probabilities.py,849,0.30,OTHER,"r_min_trades = max(3, int(r_n * 0.30))"
+luna/models/calibrate_probabilities.py,850,0.25,OTHER,"r_min_trades = min(r_min_trades, max(10, int(_mt_min_tr * 0.25)))"
+luna/models/calibrate_probabilities.py,914,0.003,OTHER,"_m_ret = float(getattr(cfg.xgboost, 'tbm_min_return', 0.003))"
+luna/models/calibrate_probabilities.py,974,0.50,OTHER,_is_base_rate_cal = float(np.mean(y_seq)) if len(y_seq) > 0 else 0.50
+luna/models/calibrate_probabilities.py,976,0.65,OTHER,"_dyn_floor_cal = min(_dyn_floor_cal, 0.65)  # cap absoluto"
+luna/models/ensemble_lgbm.py,410,365,OTHER,sr = (np.mean(strat_rets) / np.std(strat_rets)) * np.sqrt(365 * 24)
+luna/models/ensemble_lgbm.py,1087,5.0,OTHER,"df[""timing_vol_divergence""] = df[""timing_vol_divergence""].clip(upper=5.0)"
+luna/models/ensemble_lgbm.py,1354,0.005,OTHER,"_min_ret = float(getattr(_cfg.lightgbm, 'tbm_min_return', 0.005))"
+luna/models/ensemble_lgbm.py,1366,0.005,OTHER,"_pt, _sl, _min_ret = 2.0, 1.0, 0.005"
+luna/models/ensemble_lgbm.py,1453,0.005,OTHER,"min_return=_min_ret,           # BUG-A01-FIX: de settings (era hardcoded 0.005)"
+luna/models/ensemble_lgbm.py,2191,0.5772156649,OTHER,gamma = 0.5772156649
+luna/models/ensemble_lgbm.py,2229,8760.0,OTHER,freq = 8760.0
+luna/models/ensemble_lgbm.py,2593,63,OTHER,"'max_bin': trial.suggest_int('max_bin', getattr(sp, 'max_bin_min', 63), getattr(sp, 'max_bin_max', 255)),"
+luna/models/ensemble_lgbm.py,2986,0.05,OTHER,"'learning_rate': 0.05,"
+luna/models/ensemble_lgbm.py,3014,0.50,OTHER,best_value = 0.50
+luna/models/ensemble_lgbm.py,3280,0.1,OTHER,"self._spw_min = max(0.1,  _spw_ideal * 0.5)"
+luna/models/ensemble_lgbm.py,3280,0.5,OTHER,"self._spw_min = max(0.1,  _spw_ideal * 0.5)"
+luna/models/ensemble_lgbm.py,3284,2.5,OTHER,"self._spw_max = min(2.0,  _spw_ideal * 2.5)  # SOP_LIMIT=2.0"
+luna/models/ensemble_lgbm.py,3736,0.50,OTHER,return 0.50
+luna/models/ensemble_lgbm.py,3760,0.50,OTHER,return 0.50
+luna/models/ensemble_lgbm.py,3976,5.0,OTHER,"df_val[""timing_vol_divergence""] = (_r24h_abs / (_vol_ratio + 1e-6)).clip(upper=5.0)"
+luna/models/ensemble_lgbm.py,4032,0.50,OTHER,return 0.50
+luna/models/ensemble_lgbm.py,4141,0.005,OTHER,"_min_ret_c = float(getattr(cal_cfg, 'tbm_min_return', 0.005))"
+luna/models/ensemble_lgbm.py,4241,0.40,OTHER,fallback_t = 0.40
+luna/models/ensemble_lgbm.py,4425,0.30,OTHER,"_adaptive_min = max(3, int(_n_avail * 0.30))"
+luna/models/hmm_regime.py,78,0.001,OTHER,"_n_iter, _tol = 200, 0.001"
+luna/models/hmm_regime.py,437,0.90,OTHER,_sq['vol_p90'] = float(self.raw_df[_vol_cand].quantile(0.90))
+luna/models/hmm_regime.py,437,90,OTHER,_sq['vol_p90'] = float(self.raw_df[_vol_cand].quantile(0.90))
+luna/models/hmm_regime.py,442,0.05,OTHER,_sq['fund_p05'] = float(self.raw_df[_fund_cand].quantile(0.05))
+luna/models/hmm_regime.py,447,0.95,OTHER,_sq['mvrv_p95'] = float(self.raw_df[_mvrv_cand].quantile(0.95))
+luna/models/hmm_regime.py,447,95,OTHER,_sq['mvrv_p95'] = float(self.raw_df[_mvrv_cand].quantile(0.95))
+luna/models/hmm_regime.py,478,50,OTHER,"_p50 = int(np.percentile(_run_lengths, 50)) if len(_run_lengths) > 5 else _min_dur_cfg"
+luna/models/hmm_regime.py,680,.3,OTHER,Mapea los nÃºmeros de estado [0..3] a etiquetas humanas basadas en su performance.
+luna/models/hmm_regime.py,727,0.33,OTHER,deadband = float(historical_abs_rets.quantile(0.33))
+luna/models/hmm_regime.py,727,33,OTHER,deadband = float(historical_abs_rets.quantile(0.33))
+luna/models/hmm_regime.py,731,0.33,OTHER,deadband = float(historical_abs_rets.quantile(0.33)) if len(historical_abs_rets) > 0 else 2.0
+luna/models/hmm_regime.py,731,33,OTHER,deadband = float(historical_abs_rets.quantile(0.33)) if len(historical_abs_rets) > 0 else 2.0
+luna/models/hmm_regime.py,752,0.5,OTHER,dd = -0.5
+luna/models/hmm_regime.py,776,0.5,OTHER,"dd = row.get('dd', -0.5)"
+luna/models/hmm_regime.py,782,0.15,OTHER,is_ath     = dd >= -0.15  # [LUNA V1 INSTITUTIONAL FIX] Cerca de ATH (<= 15% drawdown)
+luna/models/hmm_regime.py,925,50,OTHER,"ma50  = close.rolling(50*24, min_periods=25*24).mean()"
+luna/models/hmm_regime.py,977,0.90,OTHER,"vol_p90  = vol_series.rolling(365*24, min_periods=720).quantile(0.90).bfill()"
+luna/models/hmm_regime.py,977,365,OTHER,"vol_p90  = vol_series.rolling(365*24, min_periods=720).quantile(0.90).bfill()"
+luna/models/hmm_regime.py,977,90,OTHER,"vol_p90  = vol_series.rolling(365*24, min_periods=720).quantile(0.90).bfill()"
+luna/models/hmm_regime.py,983,0.05,OTHER,"fund_p05 = fund_series.rolling(365*24, min_periods=720).quantile(0.05).bfill()"
+luna/models/hmm_regime.py,983,365,OTHER,"fund_p05 = fund_series.rolling(365*24, min_periods=720).quantile(0.05).bfill()"
+luna/models/hmm_regime.py,989,365,OTHER,_daily_vol_proxy = (vol_series / 100.0) / np.sqrt(365)
+luna/models/hmm_regime.py,998,30,OTHER,"_fallback_vol = ret_24h.rolling(30*24, min_periods=24).std()"
+luna/models/hmm_regime.py,1009,0.95,OTHER,"mvrv_p95  = mvrv_series.rolling(365*24, min_periods=720).quantile(0.95).bfill()"
+luna/models/hmm_regime.py,1009,365,OTHER,"mvrv_p95  = mvrv_series.rolling(365*24, min_periods=720).quantile(0.95).bfill()"
+luna/models/hmm_regime.py,1009,95,OTHER,"mvrv_p95  = mvrv_series.rolling(365*24, min_periods=720).quantile(0.95).bfill()"
+luna/models/hmm_regime.py,1014,365,OTHER,_daily_vol_proxy = (df_input[vol_col] / 100.0) / np.sqrt(365)
+luna/models/hmm_regime.py,1016,30,OTHER,"_daily_vol_proxy = ret_24h.rolling(30*24, min_periods=24).std()"
+luna/models/hmm_regime.py,1082,50,OTHER,"ma50  = close.rolling(50*24, min_periods=25*24).mean()"
+luna/models/hmm_regime.py,1086,1.05,OTHER,is_v_shape_rally = (close > ma50 * 1.05) & (ret_168h > 0.10)
+luna/models/hmm_regime.py,1086,0.10,OTHER,is_v_shape_rally = (close > ma50 * 1.05) & (ret_168h > 0.10)
+luna/models/hmm_regime.py,1467,0.5,OTHER,if len(_feats_missing) > len(feats) * 0.5:
+luna/models/ood_guard.py,81,0.10,OTHER,"_contamination  = float(getattr(_cfg_ood.ood_guard, 'contamination',  0.10))"
+luna/models/predict_oos.py,194,720,OTHER,"min_periods_h = min(window_h, 720)  # mínimo 30d de historia antes de producir valores"
+luna/models/predict_oos.py,337,0.01,OTHER,_vol_ratio_b = _vol_ratio_b.clip(lower=0.01)
+luna/models/predict_oos.py,338,5.0,OTHER,"df[""timing_vol_divergence""] = (_r24h_abs_b / (_vol_ratio_b + 1e-6)).clip(upper=5.0)"
+luna/models/predict_oos.py,591,0.01,OTHER,_vol_ratio  = (_full_volume / (_vol_ma + 1e-6)).clip(lower=0.01)
+luna/models/predict_oos.py,592,5.0,OTHER,"df_oos[""timing_vol_divergence""] = (_r24h_abs / (_vol_ratio + 1e-6)).clip(upper=5.0).reindex(df_oos.index)"
+luna/models/predict_oos.py,605,0.90,OTHER,"and df_oos[""btc_drawdown_from_ath""].notna().mean() > 0.90"
+luna/models/predict_oos.py,1051,0.005,OTHER,"_min_ret = float(getattr(_cfg.xgboost, 'tbm_min_return', 0.005))"
+luna/models/predict_oos.py,1053,0.005,OTHER,_min_ret = 0.005
+luna/models/predict_oos.py,1128,0.25,OTHER,MAX_DD_STOP = 0.25  # 25% drawdown stop (fallback)
+luna/models/predict_oos.py,1237,0.001,OTHER,"_top_str = [f""{_features[i]} ({_shap_vals[i]:.3f})"" for i in _top_3_idx if _abs_shap[i] > 0.001]"
+luna/models/predict_oos.py,1320,0.0015,OTHER,ret_bruto = float(_raw_ret) - 0.0015
+luna/models/predict_oos.py,1600,0.70,OTHER,if wr > 0.70:
+luna/models/predict_oos.py,1608,365.25,OTHER,n_per_year = len(df_trades) / (days / 365.25) if days > 0 else len(df_trades) * 365.25
+luna/models/predict_oos.py,1612,4.0,OTHER,if sh > 4.0:
+luna/models/signal_filter.py,40,0.3,OTHER,"_tx_check = _np_load_check.linspace(0.3, 0.7, 30)"
+luna/models/signal_filter.py,40,0.7,OTHER,"_tx_check = _np_load_check.linspace(0.3, 0.7, 30)"
+luna/models/signal_filter.py,40,30,OTHER,"_tx_check = _np_load_check.linspace(0.3, 0.7, 30)"
+luna/models/signal_filter.py,517,48,OTHER,"seq_len   = v2_config.get(""seq_len"", 48)"
+luna/models/signal_filter.py,737,0.003,OTHER,"_tbm_min = float(getattr(_cfg_xgb.xgboost, 'tbm_min_return', 0.003))"
+luna/models/signal_filter.py,983,999.0,OTHER,"logger.info(""  [M-45] Filtro momentum: {} bloqueadas (Umbral dinámico evaluado y <{:.1f}%)"", n_mom_blocked, _mom_upper if _mom_upper else 999.0)"
+luna/models/signal_filter.py,1000,0.10,OTHER,cvd_p10 = cvd.rolling(168).quantile(0.10).fillna(-0.20)
+luna/models/signal_filter.py,1000,0.20,OTHER,cvd_p10 = cvd.rolling(168).quantile(0.10).fillna(-0.20)
+luna/models/signal_filter.py,1006,0.90,OTHER,cvd_p90 = cvd.rolling(168).quantile(0.90).fillna(0.20)
+luna/models/signal_filter.py,1006,0.20,OTHER,cvd_p90 = cvd.rolling(168).quantile(0.90).fillna(0.20)
+luna/models/signal_filter.py,1006,90,OTHER,cvd_p90 = cvd.rolling(168).quantile(0.90).fillna(0.20)
+luna/models/train_autoencoder.py,37,64,OTHER,"dim_h1 = max(64, input_dim // 2)"
+luna/models/train_autoencoder.py,38,32,OTHER,"dim_h2 = max(32, input_dim // 4)"
+luna/models/train_autoencoder.py,49,0.1,OTHER,"nn.LeakyReLU(0.1),"
+luna/models/train_autoencoder.py,53,0.1,OTHER,"nn.LeakyReLU(0.1),"
+luna/models/train_autoencoder.py,62,0.1,OTHER,"nn.LeakyReLU(0.1),"
+luna/models/train_autoencoder.py,65,0.1,OTHER,"nn.LeakyReLU(0.1),"
+luna/models/train_metalabeler_v2.py,72,48,OTHER,"SEQ_LEN            = int(getattr(_cfg_meta.metalabeler, 'seq_len',            48))"
+luna/models/train_metalabeler_v2.py,75,300,OTHER,"RF_N_ESTIMATORS    = int(getattr(_cfg_meta.metalabeler, 'rf_n_estimators',   300))"
+luna/models/train_metalabeler_v2.py,309,0.04,OTHER,"_topo_min_leaf  = int(np.clip(int(_n_samples * 0.04), 10, 50))"
+luna/models/train_metalabeler_v2.py,309,50,OTHER,"_topo_min_leaf  = int(np.clip(int(_n_samples * 0.04), 10, 50))"
+luna/models/train_metalabeler_v2.py,313,30,OTHER,"_effective_min_leaf  = max(_topo_min_leaf,  getattr(self, '_rf_min_leaf_base', 30))"
+luna/models/train_metalabeler_v2.py,320,30,OTHER,"_effective_min_leaf,  getattr(self, '_rf_min_leaf_base', 30)"
+luna/models/train_metalabeler_v2.py,464,0.10,OTHER,if is_acc - oos_acc_mean > 0.10:
+luna/models/train_metalabeler_v2.py,844,5.0,OTHER,"df[""timing_vol_divergence""] = (_r24h_abs / (_vol_ratio + 1e-6)).clip(upper=5.0)"
+luna/models/train_metalabeler_v2.py,949,0.005,OTHER,"_minr_ml = float(getattr(_cfg_tbm.xgboost, 'tbm_min_return', 0.005))"
+luna/models/train_metalabeler_v2.py,954,0.005,OTHER,"_vbh_ml, _minr_ml = 96, 0.005"
+luna/models/train_metalabeler_v2.py,1419,0.50,OTHER,_is_base_rate = float(y_train.mean()) if len(y_train) > 0 else 0.50
+luna/models/train_metalabeler_v2.py,1421,0.65,OTHER,"_dyn_floor = min(_dyn_floor, 0.65)  # cap para no matar todas las señales"
+luna/models/train_metalabeler_v2.py,1431,0.02,OTHER,"_dyn_ceiling  = max(_dyn_floor + 0.02, min(_p90_val, 0.65))"
+luna/models/train_metalabeler_v2.py,1431,0.65,OTHER,"_dyn_ceiling  = max(_dyn_floor + 0.02, min(_p90_val, 0.65))"
+luna/models/train_metalabeler_v2.py,1433,0.65,OTHER,_dyn_ceiling  = 0.65  # fallback conservador
+luna/models/train_xgboost_v2.py,130,0.20,OTHER,"n_oos   = max(30, int(n_total * 0.20))"
+luna/models/train_xgboost_v2.py,130,30,OTHER,"n_oos   = max(30, int(n_total * 0.20))"
+luna/models/train_xgboost_v2.py,162,0.577215,OTHER,t_stat_star = 1.0 * ((1 - 0.577215) * z1 + 0.577215 * z2)
+luna/models/train_xgboost_v2.py,385,0.01,OTHER,vol_ratio   = vol_ratio.clip(lower=0.01)
+luna/models/train_xgboost_v2.py,388,5.0,OTHER,"df[""timing_vol_divergence""] = df[""timing_vol_divergence""].clip(upper=5.0)"
+luna/models/train_xgboost_v2.py,520,0.005,OTHER,"_min_ret = float(getattr(_cfg.xgboost, 'tbm_min_return', 0.005))"
+luna/models/train_xgboost_v2.py,523,0.005,OTHER,"_pt, _sl, _min_ret = 2.0, 1.0, 0.005"
+luna/models/train_xgboost_v2.py,594,42,OTHER,_rng = np.random.default_rng(42)
+luna/models/train_xgboost_v2.py,617,0.005,OTHER,"min_return=_min_ret,           # BUG-A01-FIX: de settings (era hardcoded 0.005)"
+luna/models/train_xgboost_v2.py,906,0.5772156649,OTHER,gamma = 0.5772156649
+luna/models/train_xgboost_v2.py,931,8760.0,OTHER,freq = 8760.0
+luna/models/train_xgboost_v2.py,1058,0.5,OTHER,"_gamma_max = min(0.5, sp.gamma_max)"
+luna/models/train_xgboost_v2.py,1059,0.2,OTHER,"_mcw_min = max(2, int(sp.min_child_weight_min * 0.2))"
+luna/models/train_xgboost_v2.py,1060,0.2,OTHER,"_mcw_max = max(_mcw_min + 1, int(sp.min_child_weight_max * 0.2))"
+luna/models/train_xgboost_v2.py,1132,0.5,OTHER,"_fl_gamma_min, _fl_gamma_max = 0.5, 4.0"
+luna/models/train_xgboost_v2.py,1132,4.0,OTHER,"_fl_gamma_min, _fl_gamma_max = 0.5, 4.0"
+luna/models/train_xgboost_v2.py,1141,1.5,OTHER,if _fl_gamma < 1.0 and _spw > _spw_ideal * 1.5:
+luna/models/train_xgboost_v2.py,1208,0.50,OTHER,_naive_p = _y_val.mean() if len(_y_val) > 0 else 0.50
+luna/models/train_xgboost_v2.py,1277,0.50,OTHER,"trial.set_user_attr('naive_is', float(np.mean(_naive_scores)) if _naive_scores else 0.50)"
+luna/models/train_xgboost_v2.py,1354,0.05,OTHER,"'learning_rate': 0.05,"
+luna/models/train_xgboost_v2.py,1355,0.6,OTHER,"'subsample': 0.6,"
+luna/models/train_xgboost_v2.py,1360,1.5,OTHER,"'reg_lambda': 1.5,"
+luna/models/train_xgboost_v2.py,1367,0.15,OTHER,"'metric_is': 0.15,"
+luna/models/train_xgboost_v2.py,1368,0.15,OTHER,'naive_is': 0.15
+luna/models/train_xgboost_v2.py,1371,0.50,OTHER,best_value = 0.50
+luna/models/train_xgboost_v2.py,1465,0.1,OTHER,"self._spw_min = max(0.1,  _spw_ideal * 0.5)"
+luna/models/train_xgboost_v2.py,1465,0.5,OTHER,"self._spw_min = max(0.1,  _spw_ideal * 0.5)"
+luna/models/train_xgboost_v2.py,1466,2.5,OTHER,"self._spw_max = min(2.0,  _spw_ideal * 2.5)  # SOP_LIMIT=2.0"
+luna/models/train_xgboost_v2.py,1536,0.50,OTHER,return 0.50
+luna/models/train_xgboost_v2.py,1543,0.50,OTHER,return 0.50
+luna/models/train_xgboost_v2.py,1588,0.45,OTHER,_base_rate_is = float(self.y.mean()) if len(self.y) > 0 else 0.45
+luna/models/train_xgboost_v2.py,1589,0.65,OTHER,"_dyn_fallback = min(0.65, max(0.50, round(_base_rate_is + 0.08, 2)))"
+luna/models/train_xgboost_v2.py,1589,0.50,OTHER,"_dyn_fallback = min(0.65, max(0.50, round(_base_rate_is + 0.08, 2)))"
+luna/models/train_xgboost_v2.py,1589,0.08,OTHER,"_dyn_fallback = min(0.65, max(0.50, round(_base_rate_is + 0.08, 2)))"
+luna/models/train_xgboost_v2.py,1589,65,OTHER,"_dyn_fallback = min(0.65, max(0.50, round(_base_rate_is + 0.08, 2)))"
+luna/models/train_xgboost_v2.py,1589,50,OTHER,"_dyn_fallback = min(0.65, max(0.50, round(_base_rate_is + 0.08, 2)))"
+luna/models/train_xgboost_v2.py,1624,5.0,OTHER,"df_val[""timing_vol_divergence""] = (_r24h_abs / (_vol_ratio + 1e-6)).clip(upper=5.0)"
+luna/models/train_xgboost_v2.py,1640,0.50,OTHER,return 0.50
+luna/models/train_xgboost_v2.py,1689,0.003,OTHER,"_tbm_min_c = float(getattr(cal_cfg, 'tbm_min_return', 0.003))"
+luna/models/train_xgboost_v2.py,1749,0.001,OTHER,if abs(t_min_eff - t_min) > 0.001 or abs(t_max_eff - t_max) > 0.001:
+luna/models/train_xgboost_v2.py,1775,0.40,OTHER,fallback_t = 0.40
+luna/models/train_xgboost_v2.py,1821,0.010,OTHER,ev_adjusted = ev + 0.010
+luna/models/train_xgboost_v2.py,2064,0.50,OTHER,self._base_rate_is = float(self.y.mean()) if self.y is not None and len(self.y) > 0 else 0.50
+luna/models/train_xgboost_v2.py,2065,0.01,OTHER,if self._base_rate_is <= 0.01 or self._base_rate_is >= 0.99:
+luna/models/train_xgboost_v2.py,2065,0.99,OTHER,if self._base_rate_is <= 0.01 or self._base_rate_is >= 0.99:
+luna/models/train_xgboost_v2.py,2088,0.025,OTHER,_brier_margin = 0.025
+luna/models/train_xgboost_v2.py,2115,0.003,OTHER,"_mr_cd = float(getattr(_cfg_cd.xgboost, 'tbm_min_return', 0.003))"
+luna/models/train_xgboost_v2.py,2127,50,OTHER,if len(_df_cd) >= 50:
+luna/models/train_xgboost_v2.py,2229,0.003,OTHER,"_mr  = float(getattr(_cfg_iso.xgboost, ""tbm_min_return"", 0.003))"
+luna/models/train_xgboost_v2.py,2245,40,OTHER,if _n_val >= 40:
+luna/models/train_xgboost_v2.py,2397,0.50,OTHER,"""target_base_rate"":    getattr(self, ""_base_rate_is"", 0.50),"
+luna/models/train_xgboost_v2.py,2398,0.50,OTHER,"""brier_naive"":         round(getattr(self, ""_base_rate_is"", 0.50) * (1 - getattr(self, ""_base_rate_is"", 0.50)), 4),"
+luna/monitoring/feature_drift_monitor.py,12,0.10,OTHER,- PSI < 0.10:  Distribución estable              → OK
+luna/monitoring/feature_drift_monitor.py,13,0.10,OTHER,- PSI 0.10-0.25: Cambio leve — monitorizar       → WARNING
+luna/monitoring/feature_drift_monitor.py,13,0.25,OTHER,- PSI 0.10-0.25: Cambio leve — monitorizar       → WARNING
+luna/monitoring/feature_drift_monitor.py,30,0.10,OTHER,PSI_STABLE   = 0.10   # Por debajo: OK
+luna/monitoring/feature_drift_monitor.py,31,0.25,OTHER,PSI_WARNING  = 0.25   # Entre PSI_STABLE y PSI_WARNING: monitorizar
+luna/monitoring/statistical_audit.py,78,0.10,OTHER,"self.MAX_PBO         = float(_s.get(""max_pbo"",        0.10))"
+luna/monitoring/statistical_audit.py,81,0.20,OTHER,"self.MAX_DRAWDOWN    = float(_s.get(""max_drawdown"",   0.20))"
+luna/monitoring/statistical_audit.py,99,365,OTHER,self.ANNUAL_FACTOR = np.sqrt(365 * 24)
+luna/monitoring/statistical_audit.py,118,0.5772156649,OTHER,gamma = 0.5772156649  # Constante de Euler-Mascheroni
+luna/monitoring/statistical_audit.py,152,0.05,OTHER,Retorna p-value (< 0.05 = rechazamos H0 con 95% confianza).
+luna/monitoring/statistical_audit.py,158,0.5,OTHER,"res = stats.binomtest(k=int(wins), n=int(total_trades), p=0.5, alternative='greater')"
+luna/monitoring/statistical_audit.py,162,0.5,OTHER,"return float(stats.binom_test(x=int(wins), n=int(total_trades), p=0.5, alternative='greater'))"
+luna/monitoring/statistical_audit.py,179,0.50,OTHER,return 0.50
+luna/monitoring/statistical_audit.py,184,42,OTHER,rng = np.random.default_rng(42)
+luna/monitoring/statistical_audit.py,202,0.50,OTHER,pbo = float(overfit_count) / float(n_simulations) if n_simulations > 0 else 0.50
+luna/monitoring/statistical_audit.py,249,365.25,OTHER,"years_in_oos = max((ts.max() - ts.min()).total_seconds() / (365.25 * 24 * 3600), 1e-5)"
+luna/monitoring/statistical_audit.py,249,365,OTHER,"years_in_oos = max((ts.max() - ts.min()).total_seconds() / (365.25 * 24 * 3600), 1e-5)"
+luna/monitoring/statistical_audit.py,271,999.0,OTHER,calmar if calmar != float('inf') else 999.0)
+luna/monitoring/statistical_audit.py,319,0.50,OTHER,"""PASS"" if win_rate > 0.50 else ""FAIL"")"
+luna/pipeline_executor.py,191,0.3,OTHER,"_test_x = _np_cal.linspace(0.3, 0.7, 50)"
+luna/pipeline_executor.py,191,0.7,OTHER,"_test_x = _np_cal.linspace(0.3, 0.7, 50)"
+luna/pipeline_executor.py,191,50,OTHER,"_test_x = _np_cal.linspace(0.3, 0.7, 50)"
+luna/pipeline_executor.py,284,0.3,OTHER,"_test_x_xgb = _np_xgb.linspace(0.3, 0.7, 50)"
+luna/pipeline_executor.py,284,0.7,OTHER,"_test_x_xgb = _np_xgb.linspace(0.3, 0.7, 50)"
+luna/pipeline_executor.py,284,50,OTHER,"_test_x_xgb = _np_xgb.linspace(0.3, 0.7, 50)"
+luna/pipeline_executor.py,285,0.5,OTHER,"_out_xgb = _xgb_cal.predict(_test_x_xgb) if hasattr(_xgb_cal, 'predict') else _np_xgb.array([0.5] * 50)"
+luna/pipeline_executor.py,423,16.0,OTHER,if free_gb < 16.0:
+luna/pipeline_executor.py,1229,0.05,OTHER,if _desfase > 0.05:
+luna/pipeline_executor.py,1251,0.95,OTHER,if _th_val > 0.95:
+luna/pipeline_executor.py,1252,0.38,OTHER,_fallback_th = 0.38  # baseline institucional
+luna/reports/generate_tearsheet.py,64,0.15,OTHER,_GRIDΑ  = 0.15
+luna/reports/generate_tearsheet.py,84,7.0,OTHER,"fontsize=7.0, color=_GRAY, va=""top"", ha=""left"","
+luna/reports/generate_tearsheet.py,341,0.5,OTHER,"ax.scatter(ts_list, [0.5] * len(ts_list), color=color, s=18,"
+luna/reports/generate_tearsheet.py,360,1.5,OTHER,"loc=""upper left"", markerscale=1.5)"
+luna/reports/generate_tearsheet.py,398,0.50,OTHER,if cov < 0.50:
+luna/reports/generate_tearsheet.py,465,0.35,OTHER,bar_h   = 0.35
+luna/reports/generate_tearsheet.py,469,0.02,OTHER,"ax.set_xlim(-max_n * 0.02, max_n * 1.40)   # extra espacio derecha para anotaciones"
+luna/reports/generate_tearsheet.py,469,1.40,OTHER,"ax.set_xlim(-max_n * 0.02, max_n * 1.40)   # extra espacio derecha para anotaciones"
+luna/reports/generate_tearsheet.py,470,0.6,OTHER,"ax.set_ylim(-0.6, n_regs - 0.4)"
+luna/reports/generate_tearsheet.py,470,0.4,OTHER,"ax.set_ylim(-0.6, n_regs - 0.4)"
+luna/reports/generate_tearsheet.py,479,1.35,OTHER,"ax.barh(y, max_n * 1.35, height=bar_h * 2.6,"
+luna/reports/generate_tearsheet.py,479,2.6,OTHER,"ax.barh(y, max_n * 1.35, height=bar_h * 2.6,"
+luna/reports/generate_tearsheet.py,493,0.50,OTHER,wr_color = _GREEN if wr >= 0.50 else _RED
+luna/reports/generate_tearsheet.py,494,1.06,OTHER,"ax.text(max_n * 1.06, y,"
+luna/reports/generate_tearsheet.py,510,1.28,OTHER,"ax.text(max_n * 1.28, y,"
+luna/reports/generate_tearsheet.py,522,0.50,OTHER,"ax.axvline(max_n * 0.50, color=_YELLOW, linewidth=0.9,"
+luna/reports/generate_tearsheet.py,522,0.9,OTHER,"ax.axvline(max_n * 0.50, color=_YELLOW, linewidth=0.9,"
+luna/reports/generate_tearsheet.py,564,1.8,OTHER,"ax.plot(x, cum_ret.values, color=_GREEN, linewidth=1.8, zorder=3, label=""Luna V1"")"
+luna/reports/generate_tearsheet.py,626,0.01,OTHER,"ax.text(x[0] if not has_dates else x[int(len(x) * 0.01)],"
+luna/reports/generate_tearsheet.py,627,1.05,OTHER,"max_dd * 1.05, f""Max DD = {max_dd:.1f}%"","
+luna/reports/generate_tearsheet.py,628,7.5,OTHER,"color=_YELLOW, fontsize=7.5, va=""top"")"
+luna/reports/generate_tearsheet.py,671,95,OTHER,"q95 = np.nanpercentile(np.abs(vals), 95)"
+luna/reports/generate_tearsheet.py,672,1.2,OTHER,"ylim = max(q95 * 1.2, 3.0)"
+luna/reports/generate_tearsheet.py,689,1.1,OTHER,"ax2.plot(x, _roll_wr.fillna(50).values, color=_PURPLE, linewidth=1.1,"
+luna/reports/generate_tearsheet.py,689,50,OTHER,"ax2.plot(x, _roll_wr.fillna(50).values, color=_PURPLE, linewidth=1.1,"
+luna/reports/generate_tearsheet.py,692,85,OTHER,"ax2.set_ylim(15, 85)"
+luna/reports/generate_tearsheet.py,733,0.05,OTHER,"xytext=(max_idx, vals[max_idx] + np.ptp(vals) * 0.05),"
+luna/reports/generate_tearsheet.py,735,0.6,OTHER,"arrowprops=dict(arrowstyle=""-"", color=_GREEN, lw=0.6))"
+luna/reports/generate_tearsheet.py,737,0.05,OTHER,"xytext=(min_idx, vals[min_idx] - np.ptp(vals) * 0.05),"
+luna/reports/generate_tearsheet.py,739,0.6,OTHER,"arrowprops=dict(arrowstyle=""-"", color=_RED, lw=0.6))"
+luna/reports/generate_tearsheet.py,820,1.5,OTHER,"(""Ratio R:R"",          f""{ratio:.2f}×"",   ratio >= 1.5),"
+luna/reports/generate_tearsheet.py,829,0.10,OTHER,"(""PBO (CSCV)"",         f""{pbo*100:.1f}%"", pbo < 0.10),"
+luna/reports/generate_tearsheet.py,831,4.5,OTHER,"(""CUSUM Max Drift"",    f""{cusum:.2f}"" if cusum is not None else ""N/A"", cusum is not None and cusum <= 4.5),"
+luna/reports/generate_tearsheet.py,841,0.5,OTHER,y = i + 0.5
+luna/reports/generate_tearsheet.py,846,8.5,OTHER,fsize = 8.5 if not is_header else 7.5
+luna/reports/generate_tearsheet.py,846,7.5,OTHER,fsize = 8.5 if not is_header else 7.5
+luna/reports/generate_tearsheet.py,849,0.02,OTHER,"ax.text(0.02, y, label, color=lbl_color, fontsize=fsize,"
+luna/reports/generate_tearsheet.py,886,0.5,OTHER,"linewidths=0.5, linecolor=_BORDER)"
+luna/reports/generate_tearsheet.py,899,30,OTHER,"bins   = np.linspace(ret.min() * 100, ret.max() * 100, 30)"
+luna/reports/generate_tearsheet.py,931,1.2,OTHER,"ax.axvline(mean_r,   color=_YELLOW, linestyle=""--"", linewidth=1.2, zorder=4)"
+luna/reports/generate_tearsheet.py,933,1.1,OTHER,"ax.axvline(var95,    color=_RED,     linestyle="":"",  linewidth=1.1, zorder=4)"
+luna/reports/generate_tearsheet.py,938,0.90,OTHER,"(mean_r,  f""Media\n{mean_r:.2f}%"",   _YELLOW, 0.90),"
+luna/reports/generate_tearsheet.py,939,0.75,OTHER,"(var95,   f""VaR95\n{var95:.2f}%"",    _RED,    0.75),"
+luna/reports/generate_tearsheet.py,940,0.60,OTHER,"(median_r,f""Med.\n{median_r:.2f}%"",  _BLUE,   0.60),"
+luna/reports/generate_tearsheet.py,943,6.5,OTHER,"color=col, fontsize=6.5, ha=""center"", va=""top"","
+luna/reports/generate_tearsheet.py,948,0.99,OTHER,"ax.text(0.99, 0.98, stats_txt, transform=ax.transAxes,"
+luna/reports/generate_tearsheet.py,948,0.98,OTHER,"ax.text(0.99, 0.98, stats_txt, transform=ax.transAxes,"
+luna/reports/generate_tearsheet.py,948,99,OTHER,"ax.text(0.99, 0.98, stats_txt, transform=ax.transAxes,"
+luna/reports/generate_tearsheet.py,991,1.5,OTHER,"n_tr,         min_tr,         max(n_tr * 1.5, min_tr * 2), True,"
+luna/reports/generate_tearsheet.py,1003,0.50,OTHER,"pbo,          max_pbo,        0.50, False,    # lower is better"
+luna/reports/generate_tearsheet.py,1006,0.50,OTHER,"dd / 100,     max_dd_t / 100, 0.50, False,   # lower is better"
+luna/reports/generate_tearsheet.py,1012,0.9,OTHER,"ax.set_ylim(-0.9, len(gate_defs) - 0.1)"
+luna/reports/generate_tearsheet.py,1012,0.1,OTHER,"ax.set_ylim(-0.9, len(gate_defs) - 0.1)"
+luna/reports/generate_tearsheet.py,1018,0.09,OTHER,"BADGE_X0, BADGE_W = 0.00, 0.09"
+luna/reports/generate_tearsheet.py,1019,0.11,OTHER,NAME_X           = 0.11
+luna/reports/generate_tearsheet.py,1020,0.32,OTHER,"BAR_X0, BAR_W    = 0.32, 0.38"
+luna/reports/generate_tearsheet.py,1020,0.38,OTHER,"BAR_X0, BAR_W    = 0.32, 0.38"
+luna/reports/generate_tearsheet.py,1032,0.35,OTHER,"(0.0, y - 0.35), 1.0, 0.70,"
+luna/reports/generate_tearsheet.py,1032,0.70,OTHER,"(0.0, y - 0.35), 1.0, 0.70,"
+luna/reports/generate_tearsheet.py,1035,0.5,OTHER,"edgecolor=col, linewidth=0.5))"
+luna/reports/generate_tearsheet.py,1039,0.28,OTHER,"(BADGE_X0, y - 0.28), BADGE_W, 0.56,"
+luna/reports/generate_tearsheet.py,1039,0.56,OTHER,"(BADGE_X0, y - 0.28), BADGE_W, 0.56,"
+luna/reports/generate_tearsheet.py,1044,6.5,OTHER,"fontsize=6.5, color=_BG if passed else _WHITE,"
+luna/reports/generate_tearsheet.py,1054,.1,OTHER,"norm_v = min(max(value, 0), scale) / scale  # 0..1"
+luna/reports/generate_tearsheet.py,1059,0.14,OTHER,"(BAR_X0, y - 0.14), BAR_W, 0.28,"
+luna/reports/generate_tearsheet.py,1059,0.28,OTHER,"(BAR_X0, y - 0.14), BAR_W, 0.28,"
+luna/reports/generate_tearsheet.py,1060,0.5,OTHER,"facecolor=""#21262d"", edgecolor=_BORDER, linewidth=0.5))"
+luna/reports/generate_tearsheet.py,1063,0.14,OTHER,"(BAR_X0, y - 0.14), BAR_W * norm_v, 0.28,"
+luna/reports/generate_tearsheet.py,1063,0.28,OTHER,"(BAR_X0, y - 0.14), BAR_W * norm_v, 0.28,"
+luna/reports/generate_tearsheet.py,1073,0.5,OTHER,"markeredgecolor=_BG, markeredgewidth=0.5)"
+luna/reports/generate_tearsheet.py,1078,10.5,OTHER,"fontsize=10.5, color=_WHITE, fontweight=""bold"")"
+luna/reports/generate_tearsheet.py,1081,7.0,OTHER,"fontsize=7.0, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1084,0.72,OTHER,ref_y = -0.72
+luna/reports/generate_tearsheet.py,1087,0.5,OTHER,"for frac, label in [(0, ""0""), (0.5, ""50%""), (1.0, ""100%"")]:"
+luna/reports/generate_tearsheet.py,1088,0.08,OTHER,"ax.text(BAR_X0 + BAR_W * frac, ref_y - 0.08, label,"
+luna/reports/generate_tearsheet.py,1089,6.5,OTHER,"ha=""center"", fontsize=6.5, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1094,1.5,OTHER,"linestyle=""-"", linewidth=1.5, markersize=5,"
+luna/reports/generate_tearsheet.py,1135,0.25,OTHER,"ax.set_xlim(-0.25, 1.20)"
+luna/reports/generate_tearsheet.py,1135,1.20,OTHER,"ax.set_xlim(-0.25, 1.20)"
+luna/reports/generate_tearsheet.py,1136,0.9,OTHER,"ax.set_ylim(-0.9, len(items) - 0.1)"
+luna/reports/generate_tearsheet.py,1136,0.1,OTHER,"ax.set_ylim(-0.9, len(items) - 0.1)"
+luna/reports/generate_tearsheet.py,1150,0.25,OTHER,"(-0.25, y - 0.38), 1.45, 0.76,"
+luna/reports/generate_tearsheet.py,1150,0.38,OTHER,"(-0.25, y - 0.38), 1.45, 0.76,"
+luna/reports/generate_tearsheet.py,1150,1.45,OTHER,"(-0.25, y - 0.38), 1.45, 0.76,"
+luna/reports/generate_tearsheet.py,1150,0.76,OTHER,"(-0.25, y - 0.38), 1.45, 0.76,"
+luna/reports/generate_tearsheet.py,1153,0.5,OTHER,"edgecolor=col, linewidth=0.5,"
+luna/reports/generate_tearsheet.py,1157,0.40,OTHER,"ax.barh(y, 1.0, height=0.40, color=""#21262d"", left=0, zorder=1)"
+luna/reports/generate_tearsheet.py,1161,0.28,OTHER,"ax.plot([norm_t, norm_t], [y - 0.28, y + 0.28],"
+luna/reports/generate_tearsheet.py,1162,2.5,OTHER,"color=_YELLOW, linewidth=2.5, zorder=4, solid_capstyle=""round"")"
+luna/reports/generate_tearsheet.py,1164,0.5,OTHER,"marker=""D"", zorder=5, edgecolors=_BG, linewidth=0.5)"
+luna/reports/generate_tearsheet.py,1167,0.02,OTHER,"ax.text(-0.02, y, name, va=""center"", ha=""right"","
+luna/reports/generate_tearsheet.py,1168,9.5,OTHER,"fontsize=9.5, color=_WHITE, fontweight=""bold"")"
+luna/reports/generate_tearsheet.py,1170,1.03,OTHER,"ax.text(1.03, y + 0.15, lval, va=""center"", ha=""left"","
+luna/reports/generate_tearsheet.py,1170,0.15,OTHER,"ax.text(1.03, y + 0.15, lval, va=""center"", ha=""left"","
+luna/reports/generate_tearsheet.py,1173,7.5,OTHER,"fontsize=7.5, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1179,0.01,OTHER,"ax.text(0.01, y + 0.18, desc, va=""center"", ha=""left"","
+luna/reports/generate_tearsheet.py,1179,0.18,OTHER,"ax.text(0.01, y + 0.18, desc, va=""center"", ha=""left"","
+luna/reports/generate_tearsheet.py,1183,0.7,OTHER,"ax.text(0.0,  -0.7, ""0%"", ha=""left"",  fontsize=7, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1184,0.5,OTHER,"ax.text(0.5,  -0.7, ""50%"", ha=""center"", fontsize=7, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1184,0.7,OTHER,"ax.text(0.5,  -0.7, ""50%"", ha=""center"", fontsize=7, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1185,0.7,OTHER,"ax.text(1.0,  -0.7, ""100%"", ha=""right"", fontsize=7, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1190,1.5,OTHER,"linestyle=""-"", linewidth=1.5, markersize=6,"
+luna/reports/generate_tearsheet.py,1221,0.5,OTHER,"ax.text(0.5, 0.5, ""Datos insuficientes para cuartiles"","
+luna/reports/generate_tearsheet.py,1237,50,OTHER,colors_b = [_GREEN if w >= 50 else _RED for w in wrs]
+luna/reports/generate_tearsheet.py,1265,1.25,OTHER,"ax.set_ylim(0, max(wrs) * 1.25 + 5)"
+luna/reports/generate_tearsheet.py,1288,36,OTHER,HALLAZGO-1 (M-36): distribución de holding time en horas.
+luna/reports/generate_tearsheet.py,1312,0.5,OTHER,"ax.text(0.5, 0.5,"
+luna/reports/generate_tearsheet.py,1375,0.5,OTHER,"ax.text(0.5, 0.5, ""WFV no disponible (insuficientes trades)"","
+luna/reports/generate_tearsheet.py,1388,50,OTHER,bar_colors = [_GREEN if w >= 50 else (_YELLOW if w >= 40 else _RED) for w in wrs]
+luna/reports/generate_tearsheet.py,1388,40,OTHER,bar_colors = [_GREEN if w >= 50 else (_YELLOW if w >= 40 else _RED) for w in wrs]
+luna/reports/generate_tearsheet.py,1398,4.5,OTHER,"ax.text(bar.get_x() + bar.get_width() / 2, -4.5,"
+luna/reports/generate_tearsheet.py,1399,6.5,OTHER,"f""{s}\n{e}"", ha=""center"", va=""top"", fontsize=6.5, color=_GRAY)"
+luna/reports/generate_tearsheet.py,1406,0.99,OTHER,"ax.text(0.99, 0.97, trend_sym, transform=ax.transAxes,"
+luna/reports/generate_tearsheet.py,1406,0.97,OTHER,"ax.text(0.99, 0.97, trend_sym, transform=ax.transAxes,"
+luna/reports/generate_tearsheet.py,1406,99,OTHER,"ax.text(0.99, 0.97, trend_sym, transform=ax.transAxes,"
+luna/reports/generate_tearsheet.py,1412,1.25,OTHER,"ax.set_ylim(0, max(max(wrs) if wrs else 60, 60) * 1.25 + 8)"
+luna/reports/generate_tearsheet.py,1412,60,OTHER,"ax.set_ylim(0, max(max(wrs) if wrs else 60, 60) * 1.25 + 8)"
+luna/reports/generate_tearsheet.py,1450,0.15,OTHER,"(""Training (In-Sample)"", df_train.index.min(), df_train.index.max(), _BLUE, 0.15),"
+luna/reports/generate_tearsheet.py,1452,0.20,OTHER,"(""Holdout OOS"", df_holdout.index.min(), df_holdout.index.max(), _PURPLE, 0.20)"
+luna/reports/generate_tearsheet.py,1486,0.5,OTHER,"ax.text(0.5, 0.9, ""ALERTA LEAKAGE:\n"" + ""\n"".join(overlap_warnings), color=_RED, fontsize=12, fontweight=""bold"", transform=ax.transAxes, ha=""center"")"
+luna/reports/generate_tearsheet.py,1486,0.9,OTHER,"ax.text(0.5, 0.9, ""ALERTA LEAKAGE:\n"" + ""\n"".join(overlap_warnings), color=_RED, fontsize=12, fontweight=""bold"", transform=ax.transAxes, ha=""center"")"
+luna/reports/generate_tearsheet.py,1497,0.5,OTHER,"ax.text(0.5, 0.5, f""Timeline no disponible: {e}"", ha=""center"", va=""center"", color=_GRAY, fontsize=11)"
+luna/reports/generate_tearsheet.py,1572,62,OTHER,"fig = plt.figure(figsize=(20, 62), facecolor=_BG)  # v8.0: 56 → 62 por 10 filas (Panel E: Timeline Audit)"
+luna/reports/generate_tearsheet.py,1583,0.5,OTHER,"fig.text(0.5, 0.991, banner_l1, ha=""center"", va=""top"","
+luna/reports/generate_tearsheet.py,1583,0.991,OTHER,"fig.text(0.5, 0.991, banner_l1, ha=""center"", va=""top"","
+luna/reports/generate_tearsheet.py,1585,0.5,OTHER,"fig.text(0.5, 0.984, banner_l2, ha=""center"", va=""top"","
+luna/reports/generate_tearsheet.py,1585,0.984,OTHER,"fig.text(0.5, 0.984, banner_l2, ha=""center"", va=""top"","
+luna/reports/generate_tearsheet.py,1593,1.4,OTHER,"height_ratios=[1.4, 1.4, 1.2, 1.1, 1.1, 1.6, 1.1, 1.0, 0.9, 1.1],"
+luna/reports/generate_tearsheet.py,1593,1.2,OTHER,"height_ratios=[1.4, 1.4, 1.2, 1.1, 1.1, 1.6, 1.1, 1.0, 0.9, 1.1],"
+luna/reports/generate_tearsheet.py,1593,1.1,OTHER,"height_ratios=[1.4, 1.4, 1.2, 1.1, 1.1, 1.6, 1.1, 1.0, 0.9, 1.1],"
+luna/reports/generate_tearsheet.py,1593,1.6,OTHER,"height_ratios=[1.4, 1.4, 1.2, 1.1, 1.1, 1.6, 1.1, 1.0, 0.9, 1.1],"
+luna/reports/generate_tearsheet.py,1593,0.9,OTHER,"height_ratios=[1.4, 1.4, 1.2, 1.1, 1.1, 1.6, 1.1, 1.0, 0.9, 1.1],"
+luna/reports/generate_tearsheet.py,1594,0.90,OTHER,"hspace=0.90,"
+luna/reports/generate_tearsheet.py,1595,0.30,OTHER,"wspace=0.30,"
+luna/reports/generate_tearsheet.py,1596,0.07,OTHER,"left=0.07, right=0.97,"
+luna/reports/generate_tearsheet.py,1596,0.97,OTHER,"left=0.07, right=0.97,"
+luna/reports/generate_tearsheet.py,1597,0.975,OTHER,"top=0.975, bottom=0.02,"
+luna/reports/generate_tearsheet.py,1597,0.02,OTHER,"top=0.975, bottom=0.02,"
+luna/reports/generate_tearsheet.py,1660,42,OTHER,rng   = np.random.default_rng(42)
+luna/reports/generate_tearsheet.py,1662,0.001,OTHER,"rets  = rng.normal(-0.001, 0.020, 821)"
+luna/reports/generate_tearsheet.py,1662,0.020,OTHER,"rets  = rng.normal(-0.001, 0.020, 821)"
+luna/reports/generate_tearsheet.py,1662,821,OTHER,"rets  = rng.normal(-0.001, 0.020, 821)"
+luna/reports/generate_validation_report.py,162,96,OTHER,"ml2_seq_len  = ml2.get(""seq_len"", 96)"
+luna/reports/generate_validation_report.py,163,300,OTHER,"ml2_rf_est   = ml2.get(""rf_n_estimators"", 300)"
+luna/reports/generate_validation_report.py,257,0.50,OTHER,"if wr_val >= 0.50: return ""OK"""
+luna/reports/generate_validation_report.py,258,0.38,OTHER,"if wr_val < 0.38:  return ""CRITICO"""
+luna/reports/generate_validation_report.py,418,0.05,OTHER,"| p-binomial | {p_binom:.4e} | {""NO significativo — no se rechaza H0 (azar)"" if p_binom > 0.05 else ""SIGNIFICATIVO — se rechaza H0 (edge real)""} |"
+luna/reports/generate_validation_report.py,425,50,OTHER,"| {""❌"" if wr <= 50 else ""✅""} Win Rate | {wr:.1f}% | >50% | {_gap(wr, 50, ""above"")} |"
+luna/reports/generate_validation_report.py,473,0.05,OTHER,"{""No rechazamos H0 — el WR actual no supera el umbral del azar con p<0.05."" if p_binom > 0.05 else ""Rechazamos H0 — el WR es estadisticamente signific"
+luna/reports/generate_validation_report.py,474,0.05,OTHER,Para rechazar H0 necesitamos p < 0.05.
+luna/reports/generate_validation_report.py,486,0.70,OTHER,v [B] Clustering Jerarquico (corr=0.70)
+luna/reports/generate_validation_report.py,581,0.25,OTHER,> Brier Score: 0.0 = perfecto | 0.25 = aleatorio
+luna/risk/kelly_sizer.py,23,0.52,OTHER,- Floor mínimo de 1% del capital (nunca 0% si p > 0.52).
+luna/risk/kelly_sizer.py,85,0.30,OTHER,"base_cap: float = 0.30,"
+luna/risk/kelly_sizer.py,90,0.25,OTHER,< 0.25:  Señal muy débil   → 3%  (apenas tanteando)
+luna/risk/kelly_sizer.py,91,0.25,OTHER,0.25-0.45: Señal débil     → 7%  (posición reducida)
+luna/risk/kelly_sizer.py,91,0.45,OTHER,0.25-0.45: Señal débil     → 7%  (posición reducida)
+luna/risk/kelly_sizer.py,108,0.25,OTHER,if joint_confidence < 0.25:
+luna/risk/kelly_sizer.py,109,0.03,OTHER,raw = 0.03
+luna/risk/kelly_sizer.py,110,0.45,OTHER,elif joint_confidence < 0.45:
+luna/risk/kelly_sizer.py,111,0.07,OTHER,raw = 0.07
+luna/risk/kelly_sizer.py,112,0.65,OTHER,elif joint_confidence < 0.65:
+luna/risk/kelly_sizer.py,113,0.10,OTHER,raw = 0.10
+luna/risk/kelly_sizer.py,115,0.20,OTHER,raw = 0.20
+luna/risk/kelly_sizer.py,117,0.30,OTHER,"raw = min(0.30, base_cap)"
+luna/risk/kelly_sizer.py,117,30,OTHER,"raw = min(0.30, base_cap)"
+luna/risk/kelly_sizer.py,120,0.03,OTHER,"return float(np.clip(penalized, 0.03, base_cap))"
+luna/risk/kelly_sizer.py,151,0.20,OTHER,"Rango recomendado: [0.20, 0.50]. Valores > 0.5 son agresivos."
+luna/risk/kelly_sizer.py,151,0.50,OTHER,"Rango recomendado: [0.20, 0.50]. Valores > 0.5 son agresivos."
+luna/risk/kelly_sizer.py,151,0.5,OTHER,"Rango recomendado: [0.20, 0.50]. Valores > 0.5 son agresivos."
+luna/risk/kelly_sizer.py,153,0.01,OTHER,Default: 0.01 (1% del capital).
+luna/risk/kelly_sizer.py,155,0.15,OTHER,Default: 0.15 (15% del capital).
+luna/risk/kelly_sizer.py,286,0.5,OTHER,"drift_penalty: Factor PSI Monitor (1.0=OK, 0.5=CRITICAL drift)."
+luna/risk/kelly_sizer.py,305,0.5,OTHER,"meta_p = float(row.get(meta_col,  0.5) or 0.5)"
+luna/risk/kelly_sizer.py,315,0.25,OTHER,"_ood_penalty = max(0.25, np.exp(_ood_dist * 2.0))"
+luna/risk/psi_guard.py,8,8.0,OTHER,"El drift estructural del mercado (e.g., irrupción de ETFs en Q1 2025, PSI>8.0)"
+luna/risk/psi_guard.py,100,0.10,OTHER,PSI_STABLE: float = 0.10         # PSI < 0.10: distribución estable
+luna/risk/psi_guard.py,101,0.25,OTHER,"PSI_MODERATE: float = 0.25       # PSI ∈ [0.10, 0.25]: cambio moderado"
+luna/risk/psi_guard.py,101,0.10,OTHER,"PSI_MODERATE: float = 0.25       # PSI ∈ [0.10, 0.25]: cambio moderado"
+luna/risk/psi_guard.py,102,0.50,OTHER,PSI_CRITICAL: float = 0.50       # PSI > 0.50: cambio estructural grave
+luna/security/guard_pipeline.py,9,0.5,OTHER,- correlaciones sospechosamente altas con el target (>0.5 en features)
+luna/security/guard_pipeline.py,130,0.40,OTHER,Correlación >0.40 en feature → WARNING.
+luna/security/guard_pipeline.py,131,0.55,OTHER,Correlación >0.55 en feature → CRITICAL (casi certeza de leakage).
+luna/security/guard_pipeline.py,135,0.15,OTHER,supera 0.15. Cualquier cosa >0.30 merece investigación.
+luna/security/guard_pipeline.py,135,0.30,OTHER,supera 0.15. Cualquier cosa >0.30 merece investigación.
+luna/security/guard_pipeline.py,278,0.70,OTHER,if wr > 0.70:
+luna/security/guard_pipeline.py,285,0.001,OTHER,if mdd is not None and abs(mdd) < 0.001:
+luna/utils/debug_guards.py,71,6.0,OTHER,"OUTLIER_SIGMA:      float = _cfg_val(""outlier_sigma"", 6.0)"
+luna/utils/debug_guards.py,279,0.25,OTHER,"level = ""WARNING"" if brier > 0.25 or auc < 0.52 else ""INFO"""
+luna/utils/debug_guards.py,279,0.52,OTHER,"level = ""WARNING"" if brier > 0.25 or auc < 0.52 else ""INFO"""
+luna/utils/ood_feature_guard.py,44,0.05,OTHER,min_std_ratio:       0.05   # std_oos < 5% de std_train → bloqueada
+luna/utils/ood_feature_guard.py,61,0.05,OTHER,_DEFAULT_MIN_STD_RATIO       = 0.05   # std_oos < 5% std_train → BLOQUEADA
+luna/utils/pipeline_invariants.py,160,0.35,OTHER,- DATA-02: win_rate < 0.35 → señal de mismatch de régimen real
+luna/utils/pipeline_invariants.py,213,0.30,OTHER,if wr < 0.30:
+luna/utils/pipeline_invariants.py,220,0.70,OTHER,elif wr > 0.70:
+luna/utils/pipeline_invariants.py,357,0.6020,OTHER,Motivación: VIX_Zscore estuvo congelado en 0.6020 durante 354 días (2025-04-01 a
+luna/validation/phase_gates.py,88,0.510,OTHER,XGB_AUC_HARD_STOP      = 0.510   # G2: AUC OOS mínima (hard stop)
+luna/validation/phase_gates.py,89,0.530,OTHER,XGB_AUC_WARN           = 0.530   # G2: AUC OOS warning
+luna/validation/phase_gates.py,95,0.2850,OTHER,XGB_BRIER_HARD_STOP    = 0.2850  # G2: Brier max hard-stop (agente individual)
+luna/validation/phase_gates.py,96,0.2700,OTHER,XGB_BRIER_WARN         = 0.2700  # G2: Brier warning
+luna/validation/phase_gates.py,183,0.10,OTHER,PSI < 0.10 → distribución estable (verde)
+luna/validation/phase_gates.py,184,0.10,OTHER,PSI 0.10-0.25 → cambio moderado (amarillo — monitorizar)
+luna/validation/phase_gates.py,184,0.25,OTHER,PSI 0.10-0.25 → cambio moderado (amarillo — monitorizar)
+luna/validation/phase_gates.py,185,0.25,OTHER,PSI > 0.25 → drift severo (rojo — modelo no es fiable en OOS)
+luna/validation/phase_gates.py,188,0.25,OTHER,Si PSI > 0.25 en ≥50% de las top features → activar DEGRADED MODE automáticamente.
+luna/validation/phase_gates.py,212,0.10,OTHER,"if psi < 0.10: return ""STABLE"""
+luna/validation/phase_gates.py,213,0.25,OTHER,"if psi < 0.25: return ""MODERATE_DRIFT"""
+luna/validation/phase_gates.py,717,48,OTHER,"seq_len    = int(config.get(""seq_len"", 48))"
+luna/validation/phase_gates.py,749,0.01,OTHER,if meta_std < 0.01:
+luna/validation/run_registry.py,22,847.3,OTHER,"""elapsed_s"": 847.3,                    # duración en segundos"
+luna/validation/run_registry.py,40,0.534,OTHER,"registry.log_phase_end(""xgboost_train"", metrics={""auc_val"": 0.534}, elapsed=847.3)"
+luna/validation/run_registry.py,40,847.3,OTHER,"registry.log_phase_end(""xgboost_train"", metrics={""auc_val"": 0.534}, elapsed=847.3)"
+luna/validation/run_registry.py,534,0.3,OTHER,"tension: 0.3, fill: true, pointRadius: 5"
+luna/validation/run_registry.py,537,0.51,OTHER,"annotation: {{ annotations: {{ line1: {{ type: 'line', yMin: 0.51, yMax: 0.51,"
+scripts/data_integrity_check.py,182,0.25,OTHER,"(""raw/ohlcv/ohlcv_15m_raw.parquet"",         0.25, [""open"",""high"",""low"",""close"",""volume""],  True,  False, ""OHLCV 15min""),"
+scripts/data_integrity_check.py,629,0.01,OTHER,"if isinstance(std_dev, float) and std_dev < 0.01 or spread < 0.03:"
+scripts/data_integrity_check.py,629,0.03,OTHER,"if isinstance(std_dev, float) and std_dev < 0.01 or spread < 0.03:"
+scripts/data_integrity_check.py,685,30,OTHER,"(""features/features_train.parquet"",       ""features_train"",      30),"
+scripts/evaluate_ensemble_wfb.py,112,365.25,OTHER,n_per_year = n_trades / (days / 365.25) if days > 0 else n_trades * 365.25
+scripts/evaluate_ensemble_wfb.py,148,365.25,OTHER,n_per_year = n_portfolio / (days / 365.25) if days > 0 else n_portfolio * 365.25
+scripts/evaluate_ensemble_wfb.py,172,30,OTHER,"status_trades = ""✅ OK"" if portfolio_metrics['Trades'] >= 30 else ""⚠️ INSUFICIENTE (< 30 trades)"""
+scripts/pre_flight/core.py,191,0.20,OTHER,return len(missing) / len(feats) > 0.20
+scripts/pre_flight/plot_timelines.py,33,0.2,OTHER,"(""Training (In-Sample)"", df_train.index.min(), df_train.index.max(), 'blue', 0.2),"
+scripts/pre_flight/plot_timelines.py,35,0.3,OTHER,"(""Holdout (OOS)"", df_holdout.index.min(), df_holdout.index.max(), 'purple', 0.3)"
+scripts/pre_flight/test_consistency.py,100,48,OTHER,"cfg_seq = int(getattr(getattr(_cfg(),""metalabeler"",object()),""seq_len"",48))"
+scripts/pre_flight/test_consistency.py,154,1.5,OTHER,"Ejemplo: M-33 usa pt=1.0/sl=1.0, pero si el modelo viejo (M-32, pt=1.5) sigue"
+scripts/pre_flight/test_consistency.py,154,32,OTHER,"Ejemplo: M-33 usa pt=1.0/sl=1.0, pero si el modelo viejo (M-32, pt=1.5) sigue"
+scripts/pre_flight/test_consistency.py,155,1.5,OTHER,"en disco, el OOS TBM aplicara pt=1.0 a un modelo que espera pt=1.5 -> WR invalido."
+scripts/pre_flight/test_data.py,83,0.35,OTHER,"assert 0.35 <= balance <= 0.65, \"
+scripts/pre_flight/test_data.py,83,0.65,OTHER,"assert 0.35 <= balance <= 0.65, \"
+scripts/pre_flight/test_data.py,170,0.99,OTHER,if max_corr >= 0.99:
+scripts/pre_flight/test_data.py,171,0.99,OTHER,idx = np.argwhere(corr_arr >= 0.99)
+scripts/pre_flight/test_data.py,175,0.95,OTHER,if max_corr >= 0.95:
+scripts/pre_flight/test_env.py,118,1.5,OTHER,FIX TBM (2026-03-09): diagnose_tbm_balance.py detectó que PT=1.5/SL=0.5
+scripts/pre_flight/test_env.py,118,0.5,OTHER,FIX TBM (2026-03-09): diagnose_tbm_balance.py detectó que PT=1.5/SL=0.5
+scripts/pre_flight/test_env.py,119,0.350,OTHER,genera target.mean=0.350 (65% SL). Mínimos usables: PT>=2.0 / SL>=1.0.
+scripts/pre_flight/test_env.py,119,65,OTHER,genera target.mean=0.350 (65% SL). Mínimos usables: PT>=2.0 / SL>=1.0.
+scripts/pre_flight/test_env.py,120,3.5,OTHER,Óptimo actual: PT=3.5 / SL=1.5.
+scripts/pre_flight/test_env.py,120,1.5,OTHER,Óptimo actual: PT=3.5 / SL=1.5.
+scripts/pre_flight/test_env.py,123,42.6,OTHER,"- M-33 (PT=1.0x): WR=42.6% — PT demasiado bajo, no distingue señal"
+scripts/pre_flight/test_env.py,124,44.7,OTHER,"- M-34/M-37A (PT=1.5x): WR=44.7%, R:R=1.14x — target alcanzable pero R:R bajo"
+scripts/pre_flight/test_env.py,137,1.5,OTHER,"assert pt >= 1.5, ("
+scripts/pre_flight/test_env.py,415,48,OTHER,"cfg_seq = int(getattr(getattr(cfg, ""metalabeler"", object()), ""seq_len"", 48))"
+scripts/pre_flight/test_env.py,452,0.03,OTHER,ood_guard.py tiene contamination=0.03 hardcodeado.
+scripts/pre_flight/test_env.py,453,0.05,OTHER,settings.yaml tiene isolation_contamination=0.05 (empirico BTC).
+scripts/pre_flight/test_env.py,463,0.03,OTHER,"cfg_cont = float(getattr(getattr(cfg, ""features"", object()), ""isolation_contamination"", 0.03))"
+scripts/pre_flight/test_env.py,466,0.02,OTHER,if diff > 0.02:
+scripts/pre_flight/test_env.py,575,48,OTHER,"cfg_seq = int(getattr(getattr(cfg, ""metalabeler"", object()), ""seq_len"", 48))"
+scripts/pre_flight/test_env.py,942,48,OTHER,"cfg_seq = int(getattr(getattr(cfg_meta, ""metalabeler"", object()), ""seq_len"", 48))"
+scripts/pre_flight/test_env.py,1338,0.10,OTHER,DISC-01 CONOCIDA: MAX_PBO en código (0.10) es más estricto que settings (0.20).
+scripts/pre_flight/test_env.py,1338,0.20,OTHER,DISC-01 CONOCIDA: MAX_PBO en código (0.10) es más estricto que settings (0.20).
+scripts/pre_flight/test_env.py,1357,0.20,OTHER,"cfg_pbo  = float(getattr(gaunt, ""max_pbo"", 0.20))"
+scripts/pre_flight/test_env.py,1459,0.30,OTHER,"assert 0.30 <= wr <= 0.75, ("
+scripts/pre_flight/test_env.py,1459,0.75,OTHER,"assert 0.30 <= wr <= 0.75, ("
+scripts/pre_flight/test_env.py,1677,400,OTHER,"assert n >= 400, ("
+scripts/pre_flight/test_invariants.py,97,0.45,OTHER,a 0.45 hardcodeado sin dejar rastro en el parquet ni en el veredicto.
+scripts/pre_flight/test_invariants.py,376,0.20,OTHER,BUG-MEDIO-06 fix (2026-03-17): el fallback de MAX_DRAWDOWN usaba 0.20 en vez de 0.60.
+scripts/pre_flight/test_invariants.py,376,0.60,OTHER,BUG-MEDIO-06 fix (2026-03-17): el fallback de MAX_DRAWDOWN usaba 0.20 en vez de 0.60.
+scripts/pre_flight/test_invariants.py,377,0.20,OTHER,BTC tiene drawdowns habituales 30-60%. Con fallback 0.20 cualquier estrategia BTC seria
+scripts/pre_flight/test_invariants.py,395,0.50,OTHER,"assert float(max_dd) >= 0.50, f""stat.max_drawdown={max_dd} demasiado bajo para BTC (>= 0.50)"""
+scripts/pre_flight/test_legacy.py,28,50,OTHER,).sum() >= 100 and len(ti) >= 50)(
+scripts/pre_flight/test_r14_fixes.py,108,0.20,OTHER,"fragile = [f for f in selected if f in stab and 0.0 < stab[f].get(""stability_score"", 1.0) < 0.20]"
+scripts/pre_flight/test_sop.py,22,42,OTHER,"assert lag >= 42, f""m2_lag_days={lag}"""
+scripts/pre_flight/test_sop.py,99,0.15,OTHER,"assert rt >= 0.15, f""round_trip={rt}"""
+scripts/pre_flight/test_v5_bugs.py,122,30,OTHER,"assert t_default >= 30, ("
+scripts/pre_flight/test_v5_bugs.py,132,30,OTHER,"assert int(china_match.group(1)) >= 30, f""M2 China timeout={china_match.group(1)}s < 30s"""
+scripts/pre_flight/test_v5_bugs.py,134,30,OTHER,"assert int(japan_match.group(1)) >= 30, f""M2 Japan timeout={japan_match.group(1)}s < 30s"""
+scripts/pre_flight/test_v5_bugs.py,245,.47,OTHER,propagaba la 1a prediccion valida (barra seq_len=48) hacia las barras 0..47 del
+scripts/pre_flight/test_v5_bugs.py,277,.2024,OTHER,(2024-07-01..2024-12-31) como fuente OOS primaria. El modelo fue entrenado hasta
+scripts/pre_flight/test_v5_bugs.py,353,0.50,OTHER,predict_oos.py: firma (primario) > settings.yaml (fallback) > 0.50 (neutro).
+scripts/pre_flight/test_v5_bugs.py,383,0.25,OTHER,"assert val >= 0.25, ("
+scripts/reconcile_external_data.py,151,0.05,OTHER,"tol = 0.05 if ""volume"" in int_col else 0.005"
+scripts/reconcile_external_data.py,151,0.005,OTHER,"tol = 0.05 if ""volume"" in int_col else 0.005"
+scripts/run_statistical_validation.py,74,39,OTHER,"devolvía 0, 13, 26, 39 — posiciones de fila, sin valor diagnóstico."
+scripts/run_statistical_validation.py,128,0.99,OTHER,if n > 0 and n < 10 and not pd.isna(wr) and wr >= 0.99:
+scripts/run_statistical_validation.py,148,0.99,OTHER,if n > 0 and n < 10 and not pd.isna(wr) and wr >= 0.99:
+scripts/run_statistical_validation.py,306,0.15,OTHER,"_alert = "" ⚠️  DRIFT"" if _jsd > 0.15 else "" OK"""
+scripts/run_wfb_orchestrator.py,58,0.70,OTHER,"_WR_OPT  = 0.70   # WR ""perfecta"" para ventanas futuras (techo conservador)"
+scripts/run_wfb_orchestrator.py,60,0.01,OTHER,"_RET_OPT = 0.01   # Retorno medio ""perfecto"" (1% por trade)"
+scripts/run_wfb_orchestrator.py,102,0.5,OTHER,"wr_per_w[w] = float(df[""is_win""].mean()) if ""is_win"" in df.columns else 0.5"
+scripts/run_wfb_orchestrator.py,105,0.5,OTHER,"return {""score_partial"": 0, ""score_upper_bound"": 100, ""wr_seen"": 0.5,"
+scripts/run_wfb_orchestrator.py,106,0.5,OTHER,"""wr_min_seen"": 0.5, ""mean_ret_seen"": 0, ""n_trades_seen"": 0}"
+scripts/run_wfb_orchestrator.py,110,0.5,OTHER,"wr_seen  = float(combined[""is_win""].mean()) if ""is_win"" in combined.columns else 0.5"
+scripts/run_wfb_orchestrator.py,122,0.40,OTHER,"s_wr_global = float(np.clip((wr_seen  - 0.40) / (0.75 - 0.40) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,122,0.75,OTHER,"s_wr_global = float(np.clip((wr_seen  - 0.40) / (0.75 - 0.40) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,122,75,OTHER,"s_wr_global = float(np.clip((wr_seen  - 0.40) / (0.75 - 0.40) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,123,0.35,OTHER,"s_wr_min    = float(np.clip((wr_min_s - 0.35) / (0.70 - 0.35) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,123,0.70,OTHER,"s_wr_min    = float(np.clip((wr_min_s - 0.35) / (0.70 - 0.35) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,123,70,OTHER,"s_wr_min    = float(np.clip((wr_min_s - 0.35) / (0.70 - 0.35) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,124,0.50,OTHER,"s_stability = float(np.clip((1 - wr_rng_s / 0.50) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,125,0.5,OTHER,"s_rr        = float(np.clip((rr - 0.5) / (2.0 - 0.5) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,126,0.01,OTHER,"s_ret       = float(np.clip((mean_ret - 0.0) / (0.01 - 0.0) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,128,0.20,OTHER,score_seen  = (0.20 * s_wr_global + 0.30 * s_wr_min
+scripts/run_wfb_orchestrator.py,128,0.30,OTHER,score_seen  = (0.20 * s_wr_global + 0.30 * s_wr_min
+scripts/run_wfb_orchestrator.py,129,0.25,OTHER,+ 0.25 * s_stability + 0.10 * s_rr + 0.15 * s_ret)
+scripts/run_wfb_orchestrator.py,129,0.10,OTHER,+ 0.25 * s_stability + 0.10 * s_rr + 0.15 * s_ret)
+scripts/run_wfb_orchestrator.py,129,0.15,OTHER,+ 0.25 * s_stability + 0.10 * s_rr + 0.15 * s_ret)
+scripts/run_wfb_orchestrator.py,136,0.40,OTHER,"s_wr_global_opt = float(np.clip((_WR_OPT  - 0.40) / (0.75 - 0.40) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,136,0.75,OTHER,"s_wr_global_opt = float(np.clip((_WR_OPT  - 0.40) / (0.75 - 0.40) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,136,75,OTHER,"s_wr_global_opt = float(np.clip((_WR_OPT  - 0.40) / (0.75 - 0.40) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,137,0.35,OTHER,"s_wr_min_opt    = max(s_wr_min, float(np.clip((_WR_OPT - 0.35) / (0.70 - 0.35) * 100, 0, 100)))"
+scripts/run_wfb_orchestrator.py,137,0.70,OTHER,"s_wr_min_opt    = max(s_wr_min, float(np.clip((_WR_OPT - 0.35) / (0.70 - 0.35) * 100, 0, 100)))"
+scripts/run_wfb_orchestrator.py,137,70,OTHER,"s_wr_min_opt    = max(s_wr_min, float(np.clip((_WR_OPT - 0.35) / (0.70 - 0.35) * 100, 0, 100)))"
+scripts/run_wfb_orchestrator.py,139,0.5,OTHER,"s_rr_opt        = float(np.clip((_RR_OPT - 0.5) / (2.0 - 0.5) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,140,0.01,OTHER,"s_ret_opt       = float(np.clip((_RET_OPT - 0.0) / (0.01 - 0.0) * 100, 0, 100))"
+scripts/run_wfb_orchestrator.py,142,0.20,OTHER,score_remaining = (0.20 * s_wr_global_opt + 0.30 * s_wr_min_opt
+scripts/run_wfb_orchestrator.py,142,0.30,OTHER,score_remaining = (0.20 * s_wr_global_opt + 0.30 * s_wr_min_opt
+scripts/run_wfb_orchestrator.py,143,0.25,OTHER,+ 0.25 * s_stability_opt + 0.10 * s_rr_opt + 0.15 * s_ret_opt)
+scripts/run_wfb_orchestrator.py,143,0.10,OTHER,+ 0.25 * s_stability_opt + 0.10 * s_rr_opt + 0.15 * s_ret_opt)
+scripts/run_wfb_orchestrator.py,143,0.15,OTHER,+ 0.25 * s_stability_opt + 0.10 * s_rr_opt + 0.15 * s_ret_opt)
+scripts/run_wfb_orchestrator.py,172,50.0,OTHER,dynamic_benchmark = 50.0  # Baseline inicial absoluta si no hay benchmark
+scripts/run_wfb_orchestrator.py,179,50.0,OTHER,"dynamic_benchmark = bench_data.get(""champion_score"") or 50.0"
+scripts/run_wfb_orchestrator.py,214,777,OTHER,"parser.add_argument(""--seeds"", nargs=""+"", type=int, default=[42, 100, 777, 1337, 2025], help=""Lista de seeds a ejecutar"")"
+scripts/run_wfb_orchestrator.py,551,60,OTHER,time.sleep(60)
+scripts/wfb_worker.py,501,60,OTHER,"logger.info(""="".center(60, ""=""))"
+scripts/wfb_worker.py,502,60,OTHER,"logger.info(""  INICIANDO WFB WORKER V2  "".center(60))"
+scripts/wfb_worker.py,503,60,OTHER,"logger.info(""="".center(60, ""=""))"
+luna/ai_mining/cluster_pattern_engine.py,196,0.003,REGIME,"""regime"":           (""LARGA"" if mu > 0.003 else ""CORTA"" if mu < -0.003 else ""NEUTRAL""),"
+luna/data/fetch_altcoins.py,14,0.00001,REGIME,"- ETH (ETHEREUM_Price):  Granger *** p=0.00001, lag 13d → shift en pipeline"
+luna/data/fetch_altcoins.py,19,0.00001,REGIME,"- ETH: Granger *** p=0.00001, lag 13d → shift en feature_pipeline.py (R1)"
+luna/data/fetch_defi.py,8,0.008,REGIME,"- Stablecoin_Cap:   TE_net=0.008, Granger *** lag11d, MI top 5 → CRÍTICA"
+luna/data/fetch_defi.py,9,0.247,REGIME,"- DeFi_WBTC_TVL:    Granger *** lag6d, TE_net=0.247"
+luna/data/fetch_defi.py,139,0.008,REGIME,"TE_net=0.008, Granger *** lag11d, MI top 5 — CRITICA."
+luna/data/fetch_derivatives.py,229,500,REGIME,for _ in range(500):  # máx 500 páginas para histórico completo
+luna/data/fetch_derivatives.py,565,0.0001,REGIME,"frames[""funding_extreme_neg""] = (fr < -0.0001).astype(int)  # < -0.01% → presión bajista extrema (contrarian bullish)"
+luna/data/fetch_derivatives.py,565,0.01,REGIME,"frames[""funding_extreme_neg""] = (fr < -0.0001).astype(int)  # < -0.01% → presión bajista extrema (contrarian bullish)"
+luna/data/fetch_derivatives.py,566,0.0005,REGIME,"frames[""funding_extreme_pos""] = (fr > 0.0005).astype(int)   # > 0.05% → sobrecalentamiento longs (contrarian bearish)"
+luna/data/fetch_derivatives.py,566,0.05,REGIME,"frames[""funding_extreme_pos""] = (fr > 0.0005).astype(int)   # > 0.05% → sobrecalentamiento longs (contrarian bearish)"
+luna/data/fetch_macro.py,9,0.297,REGIME,"- CPI_YoY        ← TE_net=0.297, Granger **"
+luna/data/fetch_macro.py,15,0.270,REGIME,"- VIX            ← TE_net=0.270, Granger *"
+luna/data/fetch_macro.py,263,0.297,REGIME,TE_net=0.297. Granger **. Safety lag: 14d.
+luna/data/fetch_onchain.py,361,38.0,REGIME,"""2022-12-01"": 38.0,  # bear market bottom"
+luna/features/feature_pipeline.py,989,96,REGIME,"'ETH_Return_1d':    (96,  'ETH_Return_1d_milag96h'),      # MI=96H vs Granger=312H"
+luna/features/feature_pipeline.py,1018,48,REGIME,"'realized_vol_ratio': (48, 'realized_vol_ratio_milag48h'),   # Aceleracion vol = bear confirmation"
+luna/features/feature_selection_e.py,1478,0.1,REGIME,"learning_rate=0.1, random_state=42,"
+luna/live/position_sizer.py,44,0.25,REGIME,"'BULL_TREND':        0.25,  # 25%: tendencia alcista confirmada"
+luna/live/position_sizer.py,45,0.18,REGIME,"'VOLATILE_BULL':     0.18,  # 18%: alcista pero con alta volatilidad"
+luna/live/position_sizer.py,46,0.15,REGIME,"'BULL_GRIND':        0.15,  # 15%: alcista lento, bajo momentum"
+luna/live/position_sizer.py,48,0.20,REGIME,"'BULL_TREND_B':      0.20,  # 20%: variante B de bull trend"
+luna/live/position_sizer.py,49,0.15,REGIME,"'VOLATILE_BULL_B':   0.15,  # 15%: variante B de volatile bull"
+luna/live/position_sizer.py,51,0.20,REGIME,"'CALM_RANGE':        0.20,  # 20%: rango calmado (buena visibilidad)"
+luna/live/position_sizer.py,52,0.18,REGIME,"'CALM_RANGE_B':      0.18,  # 18%: variante B de calm range"
+luna/live/position_sizer.py,53,0.05,REGIME,"'VOLATILE_RANGE':    0.05,  # 5%: rango volátil — exposición mínima"
+luna/live/position_sizer.py,54,0.05,REGIME,"'VOLATILE_RANGE_B':  0.05,  # 5%: variante B de volatile range"
+luna/live/position_sizer.py,55,0.04,REGIME,"'VOLATILE_RANGE_C':  0.04,  # 4%: variante C de volatile range (alta incertidumbre)"
+luna/live/position_sizer.py,57,0.10,REGIME,"'BEAR_TREND':        0.10,  # 10%: tendencia bajista (modo defensivo)"
+luna/live/position_sizer.py,58,0.08,REGIME,"'CALM_BEAR':         0.08,  # 8%: bajista calmado"
+luna/live/position_sizer.py,59,0.03,REGIME,"'BEAR_CRASH':        0.03,  # 3%: crash activo — exposición casi nula"
+luna/live/risk_monitor.py,39,5000.0,REGIME,"self.db.update_live_state(portfolio_value=5000.0, ath=5000.0, drawdown=0.0, is_paused=False)"
+luna/live/risk_monitor.py,50,5000.0,REGIME,"ath = float(state.get('ath', 5000.0))"
+luna/live/risk_monitor.py,50,5000,REGIME,"ath = float(state.get('ath', 5000.0))"
+luna/models/hmm_regime.py,76,0.001,REGIME,"_tol    = float(getattr(_c.hmm, 'tol', 0.001))"
+luna/models/hmm_regime.py,864,0.005,REGIME,"min_mi = float(getattr(_cfg_hmm.hmm, 'min_mi', 0.005))"
+luna/models/hmm_regime.py,929,0.05,REGIME,raw_macro_bear = (close < ma200) & (ma50 < ma200) & (ret_168h < 0) & (ret_720h < -0.05)
+luna/models/hmm_regime.py,931,48,REGIME,"macro_bear = raw_macro_bear.rolling(48, min_periods=48).min().fillna(0).astype(bool)"
+luna/models/hmm_regime.py,1588,0.30,REGIME,"Si hmm_transition_risk > 0.30 en la vela actual, subir el umbral del"
+luna/models/ood_guard.py,83,42,REGIME,"_random_state   = int(getattr(_cfg_ood.ood_guard,   'random_state',   42))"
+luna/models/ood_guard.py,85,0.10,REGIME,"_contamination, _n_estimators, _random_state = 0.10, 200, 42"
+luna/models/ood_guard.py,85,42,REGIME,"_contamination, _n_estimators, _random_state = 0.10, 200, 42"
+luna/models/predict_oos.py,82,2.5,REGIME,"""1_VOLATILE_BULL"":   {""sl"": 2.5, ""tp"": 3.0},"
+luna/models/predict_oos.py,83,1.5,REGIME,"""1_BULL_TREND"":      {""sl"": 1.5, ""tp"": 2.0},"
+luna/models/predict_oos.py,84,0.6,REGIME,"""2_CALM_RANGE"":      {""sl"": 0.6, ""tp"": 1.2},"
+luna/models/predict_oos.py,84,1.2,REGIME,"""2_CALM_RANGE"":      {""sl"": 0.6, ""tp"": 1.2},"
+luna/models/predict_oos.py,85,1.2,REGIME,"""2_VOLATILE_RANGE"":  {""sl"": 1.2, ""tp"": 1.8},"
+luna/models/predict_oos.py,85,1.8,REGIME,"""2_VOLATILE_RANGE"":  {""sl"": 1.2, ""tp"": 1.8},"
+luna/models/predict_oos.py,89,1.5,REGIME,"""3_BEAR_CRASH"":      {""sl"": 1.5, ""tp"": 1.5},"
+luna/models/predict_oos.py,463,0.90,REGIME,if _hmm_cov < 0.90:
+luna/models/predict_oos.py,503,0.5,REGIME,if _hmm_reg_aligned.notna().mean() > 0.5:
+luna/models/predict_oos.py,522,0.5,REGIME,if _hmm_sem_aligned.notna().mean() > 0.5:
+luna/models/signal_filter.py,152,0.30,REGIME,"_hmm_elevated_risk  = float(getattr(getattr(_cfg_hmm_tr, ""hmm_predictive"", None), ""bear_transition_elevated_risk"", 0.30))"
+luna/models/signal_filter.py,1256,72.0,REGIME,"'1_BULL_TREND':     72.0,"
+luna/models/signal_filter.py,1257,96.0,REGIME,"'1_VOLATILE_BULL':  96.0,"
+luna/models/signal_filter.py,1259,144.0,REGIME,"'2_CALM_RANGE':    144.0,"
+luna/models/signal_filter.py,1260,168.0,REGIME,"'2_VOLATILE_RANGE':168.0,"
+luna/models/signal_filter.py,1261,168.0,REGIME,"'3_CALM_BEAR':     168.0,"
+luna/models/signal_filter.py,1262,168.0,REGIME,"'3_BEAR_CRASH':    168.0,"
+luna/models/signal_filter.py,1263,168.0,REGIME,"'4_BEAR_FORCED':   168.0,"
+luna/models/train_metalabeler_v2.py,1173,0.05,REGIME,"learning_rate=0.05, num_leaves=31, random_state=42, n_jobs=4,"
+luna/models/train_metalabeler_v2.py,1203,0.05,REGIME,"learning_rate=0.05, num_leaves=31, random_state=42, n_jobs=4,"
+luna/pipeline_executor.py,1197,0.5,REGIME,if not _has_hmm or _cov_c1 < 0.5:
+luna/reports/generate_tearsheet.py,379,0.5,REGIME,"ax.text(0.5, 0.5, ""HMM regimes no disponibles"","
+luna/risk/kelly_sizer.py,58,1.15,REGIME,"hmm_bonus: float = 1.15,"
+luna/utils/pipeline_invariants.py,262,0.50,REGIME,"elif df[""HMM_Regime""].isna().mean() > 0.50:"
+scripts/pre_flight/test_v5_bugs.py,39,0.00028,REGIME,"Run 12: HMM_FEATURES = ['M2_YoY_Chg', 'mt_vol_realized_4bar'] -> MI=0.00028 (casi nulo)."
+scripts/run_statistical_validation.py,379,50,REGIME,for _ in range(50):
+luna/features/tbm.py,188,0.75,RISK_SIZING,pt_decay_fraction: float = 0.75
+luna/features/tbm.py,327,0.75,RISK_SIZING,pt_decay_fraction: float = 0.75
+luna/features/tbm.py,370,0.75,RISK_SIZING,"pt_decay_fraction: float = 0.75,"
+luna/labeling/online_recalibrator.py,35,0.75,RISK_SIZING,"_pt_decay_frac = float(getattr(_cfg.xgboost, 'pt_decay_fraction', 0.75))"
+luna/live/position_sizer.py,47,0.12,RISK_SIZING,"'BULL_TREND_WEAK':   0.12,  # 12%: [FIX-KELLY-WEAK-01] alcista débil — WR historico 48%"
+luna/live/position_sizer.py,73,0.25,RISK_SIZING,ABSOLUTE_POSITION_CAP = 0.25  # 25% del capital total
+luna/live/position_sizer.py,75,5000.0,RISK_SIZING,"def __init__(self, base_capital: float = 5000.0, base_risk_fraction: float = 0.20):"
+luna/live/position_sizer.py,75,0.20,RISK_SIZING,"def __init__(self, base_capital: float = 5000.0, base_risk_fraction: float = 0.20):"
+luna/live/position_sizer.py,101,0.56,RISK_SIZING,WR >= 0.56 → 1.0 (full Kelly)
+luna/live/position_sizer.py,140,0.01,RISK_SIZING,"return float(np.clip(kelly_f / 2, 0.01, 0.25))"
+luna/live/position_sizer.py,140,0.25,RISK_SIZING,"return float(np.clip(kelly_f / 2, 0.01, 0.25))"
+luna/live/position_sizer.py,223,0.02,RISK_SIZING,"regime_cap_fraction = self.REGIME_KELLY_CAP.get(regime_name, 0.02)"
+luna/live/position_sizer.py,342,0.5,RISK_SIZING,"tribe_mult = self.tribe_kelly_mult.get(int(tribe_id), 0.5 if tribe_id >= 0 else 1.0)"
+luna/live/position_sizer.py,377,0.02,RISK_SIZING,"""regime_kelly_cap"": self.REGIME_KELLY_CAP.get(regime_name, 0.02),"
+luna/live/position_sizer.py,387,0.02,RISK_SIZING,"""regime_cap_applied"": self.REGIME_KELLY_CAP.get(regime_name, 0.02),"
+luna/live/position_sizer.py,403,5.2,RISK_SIZING,Mejora 5 completo (planes_mejora_v3.md §5.2): ATR-based position sizing.
+luna/live/position_sizer.py,434,0.02,RISK_SIZING,"regime_cap = self.REGIME_KELLY_CAP.get(regime_name, 0.02)"
+luna/models/calibrate_probabilities.py,402,0.75,RISK_SIZING,"_pt_decay_frac_c = float(getattr(cfg.xgboost, 'pt_decay_fraction', 0.75))"
+luna/models/ensemble_lgbm.py,1443,0.75,RISK_SIZING,"_pt_decay_frac = float(getattr(_cfg.lightgbm, 'pt_decay_fraction', 0.75)) if hasattr(_cfg, 'xgboost') else 0.75"
+luna/models/ensemble_lgbm.py,4143,0.75,RISK_SIZING,"_pt_decay_frac_c = float(getattr(cal_cfg, 'pt_decay_fraction', 0.75))"
+luna/models/predict_oos.py,601,0.90,RISK_SIZING,"and df_oos[""btc_cycle_position""].notna().mean() > 0.90"
+luna/models/predict_oos.py,1062,0.75,RISK_SIZING,"_pt_decay_frac = float(getattr(_cfg_tbm.xgboost, 'pt_decay_fraction', 0.75))"
+luna/models/predict_oos.py,1126,25.0,RISK_SIZING,"MAX_DD_STOP = float(getattr(_cfg_risk.position_sizer, 'max_dd_stop_pct', 25.0)) / 100.0"
+luna/models/signal_filter.py,119,0.15,RISK_SIZING,"Devuelve pd.Series 'position_fraction' con fracción [0.0, 0.15] por fila."
+luna/models/signal_filter.py,153,0.50,RISK_SIZING,"_hmm_kelly_penalty  = float(getattr(getattr(_cfg_hmm_tr, ""hmm_predictive"", None), ""elevated_risk_kelly_penalty"", 0.50))"
+luna/models/train_metalabeler_v2.py,991,0.75,RISK_SIZING,"_pt_decay_frac_ml = float(getattr(_cfg_ml.xgboost, 'pt_decay_fraction', 0.75))"
+luna/models/train_xgboost_v2.py,607,0.75,RISK_SIZING,"_pt_decay_frac = float(getattr(_cfg.xgboost, 'pt_decay_fraction', 0.75)) if hasattr(_cfg, 'xgboost') else 0.75"
+luna/models/train_xgboost_v2.py,1691,0.75,RISK_SIZING,"_pt_decay_frac_c = float(getattr(cal_cfg, 'pt_decay_fraction', 0.75))"
+luna/monitoring/feature_drift_monitor.py,14,0.25,RISK_SIZING,- PSI > 0.25:  Cambio severo — intervención       → ALERT: reducir Kelly 50%
+luna/monitoring/feature_drift_monitor.py,32,0.25,RISK_SIZING,PSI_CRITICAL = 0.25   # Por encima: drift severo → reducir Kelly
+luna/monitoring/feature_drift_monitor.py,36,0.50,RISK_SIZING,DRIFT_KELLY_PENALTY_FACTOR     = 0.50   # Reducir max_position al 50% si drift severo
+luna/monitoring/feature_drift_monitor.py,176,0.5,RISK_SIZING,"kelly_penalty = max(0.5, 1.0 - (n_critical / max(len(results), 1)) * 2)"
+luna/reports/generate_tearsheet.py,83,0.13,RISK_SIZING,"text, xy=(0.0, -0.13), xycoords=""axes fraction"","
+luna/risk/kelly_sizer.py,21,0.25,RISK_SIZING,- Se aplica Quarter-Kelly (kelly_fraction=0.25) para mitigar el riesgo de
+luna/risk/kelly_sizer.py,73,0.75,RISK_SIZING,- Triple confirmación alta: ~0.75 → max_position=30%
+luna/risk/kelly_sizer.py,74,0.40,RISK_SIZING,- Doble confirmación media: ~0.40 → max_position=10%
+luna/risk/kelly_sizer.py,75,0.25,RISK_SIZING,- Señal marginal:           ~0.25 → max_position=3%
+luna/risk/kelly_sizer.py,92,0.45,RISK_SIZING,0.45-0.65: Señal media     → 10% (Kelly estándar)
+luna/risk/kelly_sizer.py,92,0.65,RISK_SIZING,0.45-0.65: Señal media     → 10% (Kelly estándar)
+luna/risk/kelly_sizer.py,98,0.5,RISK_SIZING,drift_penalty=0.5  → max_position al 50% (features contaminadas)
+luna/risk/kelly_sizer.py,106,0.03,RISK_SIZING,"float: max_position en [0.03, base_cap]."
+luna/risk/kelly_sizer.py,142,0.25,RISK_SIZING,"kelly_fraction: float = 0.25,"
+luna/risk/kelly_sizer.py,143,0.01,RISK_SIZING,"min_position:   float = 0.01,"
+luna/risk/kelly_sizer.py,144,0.15,RISK_SIZING,"max_position:   float = 0.15,"
+luna/risk/kelly_sizer.py,150,0.25,RISK_SIZING,kelly_fraction: Factor multiplicador del Kelly puro (default: 0.25 = Quarter-Kelly).
+luna/risk/kelly_sizer.py,152,0.50,RISK_SIZING,min_position:   Fracción mínima del capital cuando p > 0.50 (evita f→0).
+luna/risk/kelly_sizer.py,368,0.25,RISK_SIZING,kelly_fraction: 0.25
+luna/risk/kelly_sizer.py,369,0.01,RISK_SIZING,min_position:   0.01
+luna/risk/kelly_sizer.py,370,0.15,RISK_SIZING,max_position:   0.15
+luna/risk/psi_guard.py,59,0.5,RISK_SIZING,kelly_multiplier: float          # 1.0 | 0.5 | 0.0
+luna/risk/psi_guard.py,95,0.5,RISK_SIZING,- ALERT: reducir exposición (kelly_multiplier=0.5)
+luna/risk/psi_guard.py,314,0.5,RISK_SIZING,kelly_mult = 0.5
+luna/ai_mining/advanced_engine.py,305,0.7,SPLIT_RATIO,"ax2.scatter(ld[""PC1""],ld.get(""PC2"",ld[""PC1""]*0),alpha=0.7,s=80,c=""#e74c3c"")"
+luna/ai_mining/advanced_engine.py,305,80,SPLIT_RATIO,"ax2.scatter(ld[""PC1""],ld.get(""PC2"",ld[""PC1""]*0),alpha=0.7,s=80,c=""#e74c3c"")"
+luna/data/fetch_bybit.py,131,0.08,SPLIT_RATIO,"time.sleep(0.08)  # Bybit: sin rate-limit agresivo, pero 80ms es suficiente"
+luna/data/fetch_derivatives.py,591,0.80,SPLIT_RATIO,> 0.80 → zona de peligro (sobreextensión del mercado).
+luna/features/feature_selection_e.py,110,0.0002,SPLIT_RATIO,"""golden_rule_4"",   # Fed_Net_Liq AND FundingRateÃ¢â°Â¤-0.0002       WR=80.6%"
+luna/features/feature_selection_e.py,110,80.6,SPLIT_RATIO,"""golden_rule_4"",   # Fed_Net_Liq AND FundingRateÃ¢â°Â¤-0.0002       WR=80.6%"
+luna/features/feature_selection_e.py,111,80.6,SPLIT_RATIO,"""golden_rule_5"",   # YieldCurve AND Fed_Net_Liq AND Funding    WR=80.6%"
+luna/features/feature_selection_e.py,112,99.58,SPLIT_RATIO,"""golden_rule_6"",   # DXYÃ¢â°Â¥99.58 AND FundingRateÃ¢â°Â¤-0.0002        WR=80.0%"
+luna/features/feature_selection_e.py,112,0.0002,SPLIT_RATIO,"""golden_rule_6"",   # DXYÃ¢â°Â¥99.58 AND FundingRateÃ¢â°Â¤-0.0002        WR=80.0%"
+luna/features/feature_selection_e.py,112,80.0,SPLIT_RATIO,"""golden_rule_6"",   # DXYÃ¢â°Â¥99.58 AND FundingRateÃ¢â°Â¤-0.0002        WR=80.0%"
+luna/features/feature_selection_e.py,316,0.85,SPLIT_RATIO,_max_nan = 0.85
+luna/features/feature_selection_e.py,424,0.85,SPLIT_RATIO,"_k_max = max(_k_max, int(len(X.columns) * 0.85))"
+luna/features/feature_selection_e.py,426,0.85,SPLIT_RATIO,"_k_min, _k_max = 8, max(30, int(len(X.columns) * 0.85))"
+luna/features/feature_selection_e.py,426,30,SPLIT_RATIO,"_k_min, _k_max = 8, max(30, int(len(X.columns) * 0.85))"
+luna/features/feature_selection_e.py,871,0.8,SPLIT_RATIO,"subsample=0.8,"
+luna/features/feature_selection_e.py,1081,0.8,SPLIT_RATIO,"subsample=0.8,"
+luna/features/feature_selection_e.py,1082,0.8,SPLIT_RATIO,"colsample_bytree=0.8,"
+luna/features/feature_selection_e.py,1557,0.8,SPLIT_RATIO,"subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1, verbose=-1)"
+luna/features/feature_selection_e.py,2390,0.8,SPLIT_RATIO,"subsample=0.8, colsample_bytree=0.8, random_state=42 + _f, n_jobs=1)"
+luna/live/position_sizer.py,88,0.80,SPLIT_RATIO,"1: 0.80,"
+luna/live/position_sizer.py,113,0.85,SPLIT_RATIO,mult[tribe_id] = 0.85
+luna/models/calibrate_probabilities.py,395,0.8,SPLIT_RATIO,"sl_mult     = getattr(cfg.xgboost, 'sl_mult_min', 0.8)"
+luna/models/calibrate_probabilities.py,404,1.5,SPLIT_RATIO,"pt_mult, sl_mult = 1.5, 0.8"
+luna/models/calibrate_probabilities.py,404,0.8,SPLIT_RATIO,"pt_mult, sl_mult = 1.5, 0.8"
+luna/models/ensemble_lgbm.py,2990,0.8,SPLIT_RATIO,"'subsample': 0.8,"
+luna/models/ensemble_lgbm.py,2994,0.8,SPLIT_RATIO,"'colsample_bytree': 0.8,"
+luna/models/hmm_regime.py,290,0.80,SPLIT_RATIO,if survival_rate >= 0.80:
+luna/models/hmm_regime.py,409,0.8,SPLIT_RATIO,_split = int(len(X_scaled_train) * 0.8)
+luna/models/hmm_regime.py,748,0.5,SPLIT_RATIO,"dd = train_mask_df.loc[mask, 'btc_drawdown_from_ath'].mean() if 'btc_drawdown_from_ath' in train_mask_df.columns else -0.5"
+luna/models/hmm_regime.py,1628,0.8,SPLIT_RATIO,"ax.scatter(df_plot.index[mask], df_plot['close'][mask], color=get_color(label), label=str(label), s=5, alpha=0.8)"
+luna/models/predict_oos.py,98,0.8,SPLIT_RATIO,"_HMM_TBM_FALLBACK = {""sl"": 0.8, ""tp"": 1.5}"
+luna/models/predict_oos.py,98,1.5,SPLIT_RATIO,"_HMM_TBM_FALLBACK = {""sl"": 0.8, ""tp"": 1.5}"
+luna/models/signal_filter.py,736,0.8,SPLIT_RATIO,"_sl_mult = float(getattr(_cfg_xgb.xgboost, 'sl_mult_min', 0.8))"
+luna/models/signal_filter.py,1197,0.80,SPLIT_RATIO,if int(_nb) / n_xgb > 0.80:
+luna/models/train_autoencoder.py,111,0.8,SPLIT_RATIO,split_idx = int(len(X_scaled) * 0.8)
+luna/models/train_metalabeler_v2.py,101,0.693,SPLIT_RATIO,Motivación: El LSTM con val_loss≈0.693 (log(2)) no aprende representaciones
+luna/models/train_metalabeler_v2.py,240,0.8,SPLIT_RATIO,"_rf_max_samp   = float(getattr(_cfg_rf.metalabeler, 'rf_max_samples',    0.8))"
+luna/models/train_metalabeler_v2.py,245,0.8,SPLIT_RATIO,"_rf_min_leaf, _rf_max_depth, _rf_max_samp, _pt_mult = 20, 8, 0.8, 1.6"
+luna/models/train_metalabeler_v2.py,245,1.6,SPLIT_RATIO,"_rf_min_leaf, _rf_max_depth, _rf_max_samp, _pt_mult = 20, 8, 0.8, 1.6"
+luna/models/train_metalabeler_v2.py,508,0.80,SPLIT_RATIO,_val_split_lstm = int(_n_lstm * 0.80)
+luna/models/train_metalabeler_v2.py,510,32,SPLIT_RATIO,has_val = _val_start_lstm < _n_lstm and (_n_lstm - _val_start_lstm) >= 32
+luna/models/train_metalabeler_v2.py,1311,0.80,SPLIT_RATIO,split_idx = int(n * 0.80)
+luna/models/train_xgboost_v2.py,816,0.10,SPLIT_RATIO,"min_train_size = max(50, int(len(self.X) * 0.10))"
+luna/models/train_xgboost_v2.py,816,50,SPLIT_RATIO,"min_train_size = max(50, int(len(self.X) * 0.10))"
+luna/models/train_xgboost_v2.py,1176,0.8,SPLIT_RATIO,_es_idx = int(len(_tr_i) * 0.8)
+luna/models/train_xgboost_v2.py,1356,0.8,SPLIT_RATIO,"'colsample_bytree': 0.8,"
+luna/reports/generate_tearsheet.py,316,0.85,SPLIT_RATIO,"linewidth=1.0, alpha=0.85, zorder=1)"
+luna/reports/generate_tearsheet.py,484,0.80,SPLIT_RATIO,"color=_GREEN, alpha=0.80, zorder=2,"
+luna/reports/generate_tearsheet.py,489,0.80,SPLIT_RATIO,"color=_RED, alpha=0.80, zorder=2,"
+luna/reports/generate_tearsheet.py,540,0.80,SPLIT_RATIO,"win_p  = mpatches.Patch(color=_GREEN, alpha=0.80, label=""Wins"")"
+luna/reports/generate_tearsheet.py,541,0.80,SPLIT_RATIO,"loss_p = mpatches.Patch(color=_RED,   alpha=0.80, label=""Losses"")"
+luna/reports/generate_tearsheet.py,577,0.8,SPLIT_RATIO,"ax.axhline(1.0, color=_GRAY, linewidth=0.8, linestyle=""--"", alpha=0.5)"
+luna/reports/generate_tearsheet.py,577,0.5,SPLIT_RATIO,"ax.axhline(1.0, color=_GRAY, linewidth=0.8, linestyle=""--"", alpha=0.5)"
+luna/reports/generate_tearsheet.py,625,0.8,SPLIT_RATIO,"ax.axhline(max_dd, color=_YELLOW, linewidth=0.8, linestyle="":"", alpha=0.8)"
+luna/reports/generate_tearsheet.py,659,1.2,SPLIT_RATIO,"ax.plot(xi, [vals[i - 1], vals[i]], color=c, linewidth=1.2, alpha=0.85)"
+luna/reports/generate_tearsheet.py,659,0.85,SPLIT_RATIO,"ax.plot(xi, [vals[i - 1], vals[i]], color=c, linewidth=1.2, alpha=0.85)"
+luna/reports/generate_tearsheet.py,664,0.3,SPLIT_RATIO,"ax.axhline(0,    color=_WHITE,  linestyle=""--"", alpha=0.3, linewidth=0.8)"
+luna/reports/generate_tearsheet.py,664,0.8,SPLIT_RATIO,"ax.axhline(0,    color=_WHITE,  linestyle=""--"", alpha=0.3, linewidth=0.8)"
+luna/reports/generate_tearsheet.py,665,1.5,SPLIT_RATIO,"ax.axhline(1.5,  color=_GREEN,  linestyle="":"",  alpha=0.5, linewidth=0.8,"
+luna/reports/generate_tearsheet.py,665,0.5,SPLIT_RATIO,"ax.axhline(1.5,  color=_GREEN,  linestyle="":"",  alpha=0.5, linewidth=0.8,"
+luna/reports/generate_tearsheet.py,665,0.8,SPLIT_RATIO,"ax.axhline(1.5,  color=_GREEN,  linestyle="":"",  alpha=0.5, linewidth=0.8,"
+luna/reports/generate_tearsheet.py,667,1.5,SPLIT_RATIO,"ax.axhline(-1.5, color=_RED,    linestyle="":"",  alpha=0.5, linewidth=0.8,"
+luna/reports/generate_tearsheet.py,667,0.5,SPLIT_RATIO,"ax.axhline(-1.5, color=_RED,    linestyle="":"",  alpha=0.5, linewidth=0.8,"
+luna/reports/generate_tearsheet.py,667,0.8,SPLIT_RATIO,"ax.axhline(-1.5, color=_RED,    linestyle="":"",  alpha=0.5, linewidth=0.8,"
+luna/reports/generate_tearsheet.py,714,0.75,SPLIT_RATIO,"ax.bar(x, vals, color=colors, alpha=0.75, width=0.8, zorder=2)"
+luna/reports/generate_tearsheet.py,714,0.8,SPLIT_RATIO,"ax.bar(x, vals, color=colors, alpha=0.75, width=0.8, zorder=2)"
+luna/reports/generate_tearsheet.py,852,0.98,SPLIT_RATIO,"ax.text(0.98, y, value, color=val_color, fontsize=fsize,"
+luna/reports/generate_tearsheet.py,852,98,SPLIT_RATIO,"ax.text(0.98, y, value, color=val_color, fontsize=fsize,"
+luna/reports/generate_tearsheet.py,1021,0.72,SPLIT_RATIO,VAL_X            = 0.72
+luna/reports/generate_tearsheet.py,1041,0.85,SPLIT_RATIO,"facecolor=col, alpha=0.85, edgecolor=""none""))"
+luna/reports/generate_tearsheet.py,1076,0.27,SPLIT_RATIO,"ax.text(VAL_X + 0.27, y + 0.16, lval,"
+luna/reports/generate_tearsheet.py,1076,0.16,SPLIT_RATIO,"ax.text(VAL_X + 0.27, y + 0.16, lval,"
+luna/reports/generate_tearsheet.py,1086,0.8,SPLIT_RATIO,"color=_BORDER, linewidth=0.8)"
+luna/reports/generate_tearsheet.py,1180,6.5,SPLIT_RATIO,"fontsize=6.5, color=_BG if passed else _WHITE, alpha=0.85)"
+luna/reports/generate_tearsheet.py,1180,0.85,SPLIT_RATIO,"fontsize=6.5, color=_BG if passed else _WHITE, alpha=0.85)"
+luna/reports/generate_tearsheet.py,1186,0.6,SPLIT_RATIO,"ax.plot([0, 1], [-0.6, -0.6], color=_BORDER, linewidth=0.8)"
+luna/reports/generate_tearsheet.py,1186,0.8,SPLIT_RATIO,"ax.plot([0, 1], [-0.6, -0.6], color=_BORDER, linewidth=0.8)"
+luna/reports/generate_tearsheet.py,1249,0.8,SPLIT_RATIO,"bar.get_height() + 0.8,"
+luna/reports/generate_tearsheet.py,1328,0.85,SPLIT_RATIO,widths  = np.diff(edges) * 0.85
+luna/reports/generate_tearsheet.py,1347,0.85,SPLIT_RATIO,"ax.get_ylim()[1] * 0.85 if ax.get_ylim()[1] > 0 else 1,"
+luna/reports/generate_tearsheet.py,1392,0.8,SPLIT_RATIO,"ax.axhline(40, color=_RED,    linewidth=0.8, linestyle="":"",  alpha=0.5, label=""40% (zona crítica)"")"
+luna/reports/generate_tearsheet.py,1392,0.5,SPLIT_RATIO,"ax.axhline(40, color=_RED,    linewidth=0.8, linestyle="":"",  alpha=0.5, label=""40% (zona crítica)"")"
+luna/reports/generate_tearsheet.py,1392,40,SPLIT_RATIO,"ax.axhline(40, color=_RED,    linewidth=0.8, linestyle="":"",  alpha=0.5, label=""40% (zona crítica)"")"
+luna/reports/generate_tearsheet.py,1395,0.8,SPLIT_RATIO,"ax.text(bar.get_x() + bar.get_width() / 2, wr_v + 0.8,"
+luna/risk/kelly_sizer.py,93,0.65,SPLIT_RATIO,0.65-0.80: Señal fuerte    → 20% (posición cargada)
+luna/risk/kelly_sizer.py,93,0.80,SPLIT_RATIO,0.65-0.80: Señal fuerte    → 20% (posición cargada)
+luna/risk/kelly_sizer.py,94,0.80,SPLIT_RATIO,> 0.80:  Triple confirmación → 30% (máximo agresivo controlado)
+luna/risk/kelly_sizer.py,114,0.80,SPLIT_RATIO,elif joint_confidence < 0.80:
+luna/security/guard_pipeline.py,133,0.70,SPLIT_RATIO,Note: El target binario (0/1) tiene correlación máxima teórica ~0.70-0.85
+luna/security/guard_pipeline.py,133,0.85,SPLIT_RATIO,Note: El target binario (0/1) tiene correlación máxima teórica ~0.70-0.85
+scripts/data_integrity_check.py,989,1.15,SPLIT_RATIO,if ratio > 1.15 or ratio < 0.85:
+scripts/data_integrity_check.py,989,0.85,SPLIT_RATIO,if ratio > 1.15 or ratio < 0.85:
+scripts/pre_flight/plot_timelines.py,72,0.15,SPLIT_RATIO,"plt.figtext(0.15, 0.15, info_text, bbox=dict(facecolor='black', alpha=0.8, edgecolor='red' if overlaps else 'green'),"
+scripts/pre_flight/plot_timelines.py,72,0.8,SPLIT_RATIO,"plt.figtext(0.15, 0.15, info_text, bbox=dict(facecolor='black', alpha=0.8, edgecolor='red' if overlaps else 'green'),"
+scripts/pre_flight/test_data.py,122,0.80,SPLIT_RATIO,if in_range < 0.80:
+scripts/pre_flight/test_env.py,770,0.8,SPLIT_RATIO,warn_nan = [f for f in features if df[f].isna().mean() > 0.8]
+scripts/pre_flight/test_r14_fixes.py,227,55,SPLIT_RATIO,cubre desde 2020 -> ~55% NaN es normal. 80% indicaria que la carga fallo.
+scripts/pre_flight/test_r14_fixes.py,235,0.80,SPLIT_RATIO,"""Coinglass_oi_close"":          0.80,  # OI close: alias de OI_USD"
+scripts/pre_flight/test_r14_fixes.py,236,0.80,SPLIT_RATIO,"""Coinglass_funding_rate_high"": 0.80,  # Funding rate high: antes descartado"
+scripts/pre_flight/test_r14_fixes.py,237,0.80,SPLIT_RATIO,"""OI_USD"":                      0.80,  # OI USD (nombre original del bridge)"
+luna/labeling/online_recalibrator.py,38,0.75,TBM_BARRIERS,_pt_decay_frac = 0.75
+luna/losses/monetary_loss.py,29,1.6,TBM_BARRIERS,pt_mult = 1.6
+luna/models/calibrate_probabilities.py,394,1.5,TBM_BARRIERS,"pt_mult     = getattr(cfg.xgboost, 'pt_mult_min', 1.5)"
+luna/models/calibrate_probabilities.py,408,0.75,TBM_BARRIERS,"_lin_decay_c, _pt_decay_frac_c = False, 0.75"
+luna/models/calibrate_probabilities.py,807,0.003,TBM_BARRIERS,"_pt_m, _sl_m, _m_ret = 2.0, 1.0, 0.003"
+luna/models/calibrate_probabilities.py,916,0.003,TBM_BARRIERS,"_pt_m, _sl_m, _m_ret = 2.0, 1.0, 0.003"
+luna/models/ensemble_lgbm.py,4132,1.5,TBM_BARRIERS,"_pt_c  = float(getattr(cal_cfg, 'pt_mult_min',  1.5))  # valor real del training"
+luna/models/predict_oos.py,1065,0.75,TBM_BARRIERS,"_lin_decay, _pt_decay_frac = False, 0.75"
+luna/models/signal_filter.py,735,1.5,TBM_BARRIERS,"_pt_mult = float(getattr(_cfg_xgb.xgboost, 'pt_mult_min', 1.5))"
+luna/models/signal_filter.py,802,0.05,TBM_BARRIERS,_dimmer_multiplier = (1.0 + _vix_slope * 0.05).clip(upper=1.15)
+luna/models/signal_filter.py,802,1.15,TBM_BARRIERS,_dimmer_multiplier = (1.0 + _vix_slope * 0.05).clip(upper=1.15)
+luna/models/train_metalabeler_v2.py,243,1.6,TBM_BARRIERS,"_pt_mult       = float(getattr(_cfg_rf.xgboost, 'pt_mult_min', 1.6))"
+luna/models/train_metalabeler_v2.py,335,1.6,TBM_BARRIERS,"_base_pt = getattr(self, '_base_pt_mult', 1.6)"
+luna/models/train_metalabeler_v2.py,994,0.75,TBM_BARRIERS,_pt_decay_frac_ml = 0.75
+luna/models/train_xgboost_v2.py,1666,1.8,TBM_BARRIERS,"_pt_c = float(getattr(cal_cfg, 'pt_mult_min', 1.8))"
+luna/models/train_xgboost_v2.py,1667,1.5,TBM_BARRIERS,"_sl_c = float(getattr(cal_cfg, 'sl_mult_min', 1.5))"
+luna/models/train_xgboost_v2.py,2112,1.8,TBM_BARRIERS,"_pt_cd = float(getattr(_cfg_cd.xgboost, 'pt_mult_min', 1.8))"
+luna/models/train_xgboost_v2.py,2113,1.5,TBM_BARRIERS,"_sl_cd = float(getattr(_cfg_cd.xgboost, 'sl_mult_min', 1.5))"
+luna/models/train_xgboost_v2.py,2117,1.8,TBM_BARRIERS,"_pt_cd, _sl_cd, _vb_cd, _mr_cd = 1.8, 1.5, 72, 0.003"
+luna/models/train_xgboost_v2.py,2117,1.5,TBM_BARRIERS,"_pt_cd, _sl_cd, _vb_cd, _mr_cd = 1.8, 1.5, 72, 0.003"
+luna/models/train_xgboost_v2.py,2117,0.003,TBM_BARRIERS,"_pt_cd, _sl_cd, _vb_cd, _mr_cd = 1.8, 1.5, 72, 0.003"
+luna/models/train_xgboost_v2.py,2117,72,TBM_BARRIERS,"_pt_cd, _sl_cd, _vb_cd, _mr_cd = 1.8, 1.5, 72, 0.003"
+luna/models/train_xgboost_v2.py,2226,1.8,TBM_BARRIERS,"_pt  = float(getattr(_cfg_iso.xgboost, ""pt_mult_min"", 1.8))"
+luna/models/train_xgboost_v2.py,2227,1.5,TBM_BARRIERS,"_sl  = float(getattr(_cfg_iso.xgboost, ""sl_mult_min"", 1.5))"
+scripts/pre_flight/test_consistency.py,225,1.5,TBM_BARRIERS,"sl_min = float(getattr(cfg, ""sl_mult_min"", 1.5))"
+scripts/pre_flight/test_consistency.py,226,1.5,TBM_BARRIERS,"assert sl_min >= 1.5, f""sl_mult_min es {sl_min}, DEBE ser >= 1.5 (un SL muy ajustado destruye el win rate)"""
+scripts/pre_flight/test_env.py,127,1.5,TBM_BARRIERS,NO ES COMPATIBLE con PT=1.5. Cualquier cambio de pt_mult requiere
+luna/ai_mining/deep_discovery_engine.py,363,0.005,TEMPORAL,"return (df[""close""].shift(-HORIZON_H) / df[""close""] - 1 > 0.005).astype(int)"
+luna/data/data_collector.py,207,4.0,TEMPORAL,if age_hours < 4.0:
+luna/features/feature_selection_e.py,135,500,TEMPORAL,"MAX_LAG_HOURS         = int(getattr(_cfg_sfi.features, 'max_lag_hours',     500))"
+luna/features/feature_selection_e.py,142,96,TEMPORAL,"SFI_PURGE_H           = int(getattr(_cfg_sfi.sop,      'purge_hours',    96))  # LdP: hacia atrÃ¡s del test"
+luna/features/feature_selection_e.py,885,96,TEMPORAL,"_tbm_h = int(getattr(_cfg_sfi.xgboost, 'vertical_barrier_hours', 96))"
+luna/features/feature_selection_e.py,942,96,TEMPORAL,"_tbm_h = int(getattr(_cfg_sfi.xgboost, 'vertical_barrier_hours', 96))"
+luna/features/feature_selection_e.py,1447,8760,TEMPORAL,"ann=sqrt(8760/horizon_h), identico al evaluador SFI_CPCV._eval_one()."
+luna/features/feature_selection_e.py,1464,96,TEMPORAL,"_tbm_h = int(getattr(_cfg_sfi.xgboost, 'vertical_barrier_hours', 96))"
+luna/features/tbm.py,18,48,TEMPORAL,"Fórmula: horizon = clip(48H x (ATR_mediana / ATR_actual), 48, 168)"
+luna/models/calibrate_probabilities.py,399,96,TEMPORAL,"_vb_max_h   = int(getattr(cfg.xgboost, 'vertical_barrier_hours', 96))"
+luna/models/ensemble_lgbm.py,178,96,TEMPORAL,"PURGE_H       = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))"
+luna/models/ensemble_lgbm.py,767,96,TEMPORAL,"_vbh_mvr = int(getattr(_cfg_mvr.xgboost, 'vertical_barrier_hours', 96))"
+luna/models/ensemble_lgbm.py,1438,96,TEMPORAL,"_vbh = int(getattr(_cfg.lightgbm, 'vertical_barrier_hours', 96)) if hasattr(_cfg, 'xgboost') else 96"
+luna/models/ensemble_lgbm.py,1439,48,TEMPORAL,"_dyn_min = int(getattr(_cfg.lightgbm, 'dynamic_horizon_min_h', 48)) if hasattr(_cfg, 'xgboost') else 48"
+luna/models/ensemble_lgbm.py,2911,96,TEMPORAL,"_embargo_gap = int(getattr(_cfg_metric.lightgbm, 'embargo_hours', 96))"
+luna/models/ensemble_lgbm.py,4140,96,TEMPORAL,"_vbh_c = int(getattr(cal_cfg, 'vertical_barrier_hours', 96))"
+luna/models/hmm_regime.py,34,960,TEMPORAL,"WINDOWS_OOS           = int(getattr(_cfg_hmm.hmm, 'oos_window_hours',          960))"
+luna/models/predict_oos.py,719,0.80,TEMPORAL,split_idx  = int(total_rows * 0.80) + purge_rows
+luna/models/predict_oos.py,1058,48,TEMPORAL,"_dyn_min = int(getattr(_cfg_tbm.xgboost, 'dynamic_horizon_min_h', 48))"
+luna/models/predict_oos.py,1064,48,TEMPORAL,"_vb_h, _dyn_min, _embargo, _dynamic_barrier = 168, 48, 168, True"
+luna/models/signal_filter.py,739,96,TEMPORAL,"_vb_max = int(getattr(_cfg_xgb.xgboost, 'vertical_barrier_hours', 96))"
+luna/models/signal_filter.py,1258,72.0,TEMPORAL,"'1_BULL_GRIND':     72.0,   # [FIX-EMBARGO-01] igual que BULL_TREND"
+luna/models/signal_filter.py,1265,72.0,TEMPORAL,"'1_BULL_TREND_B':   72.0,   # [FIX-EMBARGO-01] heredado de BULL_TREND"
+luna/models/signal_filter.py,1266,72.0,TEMPORAL,"'1_BULL_TREND_C':   72.0,   # [FIX-EMBARGO-01] heredado de BULL_TREND"
+luna/models/signal_filter.py,1267,72.0,TEMPORAL,"'1_BULL_TREND_D':   72.0,   # [FIX-EMBARGO-01] heredado de BULL_TREND"
+luna/models/signal_filter.py,1268,72.0,TEMPORAL,"'1_BULL_TREND_WEAK':72.0,   # [FIX-EMBARGO-01] heredado de BULL_TREND (WR=60.2%)"
+luna/models/signal_filter.py,1268,60.2,TEMPORAL,"'1_BULL_TREND_WEAK':72.0,   # [FIX-EMBARGO-01] heredado de BULL_TREND (WR=60.2%)"
+luna/models/signal_filter.py,1269,96.0,TEMPORAL,"'1_VOLATILE_BULL_B':96.0,   # [FIX-EMBARGO-01] heredado de VOLATILE_BULL"
+luna/models/signal_filter.py,1270,96.0,TEMPORAL,"'1_VOLATILE_BULL_C':96.0,   # [FIX-EMBARGO-01] heredado de VOLATILE_BULL"
+luna/models/signal_filter.py,1271,96.0,TEMPORAL,"'1_VOLATILE_BULL_D':96.0,   # [FIX-EMBARGO-01] heredado de VOLATILE_BULL"
+luna/models/signal_filter.py,1272,144.0,TEMPORAL,"'2_CALM_RANGE_B':  144.0,   # [FIX-EMBARGO-01] heredado de CALM_RANGE"
+luna/models/signal_filter.py,1273,144.0,TEMPORAL,"'2_CALM_RANGE_C':  144.0,   # [FIX-EMBARGO-01] heredado de CALM_RANGE"
+luna/models/signal_filter.py,1274,168.0,TEMPORAL,"'2_VOLATILE_RANGE_B':168.0, # [FIX-EMBARGO-01] heredado de VOLATILE_RANGE"
+luna/models/signal_filter.py,1275,168.0,TEMPORAL,"'3_CALM_BEAR_B':   168.0,   # [FIX-EMBARGO-01] heredado de CALM_BEAR"
+luna/models/signal_filter.py,1276,168.0,TEMPORAL,"'3_BEAR_CRASH_B':  168.0,   # [FIX-EMBARGO-01] heredado de BEAR_CRASH"
+luna/models/signal_filter.py,1278,168.0,TEMPORAL,_fallback_embargo = 168.0
+luna/models/train_metalabeler_v2.py,71,96,TEMPORAL,"EMBARGO_H          = int(getattr(_cfg_meta.sop,         'embargo_hours',      96))"
+luna/models/train_metalabeler_v2.py,435,96,TEMPORAL,"_embargo_h = int(getattr(_cfg_t_emb.sop, 'embargo_hours', 96))"
+luna/models/train_metalabeler_v2.py,948,96,TEMPORAL,"_vbh_ml  = int(getattr(_cfg_tbm.xgboost,   'vertical_barrier_hours', 96))"
+luna/models/train_metalabeler_v2.py,951,48,TEMPORAL,"_dyn_min_ml = int(getattr(_cfg_tbm.xgboost, 'dynamic_horizon_min_h', 48))"
+luna/models/train_xgboost_v2.py,53,96,TEMPORAL,"PURGE_H       = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))"
+luna/models/train_xgboost_v2.py,301,96,TEMPORAL,"_vbh_mvr = int(getattr(_cfg_mvr.xgboost, 'vertical_barrier_hours', 96))"
+luna/models/train_xgboost_v2.py,602,96,TEMPORAL,"_vbh = int(getattr(_cfg.xgboost, 'vertical_barrier_hours', 96)) if hasattr(_cfg, 'xgboost') else 96"
+luna/models/train_xgboost_v2.py,603,48,TEMPORAL,"_dyn_min = int(getattr(_cfg.xgboost, 'dynamic_horizon_min_h', 48)) if hasattr(_cfg, 'xgboost') else 48"
+luna/models/train_xgboost_v2.py,1152,96,TEMPORAL,"_embargo_gap = int(getattr(_cfg_metric.xgboost, 'embargo_hours', 96))"
+luna/models/train_xgboost_v2.py,1684,96,TEMPORAL,"_vbh_c = int(getattr(cal_cfg, 'vertical_barrier_hours', 96))"
+luna/models/train_xgboost_v2.py,2114,72,TEMPORAL,"_vb_cd = int(getattr(_cfg_cd.xgboost, 'vertical_barrier_hours', 72))"
+luna/models/train_xgboost_v2.py,2228,72,TEMPORAL,"_vbh = int(getattr(_cfg_iso.xgboost, ""vertical_barrier_hours"", 72))"
+luna/reports/generate_tearsheet.py,1285,168.0,TEMPORAL,"vertical_barrier_hours: float = 168.0,"
+luna/reports/generate_tearsheet.py,1324,1.1,TEMPORAL,"max_h  = max(hold_hours.max(), vertical_barrier_hours * 1.1)"
+luna/reports/generate_tearsheet.py,1344,0.95,TEMPORAL,n_vertical = (hold_hours >= vertical_barrier_hours * 0.95).sum()
+luna/reports/generate_tearsheet.py,1632,168.0,TEMPORAL,"verdict.get(""config"", {}).get(""vertical_barrier_hours"", 168.0)"
+luna/reports/generate_validation_report.py,492,0.50,TEMPORAL,"v [D] SFI-CPCV (DSR>=0.50, 6 grupos, 96H embargo)"
+luna/risk/psi_guard.py,143,336,TEMPORAL,"cooldown_hours=wfb_cfg.get(""psi_cooldown_hours"", 336),"
+scripts/data_integrity_check.py,67,96,TEMPORAL,"EMBARGO_H     = int(getattr(getattr(cfg, ""sop"", object()), ""embargo_hours"", 96))"
+scripts/pre_flight/test_env.py,494,96,TEMPORAL,"emb = int(getattr(cfg.temporal_splits, ""embargo_hours"", 96))"
+scripts/pre_flight/test_env.py,558,96,TEMPORAL,"emb = int(getattr(cfg.temporal_splits, ""embargo_hours"", 96))"
+scripts/pre_flight/test_env.py,602,96,TEMPORAL,"settings_emb = int(getattr(cfg.temporal_splits, ""embargo_hours"", 96))"
+scripts/pre_flight/test_env.py,1584,96,TEMPORAL,"emb_h = int(getattr(sp, ""embargo_hours"", 96))"
+scripts/pre_flight/test_temporal.py,152,96,TEMPORAL,"embargo_h = int(getattr(getattr(cfg, 'sop', object()), 'embargo_hours', 96))"
+scripts/pre_flight/test_temporal.py,153,96,TEMPORAL,"barrier_h = int(getattr(getattr(cfg, 'xgboost', object()), 'vertical_barrier_hours', 96))"
+luna/ai_mining/bayesian_causal_engine.py,64,0.002,THRESHOLD,ATE_THRESHOLD = 0.002      # ATE absoluto mínimo para incluir variable en señal
+luna/ai_mining/bayesian_causal_engine.py,284,0.05,THRESHOLD,"stars = ""★★★"" if abs(ate) > 0.05 else ""★★"" if abs(ate) > 0.02 else ""★"" if abs(ate) >= ATE_THRESHOLD else ""×"""
+luna/ai_mining/bayesian_causal_engine.py,284,0.02,THRESHOLD,"stars = ""★★★"" if abs(ate) > 0.05 else ""★★"" if abs(ate) > 0.02 else ""★"" if abs(ate) >= ATE_THRESHOLD else ""×"""
+luna/ai_mining/deep_discovery_engine.py,484,0.5,THRESHOLD,"return {""dtw_bull_prob"": 0.5, ""n_matches"": 0, ""similar_windows"": []}"
+luna/ai_mining/deep_discovery_engine.py,532,0.5,THRESHOLD,bull_prob = n_bull / len(top_matches) if top_matches else 0.5
+luna/ai_mining/deep_discovery_engine.py,544,0.5,THRESHOLD,"dtw_prob = dtw_res.get('dtw_bull_prob', 0.5)"
+luna/ai_mining/deep_discovery_engine.py,545,0.6,THRESHOLD,"dtw_emoji = ""🟢 ALCISTA"" if dtw_prob >= 0.6 else ""🔴 BAJISTA"" if dtw_prob <= 0.4 else ""⚖️ NEUTRAL"""
+luna/ai_mining/deep_discovery_engine.py,545,0.4,THRESHOLD,"dtw_emoji = ""🟢 ALCISTA"" if dtw_prob >= 0.6 else ""🔴 BAJISTA"" if dtw_prob <= 0.4 else ""⚖️ NEUTRAL"""
+luna/calibration/temperature_scaler.py,6,0.591,THRESHOLD,"W1 OOS real: XGB_prob ganadores=0.591, perdedores=0.593 → separación=0.002."
+luna/calibration/temperature_scaler.py,6,0.593,THRESHOLD,"W1 OOS real: XGB_prob ganadores=0.591, perdedores=0.593 → separación=0.002."
+luna/calibration/temperature_scaler.py,6,0.002,THRESHOLD,"W1 OOS real: XGB_prob ganadores=0.591, perdedores=0.593 → separación=0.002."
+luna/calibration/temperature_scaler.py,48,0.5,THRESHOLD,- T < 1.0 (Sharpening): separa probs concentradas cerca de 0.5/0.59.
+luna/calibration/temperature_scaler.py,48,0.59,THRESHOLD,- T < 1.0 (Sharpening): separa probs concentradas cerca de 0.5/0.59.
+luna/calibration/temperature_scaler.py,50,0.5,THRESHOLD,- T > 1.0 (Softening):  comprime probs hacia 0.5.
+luna/calibration/temperature_scaler.py,63,0.59,THRESHOLD,underconfident con probs concentradas en ~0.59).
+luna/features/alpha_rules.py,197,0.4,THRESHOLD,DTW_BULL_PROB: float = 0.4  # P(BTC sube en 24H | análogos históricos)
+luna/features/alpha_rules.py,273,0.5,THRESHOLD,dtw_direction = 1.0 if DTW_BULL_PROB >= 0.5 else -1.0
+luna/features/feature_pipeline.py,19,0.70,THRESHOLD,12. Clustering de correlaciÃ³n (threshold 0.70)
+luna/features/feature_pipeline.py,351,0.002,THRESHOLD,ATE_THRESHOLD = 0.002
+luna/features/feature_selection_e.py,102,0.05,THRESHOLD,LOW_FREQ_THRESHOLD = 0.05
+luna/features/feature_selection_e.py,182,0.05,THRESHOLD,"def __init__(self, p_value_threshold: float = 0.05, penalty_multiplier: float = 0.10):"
+luna/features/feature_selection_e.py,182,0.10,THRESHOLD,"def __init__(self, p_value_threshold: float = 0.05, penalty_multiplier: float = 0.10):"
+luna/features/feature_selection_e.py,890,0.5,THRESHOLD,"sigs_lo = np.where(proba > 0.5, 1.0, 0.0)  # long-only"
+luna/features/feature_selection_e.py,1164,0.10,THRESHOLD,_min_sharpe_threshold = 0.10
+luna/features/feature_selection_e.py,1485,0.5,THRESHOLD,"sigs_lo = np.where(proba > 0.5, 1.0, 0.0)"
+luna/features/feature_selection_e.py,1630,0.55,THRESHOLD,"def __init__(self, auc_threshold: float = 0.55, penalty_multiplier: float = 2.5):"
+luna/features/feature_selection_e.py,1630,2.5,THRESHOLD,"def __init__(self, auc_threshold: float = 0.55, penalty_multiplier: float = 2.5):"
+luna/features/fracdiff_dynamic.py,52,0.1,THRESHOLD,d_min:     d mínimo a probar (0.1 → mínima diferenciación)
+luna/features/rule_validator.py,10,0.05,THRESHOLD,- Threshold de validez: p-value < 0.05 (WR estadísticamente > 50%)
+luna/live/live_inference.py,215,0.5,THRESHOLD,xgb_prob = 0.5
+luna/live/live_inference.py,228,0.5,THRESHOLD,"direction = ""LONG"" if xgb_prob >= 0.5 else ""SHORT"""
+luna/live/live_inference.py,282,1.5,THRESHOLD,final_confidence = 1.0 / (1.0 + np.exp(-3.0 * meta_prob_raw + 1.5))
+luna/live/live_inference.py,323,0.58,THRESHOLD,CONFIDENCE_THRESHOLD = 0.58  # Señales por debajo = débiles
+luna/live/position_sizer.py,230,0.25,THRESHOLD,if trans_prob >= 0.25:
+luna/live/position_sizer.py,232,0.10,THRESHOLD,elif trans_prob >= 0.10:
+luna/live/position_sizer.py,250,0.15,THRESHOLD,"- dict de nombre→dict de nombre→prob (p.ej. {'BULL': {'BEAR': 0.15, ...}})"
+luna/live/position_sizer.py,441,0.25,THRESHOLD,if trans_prob >= 0.25:
+luna/live/position_sizer.py,443,0.10,THRESHOLD,elif trans_prob >= 0.10:
+luna/live/risk_monitor.py,28,0.03,THRESHOLD,"""daily_dd"":       {""threshold"": 0.03, ""action"": ""pause_24h""},"
+luna/live/risk_monitor.py,29,0.07,THRESHOLD,"""weekly_dd"":      {""threshold"": 0.07, ""action"": ""pause_review""},"
+luna/live/risk_monitor.py,30,0.10,THRESHOLD,"""drawdown_reduce"":{""threshold"": 0.10, ""action"": ""reduce_50pct""},"
+luna/live/risk_monitor.py,31,0.15,THRESHOLD,"""kill_switch"":    {""threshold"": 0.15, ""action"": ""close_all_STOP""},"
+luna/live/run_kraken_xgboost_demo.py,69,0.5,THRESHOLD,"direction = ""LONG"" if xgb_prob >= 0.5 else ""SHORT"""
+luna/models/calibrate_probabilities.py,99,0.5,THRESHOLD,"return (self.predict_proba(X)[:, 1] > 0.5).astype(int)"
+luna/models/calibrate_probabilities.py,318,0.50,THRESHOLD,"_thr = float(sig.get(""optimal_threshold"", 0.50))"
+luna/models/calibrate_probabilities.py,334,0.50,THRESHOLD,"""optimal_threshold"": min(_global_thresh_list) if _global_thresh_list else 0.50,"
+luna/models/calibrate_probabilities.py,546,0.50,THRESHOLD,"_xgb_opt_t_global = float(xgb_sig.get(""optimal_threshold"", 0.50))"
+luna/models/calibrate_probabilities.py,644,0.5,THRESHOLD,"check_model_sanity(y_seq, cal_probs, label=""Calibrator.post"", threshold=0.5)"
+luna/models/calibrate_probabilities.py,669,0.1,THRESHOLD,"_test_probs_guard = _np_cal_guard.linspace(0.1, 0.9, 80)"
+luna/models/calibrate_probabilities.py,669,0.9,THRESHOLD,"_test_probs_guard = _np_cal_guard.linspace(0.1, 0.9, 80)"
+luna/models/calibrate_probabilities.py,669,80,THRESHOLD,"_test_probs_guard = _np_cal_guard.linspace(0.1, 0.9, 80)"
+luna/models/calibrate_probabilities.py,747,0.50,THRESHOLD,"_xgb_opt_t_global = float(xgb_sig.get(""optimal_threshold"", 0.50))"
+luna/models/calibrate_probabilities.py,785,0.40,THRESHOLD,"_best_meta_t     = float(getattr(_cfg_meta_cal.metalabeler, 'meta_filter_threshold', 0.40))"
+luna/models/calibrate_probabilities.py,901,0.40,THRESHOLD,"_best_meta_t = float(getattr(_cfg_meta_cal.metalabeler, 'meta_filter_threshold', 0.40))"
+luna/models/calibrate_probabilities.py,952,0.40,THRESHOLD,"_meta_thresh_final = float(getattr(_cfg_mt_fb.metalabeler, 'meta_filter_threshold', 0.40))"
+luna/models/calibrate_probabilities.py,954,0.40,THRESHOLD,_meta_thresh_final = 0.40
+luna/models/calibrate_probabilities.py,967,0.38,THRESHOLD,"_floor_abs_cal     = float(getattr(_cfg_dynmeta_cal.metalabeler, 'meta_v2_min_prob', 0.38))"
+luna/models/calibrate_probabilities.py,983,90,THRESHOLD,"_p90_cal_probs = float(np.percentile(cal_probs, 90))"
+luna/models/calibrate_probabilities.py,985,0.95,THRESHOLD,_reachable_cap = _p90_cal_probs * 0.95
+luna/models/calibrate_probabilities.py,1013,0.90,THRESHOLD,_emergency_thresh = _p90_cal_probs * 0.90
+luna/models/ensemble_lgbm.py,3508,0.40,THRESHOLD,"t_min      = float(getattr(cal_cfg, 'threshold_sweep_min',  0.40))"
+luna/models/ensemble_lgbm.py,3512,0.75,THRESHOLD,"t_max      = float(getattr(cal_cfg, 'threshold_sweep_max',  0.75))"
+luna/models/ensemble_lgbm.py,3516,0.01,THRESHOLD,"t_step     = float(getattr(cal_cfg, 'threshold_sweep_step', 0.01))"
+luna/models/ensemble_lgbm.py,3520,30,THRESHOLD,"min_trades = int(getattr(cal_cfg, 'threshold_min_trades',   30))"
+luna/models/ensemble_lgbm.py,3540,0.30,THRESHOLD,"min_density_pct = float(getattr(cal_cfg, 'threshold_min_density_pct', 0.30))"
+luna/models/ensemble_lgbm.py,4225,0.60,THRESHOLD,"_max_density_pct = float(getattr(getattr(_cfg_xgb, 'xgboost', object()), 'max_signal_density_pct', 0.60))"
+luna/models/ensemble_lgbm.py,4229,0.40,THRESHOLD,"fallback_t = float(getattr(getattr(_cfg_xgb, 'xgboost', object()), 'xgb_signal_threshold', 0.40))"
+luna/models/ensemble_lgbm.py,4609,0.25,THRESHOLD,"r_min_trades = max(10, int(min_trades * 0.25)) # Lower threshold for individual regimes"
+luna/models/hmm_regime.py,990,0.04,THRESHOLD,"dyn_crash_thresh = np.minimum(-0.04, -2.5 * _daily_vol_proxy)"
+luna/models/hmm_regime.py,990,2.5,THRESHOLD,"dyn_crash_thresh = np.minimum(-0.04, -2.5 * _daily_vol_proxy)"
+luna/models/hmm_regime.py,999,0.04,THRESHOLD,"dyn_crash_thresh = np.minimum(-0.04, -2.5 * _fallback_vol)"
+luna/models/hmm_regime.py,999,2.5,THRESHOLD,"dyn_crash_thresh = np.minimum(-0.04, -2.5 * _fallback_vol)"
+luna/models/hmm_regime.py,1018,0.03,THRESHOLD,"dyn_dist_thresh = np.minimum(-0.03, -2.0 * _daily_vol_proxy)"
+luna/models/hmm_regime.py,1268,0.15,THRESHOLD,"_jsd_thr = float(getattr(getattr(_cfg_hmm_drift, 'hmm', None), 'drift_alert_jsd', 0.15))"
+luna/models/hmm_regime.py,1270,0.15,THRESHOLD,_jsd_thr = 0.15
+luna/models/predict_oos.py,279,0.51,THRESHOLD,"_thr = float(sig.get(""optimal_threshold"", 0.51))"
+luna/models/predict_oos.py,921,0.51,THRESHOLD,"_thr = float(_agent_sig.get(""optimal_threshold"", 0.51))"
+luna/models/predict_oos.py,935,0.51,THRESHOLD,_global_lgbm_thresh = np.median(_lgbm_thresholds_found) if _lgbm_thresholds_found else 0.51
+luna/models/predict_oos.py,1077,0.5,THRESHOLD,"_prob_series = df_oos[""xgb_prob_cal""].fillna(0.5).clip(0.5, 1.0)"
+luna/models/predict_oos.py,1079,0.5,THRESHOLD,"_prob_series = df_oos[""meta_v2_prob""].fillna(0.5).clip(0.5, 1.0)"
+luna/models/predict_oos.py,1081,0.5,THRESHOLD,"_prob_series = df_oos[""xgb_prob""].fillna(0.5).clip(0.5, 1.0)"
+luna/models/predict_oos.py,1083,0.5,THRESHOLD,"_prob_series = pd.Series(0.5, index=df_oos.index)"
+luna/models/predict_oos.py,1086,0.7,THRESHOLD,_conf_scaler = 0.7 + ((_prob_series - 0.5) / 0.5) * (1.3 - 0.7)
+luna/models/predict_oos.py,1086,0.5,THRESHOLD,_conf_scaler = 0.7 + ((_prob_series - 0.5) / 0.5) * (1.3 - 0.7)
+luna/models/predict_oos.py,1086,1.3,THRESHOLD,_conf_scaler = 0.7 + ((_prob_series - 0.5) / 0.5) * (1.3 - 0.7)
+luna/models/predict_oos.py,1178,0.5,THRESHOLD,"_row_df[""xgb_prob""] = float(df_oos.loc[t, ""xgb_prob_cal""]) if ""xgb_prob_cal"" in df_oos.columns and t in df_oos.index else float(df_oos.loc[t, ""xgb_pro"
+luna/models/predict_oos.py,1179,0.5,THRESHOLD,"_row_df[""meta_prob""] = float(df_oos.loc[t, ""meta_v2_prob""]) if ""meta_v2_prob"" in df_oos.columns and t in df_oos.index else 0.5"
+luna/models/regime_router.py,98,0.5,THRESHOLD,"self.calibrations[name] = sig.get('optimal_threshold', 0.5)"
+luna/models/signal_filter.py,192,0.50,THRESHOLD,SIGNAL_THRESHOLD = 0.50  # default neutro
+luna/models/signal_filter.py,273,0.85,THRESHOLD,if SIGNAL_THRESHOLD >= 0.85:
+luna/models/signal_filter.py,387,0.45,THRESHOLD,"_min_thr   = float(getattr(_cfg_thr.xgboost, 'xgb_min_signals_threshold', 0.45))"
+luna/models/signal_filter.py,389,0.45,THRESHOLD,"_min_count, _min_thr = 10, 0.45"
+luna/models/signal_filter.py,408,0.85,THRESHOLD,"_reduced = max(_min_thr, r_thresh_m3 * 0.85)"
+luna/models/signal_filter.py,416,0.85,THRESHOLD,"_safe_fallback_thr = max(_min_thr, np.median(list(_thresh_by_regime_m3.values())) * 0.85) if _thresh_by_regime_m3 else _min_thr"
+luna/models/signal_filter.py,433,0.40,THRESHOLD,"_hmm_tr_thresh  = float(getattr(getattr(_cfg_hmm_tr, ""hmm_predictive"", None), ""bear_transition_veto_thresh"",  0.40))"
+luna/models/signal_filter.py,648,0.50,THRESHOLD,_meta_thresh_global = 0.50  # FASE C: Seguro default
+luna/models/signal_filter.py,685,0.50,THRESHOLD,"_meta_thresh_global = _calib_th  # [FIX-M-06] Trust the calibrated threshold (was: max(0.50, _calib_th) which blocked everything)"
+luna/models/signal_filter.py,685,50,THRESHOLD,"_meta_thresh_global = _calib_th  # [FIX-M-06] Trust the calibrated threshold (was: max(0.50, _calib_th) which blocked everything)"
+luna/models/signal_filter.py,803,0.99,THRESHOLD,_eff_thresh = (_eff_thresh * _dimmer_multiplier).clip(upper=0.99)
+luna/models/signal_filter.py,962,15.0,THRESHOLD,_mom_thresholds_dynamic[_bull_mask] = -15.0
+luna/models/signal_filter.py,966,25.0,THRESHOLD,_mom_thresholds_dynamic[_crash_mask] = -25.0
+luna/models/signal_filter.py,972,15.0,THRESHOLD,"-15.0, -25.0, _mom_threshold_global"
+luna/models/signal_filter.py,972,25.0,THRESHOLD,"-15.0, -25.0, _mom_threshold_global"
+luna/models/signal_filter.py,1298,3600.0,THRESHOLD,if _last_signal_time is None or (_t - _last_signal_time).total_seconds() / 3600.0 >= _emb_h:
+luna/models/train_metalabeler_v2.py,103,0.47,THRESHOLD,predice siempre la prob marginal (~0.47).
+luna/models/train_metalabeler_v2.py,357,0.35,THRESHOLD,_contested_threshold = 0.35
+luna/models/train_metalabeler_v2.py,363,0.25,THRESHOLD,_contested_threshold = 0.25
+luna/models/train_metalabeler_v2.py,642,0.50,THRESHOLD,"threshold: float = 0.50,"
+luna/models/train_metalabeler_v2.py,1288,0.50,THRESHOLD,oos_probs[nan_mask] = 0.50
+luna/models/train_metalabeler_v2.py,1291,0.50,THRESHOLD,oos_probs[nan_mask] = 0.50
+luna/models/train_metalabeler_v2.py,1353,0.30,THRESHOLD,_optimal_meta_thresh = 0.30  # fallback si sweep falla (FASE C: adaptado de 0.40 a 0.30)
+luna/models/train_metalabeler_v2.py,1353,0.40,THRESHOLD,_optimal_meta_thresh = 0.30  # fallback si sweep falla (FASE C: adaptado de 0.40 a 0.30)
+luna/models/train_metalabeler_v2.py,1355,0.30,THRESHOLD,META_THRESH_MIN      = 0.30
+luna/models/train_metalabeler_v2.py,1356,0.73,THRESHOLD,META_THRESH_MAX      = 0.73
+luna/models/train_metalabeler_v2.py,1357,0.01,THRESHOLD,META_THRESH_STEP     = 0.01
+luna/models/train_metalabeler_v2.py,1364,0.30,THRESHOLD,_n_baseline  = int((probs_val >= 0.30).sum())
+luna/models/train_metalabeler_v2.py,1412,0.38,THRESHOLD,"_floor_abs_dyn = float(getattr(_cfg_dynmeta.metalabeler, 'meta_v2_min_prob', 0.38))"
+luna/models/train_metalabeler_v2.py,1430,90,THRESHOLD,"_p90_val      = float(np.percentile(probs_val, 90))"
+luna/models/train_xgboost_v2.py,1212,0.5,THRESHOLD,"_preds_bin = np.where(_proba_is > 0.5, 1.0, 0.0)"
+luna/models/train_xgboost_v2.py,1515,0.40,THRESHOLD,"t_min      = float(getattr(cal_cfg, 'threshold_sweep_min',  0.40))"
+luna/models/train_xgboost_v2.py,1516,0.75,THRESHOLD,"t_max      = float(getattr(cal_cfg, 'threshold_sweep_max',  0.75))"
+luna/models/train_xgboost_v2.py,1517,0.01,THRESHOLD,"t_step     = float(getattr(cal_cfg, 'threshold_sweep_step', 0.01))"
+luna/models/train_xgboost_v2.py,1518,30,THRESHOLD,"min_trades = int(getattr(cal_cfg, 'threshold_min_trades',   30))"
+luna/models/train_xgboost_v2.py,1523,0.30,THRESHOLD,"min_density_pct = float(getattr(cal_cfg, 'threshold_min_density_pct', 0.30))"
+luna/models/train_xgboost_v2.py,1738,99,THRESHOLD,"_p99_probs = float(np.percentile(probs_aligned, 99))"
+luna/models/train_xgboost_v2.py,1739,50,THRESHOLD,"_p50_probs = float(np.percentile(probs_aligned, 50))"
+luna/models/train_xgboost_v2.py,1743,0.95,THRESHOLD,"t_min_eff = min(t_min_eff, _p50_probs, 0.95)  # no puede superar la mediana"
+luna/models/train_xgboost_v2.py,1746,0.03,THRESHOLD,"t_max_eff = min(t_max, _p99_probs + 0.03, 0.99)"
+luna/models/train_xgboost_v2.py,1746,0.99,THRESHOLD,"t_max_eff = min(t_max, _p99_probs + 0.03, 0.99)"
+luna/models/train_xgboost_v2.py,1771,0.60,THRESHOLD,"_max_density_pct = float(getattr(getattr(_cfg_xgb, 'xgboost', object()), 'max_signal_density_pct', 0.60))"
+luna/models/train_xgboost_v2.py,1772,0.40,THRESHOLD,"fallback_t = float(getattr(getattr(_cfg_xgb, 'xgboost', object()), 'xgb_signal_threshold', 0.40))"
+luna/models/train_xgboost_v2.py,1876,0.25,THRESHOLD,"r_min_trades = max(10, int(min_trades * 0.25)) # Lower threshold for individual regimes"
+luna/pipeline_executor.py,784,0.90,THRESHOLD,Sin esto el calibrador de threshold ve HMM_Semantic=NaN y fija umbral=0.90 → 0 trades.
+luna/pipeline_executor.py,1220,0.38,THRESHOLD,_base_thresh = 0.38
+luna/pipeline_executor.py,1225,0.38,THRESHOLD,"_base_thresh = float(_cfg_g7.get(""xgboost"", {}).get(""xgb_signal_threshold"", 0.38))"
+luna/pipeline_executor.py,1257,0.38,THRESHOLD,"_fallback_th = float(_cfg_fi1.get(""xgboost"", {}).get(""xgb_signal_threshold"", 0.38))"
+luna/reports/generate_tearsheet.py,976,0.15,THRESHOLD,"alpha  = thresh.get(""alpha_binomial"", 0.15)"
+luna/reports/generate_tearsheet.py,981,0.75,THRESHOLD,"min_dsr = thresh.get(""min_dsr"", 0.75)"
+luna/reports/generate_tearsheet.py,1022,0.72,THRESHOLD,THR_X            = 0.72
+luna/reports/generate_tearsheet.py,1055,.1,THRESHOLD,"norm_t = min(thr, scale) / scale            # 0..1"
+luna/reports/generate_tearsheet.py,1068,0.26,THRESHOLD,"ax.plot([thr_px, thr_px], [y - 0.26, y + 0.26],"
+luna/reports/generate_tearsheet.py,1079,0.27,THRESHOLD,"ax.text(THR_X + 0.27, y - 0.20, f""Umbral: {lthr}"","
+luna/reports/generate_tearsheet.py,1079,0.20,THRESHOLD,"ax.text(THR_X + 0.27, y - 0.20, f""Umbral: {lthr}"","
+luna/reports/generate_tearsheet.py,1113,0.15,THRESHOLD,"alpha = thresh.get(""alpha_binomial"", 0.15)"
+luna/reports/generate_tearsheet.py,1120,0.75,THRESHOLD,"float(audit.get(""dsr"", 0)), thresh.get(""min_dsr"", 0.75),"
+luna/reports/generate_tearsheet.py,1172,1.03,THRESHOLD,"ax.text(1.03, y - 0.18, lthr, va=""center"", ha=""left"","
+luna/reports/generate_tearsheet.py,1172,0.18,THRESHOLD,"ax.text(1.03, y - 0.18, lthr, va=""center"", ha=""left"","
+luna/reports/generate_tearsheet.py,1205,36,THRESHOLD,HALLAZGO-2 (M-36): muestra el WR por cuartil de probabilidad XGBoost.
+luna/reports/generate_tearsheet.py,1210,0.5,THRESHOLD,"ax.text(0.5, 0.5, ""xgb_prob no disponible"","
+luna/reports/generate_validation_report.py,405,0.75,THRESHOLD,"| **DSR** | **{dsr:.4f}** | >= {thr.get('min_dsr',0.75)} | {_pass(flg.get('pass_dsr',False))} | Prob. de que la senal sea real (Bailey & LdP) |"
+luna/reports/generate_validation_report.py,405,75,THRESHOLD,"| **DSR** | **{dsr:.4f}** | >= {thr.get('min_dsr',0.75)} | {_pass(flg.get('pass_dsr',False))} | Prob. de que la senal sea real (Bailey & LdP) |"
+luna/reports/generate_validation_report.py,406,0.05,THRESHOLD,"| **p-value binomial** | **{p_binom:.4e}** | <= 0.05 | {_pass(flg.get('pass_binomial',False))} | Prob. de obtener este WR por azar |"
+luna/reports/generate_validation_report.py,408,60,THRESHOLD,"| **MaxDrawdown** | **{dd:.1f}%** | < {thr.get('max_drawdown_pct',60):.0f}% | {_pass(flg.get('pass_dd',False))} | Caida pico->valle en curva de equity"
+luna/reports/generate_validation_report.py,426,0.75,THRESHOLD,"| {""❌"" if not flg.get(""pass_dsr"") else ""✅""} DSR | {dsr:.4f} | >={thr.get(""min_dsr"",0.75)} | {_gap(dsr, thr.get(""min_dsr"",0.75), ""above"")} |"
+luna/reports/generate_validation_report.py,426,75,THRESHOLD,"| {""❌"" if not flg.get(""pass_dsr"") else ""✅""} DSR | {dsr:.4f} | >={thr.get(""min_dsr"",0.75)} | {_gap(dsr, thr.get(""min_dsr"",0.75), ""above"")} |"
+luna/reports/generate_validation_report.py,429,60,THRESHOLD,"| {""✅"" if flg.get(""pass_dd"") else ""❌""} Max DD | {dd:.1f}% | <{thr.get(""max_drawdown_pct"",60):.0f}% | {""✅ OK"" if flg.get(""pass_dd"") else _gap(dd, thr.g"
+luna/risk/kelly_sizer.py,55,0.5,THRESHOLD,"meta_prob: float = 0.5,"
+luna/risk/kelly_sizer.py,66,0.5,THRESHOLD,meta_prob:         Probabilidad del MetaLabeler V2. Default 0.5 (neutro).
+luna/risk/kelly_sizer.py,137,0.80,THRESHOLD,xgb_prob=0.80 con WR real=25% generaría un Kelly catastrófico.
+luna/risk/kelly_sizer.py,304,0.5,THRESHOLD,"xgb_p  = float(row.get(prob_col,  0.5) or 0.5)"
+luna/risk/psi_guard.py,15,0.25,THRESHOLD,1. PSI < psi_alert_threshold (0.25): NORMAL — operar sin restricciones.
+luna/risk/psi_guard.py,17,0.50,THRESHOLD,3. PSI > psi_halt_threshold (0.50): HALT — Cash Shield global + notificación urgente.
+luna/risk/psi_guard.py,17,50,THRESHOLD,3. PSI > psi_halt_threshold (0.50): HALT — Cash Shield global + notificación urgente.
+luna/risk/psi_guard.py,108,0.25,THRESHOLD,"alert_threshold: float = 0.25,"
+luna/risk/psi_guard.py,109,0.50,THRESHOLD,"halt_threshold: float = 0.50,"
+luna/risk/psi_guard.py,140,0.25,THRESHOLD,"alert_threshold=wfb_cfg.get(""psi_alert_threshold"", 0.25),"
+luna/risk/psi_guard.py,141,0.50,THRESHOLD,"halt_threshold=wfb_cfg.get(""psi_halt_threshold"", 0.50),"
+luna/security/guard_pipeline.py,62,0.40,THRESHOLD,CORR_THRESHOLD_ALERT = 0.40    # WARNING
+luna/security/guard_pipeline.py,63,0.55,THRESHOLD,CORR_THRESHOLD_CRITICAL = 0.55  # ERROR — casi certeza de leakage
+luna/utils/debug_guards.py,69,5.0,THRESHOLD,"NAN_THRESHOLD_PCT:   float = _cfg_val(""nan_threshold_pct"",   5.0)"
+luna/utils/debug_guards.py,70,0.95,THRESHOLD,"CORR_LEAKAGE_THR:   float = _cfg_val(""corr_leakage_threshold"", 0.95)"
+luna/utils/debug_guards.py,267,0.5,THRESHOLD,"threshold: float = 0.5,"
+luna/utils/ood_feature_guard.py,19,0.8076,THRESHOLD,(ej: xgb_prob = 0.8076 constante para 2425 filas consecutivas).
+luna/utils/pipeline_invariants.py,17,0.45,THRESHOLD,BUG-03: threshold baja a 0.45 silenciosamente → señales no calibradas en OOS
+luna/utils/pipeline_invariants.py,116,0.40,THRESHOLD,"t_sweep  = float(getattr(xgb_cfg, 'threshold_sweep_min', 0.40))"
+luna/utils/pipeline_invariants.py,117,0.45,THRESHOLD,"t_min_em = float(getattr(xgb_cfg, 'xgb_min_signals_threshold', 0.45))"
+luna/utils/pipeline_invariants.py,275,0.20,THRESHOLD,"elif df[""xgb_prob""].isna().mean() > 0.20:"
+luna/validation/phase_gates.py,101,0.010,THRESHOLD,XGB_PROBA_STD_MIN      = 0.010   # G2: std(proba) mínima (modelo degenerado si menor)
+luna/validation/phase_gates.py,102,0.010,THRESHOLD,LGBM_PROBA_STD_MIN     = 0.010   # G3
+luna/validation/phase_gates.py,105,0.80,THRESHOLD,SFI_MAX_ALPHA_RATIO    = 0.80    # G1: max proporción de alpha signals en selección
+luna/validation/phase_gates.py,441,0.1,THRESHOLD,"pstd = float(sig.get(""proba_std"", sig.get(""val_proba_std"", 0.1)))"
+luna/validation/phase_gates.py,699,0.01,THRESHOLD,"- Si hay columna meta_v2_prob en OOS: range [0,1], std > 0.01"
+scripts/data_integrity_check.py,66,5.0,THRESHOLD,"NAN_THRESHOLD = float(getattr(getattr(cfg, ""debug"", object()), ""nan_threshold_pct"", 5.0))"
+scripts/data_integrity_check.py,69,5.0,THRESHOLD,NAN_THRESHOLD = 5.0
+scripts/data_integrity_check.py,623,95,THRESHOLD,"pct_95 = np.percentile(probs, 95)"
+scripts/pre_flight/test_consistency.py,212,0.76,THRESHOLD,"Con Platt Scaling, probabilidades de 0.76+ son matematicamente inalcanzables."""""""
+scripts/pre_flight/test_env.py,487,0.50,THRESHOLD,- SIGNAL_THRESHOLD = 0.50 (y fallback 0.45 si pocos signals)
+scripts/pre_flight/test_env.py,487,0.45,THRESHOLD,- SIGNAL_THRESHOLD = 0.50 (y fallback 0.45 si pocos signals)
+scripts/pre_flight/test_env.py,500,0.40,THRESHOLD,"assert 0.40 <= thr <= 0.65, ("
+scripts/pre_flight/test_env.py,500,0.65,THRESHOLD,"assert 0.40 <= thr <= 0.65, ("
+scripts/pre_flight/test_env.py,628,0.75,THRESHOLD,El gauntlet threshold (min_dsr=0.75) debe ser el mismo valor que se usa
+scripts/run_statistical_validation.py,337,4.5,THRESHOLD,"cusum_res = ohm.calculate_cusum(_ret_s, target=0.0, threshold=4.5)"
+scripts/run_wfb_orchestrator.py,64,0.95,THRESHOLD,_PRUNE_THRESHOLD = 0.95
+luna/ai_mining/cluster_pattern_engine.py,189,365,VALIDATION,sharpe = mu / sigma * np.sqrt(365) if sigma > 0 else 0
+luna/calibration/temperature_scaler.py,22,0.5,VALIDATION,activar Temperature Scaling con T=0.5 (sharpening).
+luna/calibration/temperature_scaler.py,53,0.5,VALIDATION,Ejemplo para T=0.5 (sharpening):
+luna/calibration/temperature_scaler.py,62,0.5,VALIDATION,temperature: T de escalado. Default 0.5 (sharpening para modelos
+luna/data/fetch_macro.py,8,0.268,VALIDATION,"- FedFundsRate   ← SHAP #1, TE_net=0.268"
+luna/features/feature_pipeline.py,18,0.05,VALIDATION,11. SFI Filter (RF OOB > 0.05 Sharpe)
+luna/features/feature_pipeline.py,223,90,VALIDATION,ssr_mean = ssr.rolling(90*24).mean()    # 90d rolling
+luna/features/feature_pipeline.py,224,90,VALIDATION,ssr_std  = ssr.rolling(90*24).std()
+luna/features/feature_selection_e.py,147,0.05,VALIDATION,"SFI_MIN_SHARPE        = float(getattr(_cfg_sfi.features,'sfi_min_sharpe',  0.05))  # floor DSR-null (MEJORA-SFI-SHARPE-01)"
+luna/features/feature_selection_e.py,148,600,VALIDATION,"SFI_DSR_N_TRIALS      = int(getattr(_cfg_sfi.stat,     'n_trials_total',  600))"
+luna/features/feature_selection_e.py,164,0.05,VALIDATION,SFI_MIN_SHARPE        = 0.05
+luna/features/feature_selection_e.py,777,0.5,VALIDATION,Var(SR) = varianza estadística del estimado de Sharpe (1.0 + 0.5 * SR^2) / n_obs
+luna/features/feature_selection_e.py,810,0.5,VALIDATION,var_sr = (freq + 0.5 * (sr_mean ** 2)) / n_obs
+luna/features/feature_selection_e.py,976,0.05,VALIDATION,"_stab_min_dsr      = float(getattr(_cfg_sfi.features, 'stability_min_dsr', 0.05))"
+luna/features/feature_selection_e.py,979,0.05,VALIDATION,_stab_min_dsr      = 0.05
+luna/features/feature_selection_e.py,1157,1.645,VALIDATION,_sr_dynamic_ensemble = (1.645 / np.sqrt(_n_obs_oob)) * ann_factor
+luna/features/feature_selection_e.py,1157,645,VALIDATION,_sr_dynamic_ensemble = (1.645 / np.sqrt(_n_obs_oob)) * ann_factor
+luna/features/feature_selection_e.py,1236,0.50,VALIDATION,adjusted_dsr = adjusted_dsr * (_stab_score / 0.50)**2
+luna/features/feature_selection_e.py,1237,0.50,VALIDATION,adjusted_mean_sharpe = adjusted_mean_sharpe * (_stab_score / 0.50)**2
+luna/features/feature_selection_e.py,1246,9999.0,VALIDATION,adjusted_dsr = -9999.0
+luna/features/feature_selection_e.py,1246,9999,VALIDATION,adjusted_dsr = -9999.0
+luna/features/feature_selection_e.py,1247,9999.0,VALIDATION,adjusted_mean_sharpe = -9999.0
+luna/features/feature_selection_e.py,1247,9999,VALIDATION,adjusted_mean_sharpe = -9999.0
+luna/features/feature_selection_e.py,1445,8760,VALIDATION,ANTES: retorno 1H con ann=sqrt(8760) -> Sharpe 9.8x inflado vs SFI-CPCV.
+luna/features/feature_selection_e.py,1512,999.0,VALIDATION,return float(np.mean(fold_sharpes)) if fold_sharpes else -999.0
+luna/features/feature_selection_e.py,1580,900,VALIDATION,improve = ((sharpe - best_sharpe) / (abs(best_sharpe) + 1e-8) if best_sharpe > -900 else 1.0)
+luna/features/feature_selection_e.py,1594,0.05,VALIDATION,if sharpe >= best_sharpe or (best_sharpe - sharpe) < 0.05:
+luna/features/feature_selection_e.py,1620,0.90,VALIDATION,1. Soft penalty (AUC 0.55â0.90): multiplica adjDSR por un factor < 1.
+luna/features/feature_selection_e.py,1623,0.10,VALIDATION,El multiplier 0.10x era inerte cuando DSR=0 (0 Ã 0.10 = 0 = sin efecto).
+luna/models/ensemble_lgbm.py,326,0.80,VALIDATION,MIN_DSR_RULE = 0.80       # Umbral DSR para reglas de mining
+luna/models/ensemble_lgbm.py,362,0.80,VALIDATION,"Retorna DSR en [0,1]; DSR < 0.80 = rechazada."
+luna/models/ensemble_lgbm.py,438,0.577215,VALIDATION,sr_star = 1.0 * ((1 - 0.577215) * z1 + 0.577215 * z2)
+luna/models/ensemble_lgbm.py,2155,12.000,VALIDATION,- T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
+luna/models/ensemble_lgbm.py,2155,540.000,VALIDATION,- T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
+luna/models/ensemble_lgbm.py,2155,45,VALIDATION,- T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
+luna/models/ensemble_lgbm.py,2230,0.5,VALIDATION,var_sr = (freq + 0.5 * (sr_mean ** 2)) / T
+luna/models/ensemble_lgbm.py,2838,365,VALIDATION,sharpe = (mean_ret / std_ret) * np.sqrt(365 * 24 / _samp_h)
+luna/models/ensemble_lgbm.py,3476,0.50,VALIDATION,Fallback: 0.50 si validation no disponible o < min_trades en todo el sweep.
+luna/models/ensemble_lgbm.py,4927,0.80,VALIDATION,"gap_flag = "" âš ï¸ SOBREAJUSTE"" if train_auc > 0.80 and oos_dsr < 0.50 else """""
+luna/models/ensemble_lgbm.py,4927,0.50,VALIDATION,"gap_flag = "" âš ï¸ SOBREAJUSTE"" if train_auc > 0.80 and oos_dsr < 0.50 else """""
+luna/models/train_xgboost_v2.py,96,0.80,VALIDATION,MIN_DSR_RULE = 0.80       # Umbral DSR para reglas de mining
+luna/models/train_xgboost_v2.py,107,0.80,VALIDATION,"Retorna DSR en [0,1]; DSR < 0.80 = rechazada."
+luna/models/train_xgboost_v2.py,889,12.000,VALIDATION,- T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
+luna/models/train_xgboost_v2.py,889,540.000,VALIDATION,- T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
+luna/models/train_xgboost_v2.py,889,45,VALIDATION,- T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
+luna/models/train_xgboost_v2.py,932,0.5,VALIDATION,var_sr = (freq + 0.5 * (sr_mean ** 2)) / T
+luna/models/train_xgboost_v2.py,1224,365,VALIDATION,sharpe = (mean_ret / std_ret) * np.sqrt(365 * 24)
+luna/models/train_xgboost_v2.py,1269,0.7,VALIDATION,_composite_val = (0.7 * _metric_val) - (0.3 * _dsr_safe)
+luna/models/train_xgboost_v2.py,1269,0.3,VALIDATION,_composite_val = (0.7 * _metric_val) - (0.3 * _dsr_safe)
+luna/models/train_xgboost_v2.py,1366,0.50,VALIDATION,"'dsr_telemetry': 0.50,"
+luna/models/train_xgboost_v2.py,1506,0.50,VALIDATION,Fallback: 0.50 si validation no disponible o < min_trades en todo el sweep.
+luna/models/train_xgboost_v2.py,2028,0.80,VALIDATION,"gap_flag = "" ⚠️  SOBREAJUSTE"" if train_auc > 0.80 and oos_dsr < 0.50 else """""
+luna/models/train_xgboost_v2.py,2028,0.50,VALIDATION,"gap_flag = "" ⚠️  SOBREAJUSTE"" if train_auc > 0.80 and oos_dsr < 0.50 else """""
+luna/models/train_xgboost_v2.py,2364,0.50,VALIDATION,"dsr_cpcv_best    = float(self.study.best_value) if (hasattr(self, 'study') and self.study is not None and hasattr(self.study, 'best_value')) else 0.50"
+luna/monitoring/statistical_audit.py,10,0.75,VALIDATION,- MIN_DSR: 0.75 (SOP R5 validación final) — antes era 0.95 en el código
+luna/monitoring/statistical_audit.py,10,0.95,VALIDATION,- MIN_DSR: 0.75 (SOP R5 validación final) — antes era 0.95 en el código
+luna/monitoring/statistical_audit.py,77,0.75,VALIDATION,"self.MIN_DSR         = float(_s.get(""min_dsr"",        0.75))"
+luna/monitoring/statistical_audit.py,89,0.75,VALIDATION,"self.MIN_DSR, self.MAX_PBO, self.MIN_TRADES = 0.75, 0.10, 100"
+luna/monitoring/statistical_audit.py,89,0.10,VALIDATION,"self.MIN_DSR, self.MAX_PBO, self.MIN_TRADES = 0.75, 0.10, 100"
+luna/monitoring/statistical_audit.py,122,4.0,VALIDATION,"var_sr = (1.0 - (skewness * sharpe_oos) + ((kurtosis - 1.0) / 4.0) * (sharpe_oos ** 2)) / max(n_obs, 2)"
+luna/reports/generate_tearsheet.py,828,0.75,VALIDATION,"(""DSR (Bailey)"",       f""{dsr:.4f}"",      dsr >= 0.75),"
+luna/reports/generate_tearsheet.py,1451,0.20,VALIDATION,"(""Validation"", df_val.index.min(), df_val.index.max(), _YELLOW, 0.20),"
+luna/reports/generate_validation_report.py,404,1.5,VALIDATION,| **Sharpe crudo** | **{sharpe:.4f}** | > 1.5 | {_pass(sharpe > 1.5)} | Retorno ajustado a riesgo anualizado |
+luna/reports/generate_validation_report.py,427,1.5,VALIDATION,"| {""❌"" if sharpe <= 1.5 else ""✅""} Sharpe | {sharpe:.2f} | >1.5 | {_gap(sharpe, 1.5, ""above"")} |"
+luna/reports/generate_validation_report.py,641,0.75,VALIDATION,WR={wr:.1f}% (necesita >50%) | DSR={dsr:.4f} (>=0.75)
+luna/security/guard_pipeline.py,237,0.5,VALIDATION,"Si MeanSR (= SR) < 0, entonces DSR debería ser << 0.5 siempre."
+luna/security/guard_pipeline.py,242,0.5,VALIDATION,if mean_sr < 0 and dsr > 0.5:
+luna/security/guard_pipeline.py,248,0.5,VALIDATION,if mean_sr < -0.5 and dsr > 0.0:
+luna/security/guard_pipeline.py,263,4.0,VALIDATION,- Sharpe > 4.0 → look-ahead casi seguro
+luna/security/guard_pipeline.py,271,4.0,VALIDATION,if sharpe > 4.0:
+luna/utils/passthrough_rules.py,21,.9,VALIDATION,Raiz del bug: golden_rule_0..9 tenian 0 hits en features_validation y
+scripts/pre_flight/plot_timelines.py,34,0.3,VALIDATION,"(""Validation"", df_val.index.min(), df_val.index.max(), 'orange', 0.3),"
+scripts/pre_flight/test_env.py,637,0.75,VALIDATION,"min_dsr_cfg = float(getattr(gaunt, ""min_dsr"", 0.75))"
+scripts/pre_flight/test_env.py,655,0.01,VALIDATION,"assert abs(code_dsr - min_dsr_cfg) < 0.01, ("
+scripts/pre_flight/test_env.py,1336,0.75,VALIDATION,statistical_audit.py tiene MIN_DSR=0.75 y MAX_PBO=0.10 como instancia.
+scripts/pre_flight/test_env.py,1336,0.10,VALIDATION,statistical_audit.py tiene MIN_DSR=0.75 y MAX_PBO=0.10 como instancia.
+scripts/pre_flight/test_env.py,1337,0.75,VALIDATION,gauntlet en settings.yaml tiene min_dsr=0.75 y max_pbo=0.20.
+scripts/pre_flight/test_env.py,1337,0.20,VALIDATION,gauntlet en settings.yaml tiene min_dsr=0.75 y max_pbo=0.20.
+scripts/pre_flight/test_env.py,1340,0.75,VALIDATION,"NOTA: self.MIN_DSR = 0.75 en L65, el comentario en L10 menciona '0.95' como"
+scripts/pre_flight/test_env.py,1356,0.75,VALIDATION,"cfg_dsr  = float(getattr(gaunt, ""min_dsr"", 0.75))"
+scripts/pre_flight/test_env.py,1361,0.01,VALIDATION,if code_dsr is not None and abs(code_dsr - cfg_dsr) > 0.01:
+scripts/pre_flight/test_invariants.py,17,0.15,VALIDATION,Resultado: DSR artificialmente suprimido 0.15-0.25 puntos en cada run.
+scripts/pre_flight/test_invariants.py,17,0.25,VALIDATION,Resultado: DSR artificialmente suprimido 0.15-0.25 puntos en cada run.
+scripts/pre_flight/test_math.py,42,600,VALIDATION,"assert n >= 600, f""SFI_DSR_N_TRIALS={n} < 600 (filtro DSR demasiado laxo)"""
+scripts/pre_flight/test_v5_bugs.py,583,1.645,VALIDATION,"= max(SFI_MIN_SHARPE_floor, 1.645/sqrt(n_obs_oob))."
+scripts/pre_flight/test_v5_bugs.py,584,0.05,VALIDATION,El floor SFI_MIN_SHARPE=0.05 era placeholder; ahora es el floor del umbral
