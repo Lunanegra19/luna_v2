@@ -139,6 +139,7 @@ PASSTHROUGH_FEATURES: list[str] = [
     "genetic_rule_2",  # NASDAQ_Ret AND KShape AND SSR AND T10Y2Y     WR=56.4%
     "HMM_Regime",      # [FIX-HMM-01] Passthrough obligatorio para condicionamiento causal
     "HMM_Semantic",    # [FIX-HMM-01] Etiqueta string
+    "close_fd",        # [FIX-PASSTHROUGH-FRAC-01] FracDiff es estructural y analiticamente comprobado. Salta SFI.
 ]
 
 # ————————————————— Parámetros del pipeline —————————————————
