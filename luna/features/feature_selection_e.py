@@ -2436,6 +2436,16 @@ class FeatureSelectionPipelineE:
                         f"[ARCH-26-FIX-A] OOD-GUARD-SFI bloqueo {_n_ood_blocked} features "
                         f"(degeneradas en IS reciente): {_ood_blocked_names}"
                     )
+                    
+                    # [FIX-FAIL-FAST-01] Disyuntor de Características Críticas
+                    _critical_features = {"close_fd", "hmm_regime", "hmm_velocity_bull", "hmm_acceleration_bull", "volatility_fd"}
+                    _blocked_criticals = _critical_features.intersection(set(_ood_blocked_names))
+                    if _blocked_criticals:
+                        _err_msg = f"[FIX-FAIL-FAST-01] FATAL ERROR: OOD Guard ha bloqueado caracteristicas estructurales criticas: {_blocked_criticals}. El modelo quedaria ciego. Abortando run."
+                        logger.critical(_err_msg)
+                        print(_err_msg)
+                        raise RuntimeError(_err_msg)
+                        
                     _ood_not_checked = [c for c in raw_cols if c not in _ood_checkable]
                     raw_cols = _valid_raw + _ood_not_checked
                 else:
@@ -2645,6 +2655,16 @@ class FeatureSelectionPipelineE:
                     f"excluidas del pool por Covariate Shift severo (AUC>"
                     f"{AdversarialValidator.HARD_BLOCK_AUC:.2f}): {sorted(_hard_blocked)}"
                 )
+                
+                # [FIX-FAIL-FAST-01] Disyuntor de Características Críticas
+                _critical_features = {"close_fd", "hmm_regime", "hmm_velocity_bull", "hmm_acceleration_bull", "volatility_fd"}
+                _blocked_criticals = _critical_features.intersection(_hard_blocked)
+                if _blocked_criticals:
+                    _err_msg = f"[FIX-FAIL-FAST-01] FATAL ERROR: Covariate Shift ha bloqueado caracteristicas estructurales criticas: {_blocked_criticals}. El modelo quedaria ciego. Abortando run."
+                    logger.critical(_err_msg)
+                    print(_err_msg)
+                    raise RuntimeError(_err_msg)
+                    
                 X_lagged_sfi = X_lagged.drop(columns=[c for c in _hard_blocked if c in X_lagged.columns])
             else:
                 X_lagged_sfi = X_lagged
