@@ -425,9 +425,10 @@ class FeaturePipeline:
                         _n_rows_before = len(src)
                         src = src[src.index <= _train_end_l3]
                         _n_trimmed = _n_rows_before - len(src)
+                        print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.warning en feature_pipeline.py [BUG-L3-TRIM]")
                         logger.warning(
                             "[BUG-L3-TRIM] features_train_final.parquet tenia fechas > train_end "
-                            "(%s > %s). TRIM: %d filas OOS eliminadas del src (%d->%d). "
+                            "({} > {}). TRIM: {} filas OOS eliminadas del src ({}->{}). "
                             "IS rows preservadas con KMeans_Tribe_ID real.",
                             _src_max_date.date(), _train_end_l3.date(),
                             _n_trimmed, _n_rows_before, len(src)
@@ -777,6 +778,15 @@ class FeaturePipeline:
                 var_sp_30d = sp500_ret.rolling(30*24).var().clip(lower=1e-9)
                 df["ca_btc_sp500_beta_30d"] = covar_30d / var_sp_30d
 
+        # Risk Premium Proxy Diaria (SP500_Ret - DXY_Ret)
+        if "SP500" in df.columns and "DXY" in df.columns:
+            sp500_ret_1d = df["SP500"].ffill().pct_change(24)
+            dxy_ret_1d = df["DXY"].ffill().pct_change(24)
+            rp_proxy = sp500_ret_1d - dxy_ret_1d
+            df["mc_risk_premium_proxy"] = rp_proxy
+            df["mc_risk_premium_regime_z30d"] = (rp_proxy - rp_proxy.rolling(30*24).mean()) / rp_proxy.rolling(30*24).std().clip(lower=1e-9)
+            logger.info("mc_risk_premium_proxy y mc_risk_premium_regime_z30d generados")
+
         # Yield Curve derived (YieldCurve_10Y3M o T10Y2Y)
         for yc_col in ["YieldCurve_10Y3M", "T10Y2Y"]:
             if yc_col in df.columns:
@@ -946,9 +956,12 @@ class FeaturePipeline:
             print(f"[LUNA][H4-ATH] TOTAL {len(_ath_feats_ok)} features ATH listas para SFI: {_ath_feats_ok}")
 
         # SFI Phase 4: ms_stablecoin_flow_30d
-        if "Stablecoin_Cap" in df.columns and "ms_stablecoin_flow_30d" not in df.columns:
-            df["ms_stablecoin_flow_30d"] = df["Stablecoin_Cap"].pct_change(30 * 24)
-            logger.info("ms_stablecoin_flow_30d generada en derivadas")
+        if "Stablecoin_Cap" in df.columns:
+            if "ms_stablecoin_flow_30d" not in df.columns:
+                df["ms_stablecoin_flow_30d"] = df["Stablecoin_Cap"].pct_change(30 * 24)
+                logger.info("ms_stablecoin_flow_30d generada en derivadas")
+            if "ms_stablecoin_flow_yoy" not in df.columns:
+                df["ms_stablecoin_flow_yoy"] = df["Stablecoin_Cap"].pct_change(365 * 24)
 
 
         # Cross-Asset (ca_*)
@@ -964,6 +977,10 @@ class FeaturePipeline:
                 fr = df[fr_col].ffill()
                 df["dv_funding_rate"]    = fr
                 df["dv_funding_pct_90d"] = fr.rolling(90*24).rank(pct=True)
+                
+                # FASE 2: Funding Rate suavizado (Regimen Largo Plazo)
+                df["FundingRate_30d_MA"] = fr.rolling(30*24).mean()
+                df["FundingRate_ZScore_90d"] = (fr - fr.rolling(90*24).mean()) / fr.rolling(90*24).std().clip(lower=1e-9)
                 break
 
         # [FIX-SKEW-01] ALIASES DE NOMBRE: historical_data_bridge.py renombra estas columnas
@@ -1577,8 +1594,32 @@ class FeaturePipeline:
         # ── Fin [DXY-HMM-01] ────────────────────────────────────────────────────────────
 
 
-        return df
+        # ── [HMM-FIX-ZSCORE-OOS 2026-06-07] Generación Global de Features HMM ───────────
+        # MOTIVACIÓN: El modelo HMM entrena usando rolling z-scores (90d) de ciertas
+        # variables (ej. mt_vol_realized_4bar_z90d, btc_drawdown_from_ath_z90d).
+        # Anteriormente, esto se calculaba sólo localmente durante hmm_regime.load_data(),
+        # causando que predict_regime_series() recibiera NaN/ceros durante la validación
+        # OOS (holdout), resultando en predicciones de régimen erróneas y un bloqueo
+        # masivo de trades (inanición).
+        # CAUSALIDAD: Calculado aquí en el Feature Pipeline global, asegurando que
+        # las transformaciones z90d estén disponibles nativamente antes del split OOS,
+        # respetando la ventana temporal sin look-ahead bias.
+        try:
+            hmm_z_cols = ['btc_drawdown_from_ath', 'mt_vol_realized_4bar']
+            for col in hmm_z_cols:
+                if col in df.columns:
+                    z_col = f"{col}_z90d"
+                    if z_col not in df.columns:
+                        import numpy as np
+                        _roll_mean = df[col].rolling(window=2160, min_periods=24).mean()
+                        _roll_std  = df[col].rolling(window=2160, min_periods=24).std().replace(0, np.nan).bfill()
+                        df[z_col] = (df[col] - _roll_mean) / _roll_std
+                        df[z_col] = df[z_col].fillna(0.0)
+                        logger.info(f"[HMM-FIX-ZSCORE-OOS] Transformación {z_col} inyectada globalmente.")
+        except Exception as _e_hmmz:
+            logger.warning(f"[HMM-FIX-ZSCORE-OOS] Error inyectando variables z90d globalmente: {_e_hmmz}")
 
+        return df
 
 
 
@@ -1895,8 +1936,9 @@ class FeaturePipeline:
                     if c in data.columns]
             nan_crit = {c: f"{data[c].isna().mean():.0%}" for c in crit if data[c].isna().any()}
             nan_str = f" | NaN crit: {nan_crit}" if nan_crit else " | NaN crit: OK"
+            print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.success en feature_pipeline.py [DATAFLOW-EXPORT]")
             logger.success(
-                "[DATAFLOW-EXPORT] Split [%s]: %d x %d | %s -> %s%s",
+                "[DATAFLOW-EXPORT] Split [{}]: {} x {} | {} -> {}{}",
                 name, data.shape[0], data.shape[1],
                 data.index.min().date(), data.index.max().date(),
                 nan_str
@@ -2178,8 +2220,9 @@ class FeaturePipeline:
                     # [AUDIT-A4 FIX 2026-05-08] meta_oracle_score es constante (var=0).
                     # XGBoost la ignora (GAIN=0). No inyectar para no desperdiciar features.
                     # Re-habilitar cuando se implemente oracle_score rolling por timestamp.
+                    print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.warning en feature_pipeline.py [AUDIT-A4]")
                     logger.warning(
-                        '[AUDIT-A4] meta_oracle_score=%.4f (feature=%.4f) NO inyectada '
+                        '[AUDIT-A4] meta_oracle_score={:.4f} (feature={:.4f}) NO inyectada '
                         '(constante global, var=0, XGBoost GAIN=0 en todos los splits). '
                         'Implementar oracle_score rolling para re-habilitar.',
                         _oracle_score, _oracle_feat_val

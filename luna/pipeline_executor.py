@@ -104,6 +104,14 @@ def hydrate_window_state(window_id: str, seed_id=None):
                 try: f.unlink()
                 except: pass
 
+        # [FIX-P3-SHARED-MODELS] Hidratar modelos compartidos primero si existimos en una seed
+        if seed_id is not None:
+            shared_models_cache = _ROOT / "data" / "wfb_cache" / window_id / "models"
+            if shared_models_cache.exists():
+                for f in shared_models_cache.glob("*"):
+                    if f.is_file():
+                        shutil.copy2(f, target_models / f.name)
+
         for f in models_cache.glob("*"):
             if f.is_file():
                 shutil.copy2(f, target_models / f.name)
@@ -831,7 +839,12 @@ class LunaPipelineExecutor:
                 logger.success(f"[GAP-08/HMM-ENRICH] features_validation enriquecido | HMM_Semantic cov={_cov:.1%}")
 
             # --- Holdout: forward-predict causal con pkl ---
-            _ho_p = _feat_dir / "features_holdout.parquet"
+            import os as _os_e
+            _win_id = _os_e.environ.get("LUNA_WINDOW_ID", "")
+            if _win_id:
+                _ho_p = _feat_dir / f"features_holdout_{_win_id}.parquet"
+            else:
+                _ho_p = _feat_dir / "features_holdout.parquet"
             if _ho_p.exists() and _hmm_pkl.exists():
                 _saved  = _jbl_e.load(_hmm_pkl)
                 _model  = _saved['model']
@@ -850,17 +863,34 @@ class LunaPipelineExecutor:
                 _Xs = _scaler.transform(_X)
                 _n  = len(_Xs)
                 # [WFB-CAUSAL-FIX-ENRICH] SOP R1: Inferencia HMM 100% causal sin look-ahead.
-                # Evita usar predict() sobre el chunk inicial de 120H completo ya que Viterbi
-                # miraría al futuro de ese primer chunk.
+                # Se utiliza el Forward Algorithm estricto (causal filter) sobre la ventana
+                # para mantener la historia de Markov sin que Viterbi mire al futuro.
+                from scipy.special import logsumexp as _logsumexp
                 _states = _np_e.zeros(_n, dtype=int)
-                print(f"[WFB-CAUSAL-FIX-ENRICH] Enriqueciendo holdout de forma 100% causal ({_n} registros)...")
-                logger.info(f"[WFB-CAUSAL-FIX-ENRICH] Inferencia HMM causal activa ([-1] sobre ventana rolling de 120H).")
-                for _t in range(_n):
-                    _states[_t] = _model.predict(_Xs[max(0, _t - 120):_t + 1])[-1]
+                print(f"[WFB-CAUSAL-FIX-ENRICH] Enriqueciendo holdout de forma 100% causal ({_n} registros) con Forward Filter...")
+                logger.info(f"[WFB-CAUSAL-FIX-ENRICH] Inferencia HMM causal activa usando Forward Algorithm.")
+                
+                if _n > 0:
+                    _framelogprob = _model._compute_log_likelihood(_Xs)
+                    _log_startprob = _np_e.log(_np_e.maximum(_model.startprob_, 1e-10))
+                    _log_transmat = _np_e.log(_np_e.maximum(_model.transmat_, 1e-10))
+                    
+                    _log_alpha = _np_e.zeros((_n, _model.n_components))
+                    _log_alpha[0] = _log_startprob + _framelogprob[0]
+                    _states[0] = _np_e.argmax(_log_alpha[0])
+                    
+                    for _t in range(1, _n):
+                        _work_buffer = _log_alpha[_t-1][:, None] + _log_transmat
+                        _log_alpha[_t] = _logsumexp(_work_buffer, axis=0) + _framelogprob[_t]
+                        _states[_t] = _np_e.argmax(_log_alpha[_t])
+                        
                 print("[WFB-CAUSAL-FIX-ENRICH] Enriqueciendo holdout completado exitosamente.")
                 _df_ho['HMM_Regime']   = _np_e.array(_states, dtype=float).astype(int)
                 _df_ho['HMM_Semantic'] = _df_ho['HMM_Regime'].map(_smap).fillna('UNKNOWN')
                 _df_ho.to_parquet(_ho_p)
+                # Backup to global features_holdout.parquet if it's window-specific
+                if _win_id:
+                    _df_ho.to_parquet(_feat_dir / "features_holdout.parquet")
                 _cov_ho = (_df_ho['HMM_Semantic'] != 'UNKNOWN').mean()
                 logger.success(f"[GAP-08/HMM-ENRICH] features_holdout enriquecido (causal fwd) | cov={_cov_ho:.1%}")
         except Exception as _e_enrich:
@@ -1065,6 +1095,15 @@ class LunaPipelineExecutor:
             
         self._run_shared_step("Feature Pipeline (Post-SFI)", "luna/features/feature_pipeline.py", ["--skip-preflight"])
 
+        # [Capa B - FIX HMM] Mover el modelo HMM al pipeline de datos para re-entrenarlo UNA vez por ventana compartida
+        self._run_shared_step("HMM Regime Model", "luna/models/hmm_regime.py")
+
+        # Enriquecimiento HMM también compartido
+        if "HMM Enrichment" not in self.shared_completed_steps:
+            self._run_hmm_enrichment()
+            self.shared_completed_steps.add("HMM Enrichment")
+            self._save_cache(self.shared_cache_file, self.shared_completed_steps)
+
         # [GAP-MINING-01] Re-exportar alpha_rules.py calibrado al train_end de esta ventana.
         # El engine 'export' (~30s) regenera luna/features/alpha_rules.py usando SOLO datos
         # hasta cfg.temporal_splits.train_end (reescrito por rewrite_yaml_for_window).
@@ -1121,10 +1160,8 @@ class LunaPipelineExecutor:
             except Exception as _ge0:
                 logger.warning(f"[GATE-0] Gate-0 no ejecutable: {_ge0}")
 
-        self._run_step("HMM Regime Model", "luna/models/hmm_regime.py")
-
-        # [GAP-08 · FIX-HMM-ENRICH-01] Enriquecer features_validation y features_holdout con HMM
-        self._run_hmm_enrichment()
+        # [HMM] El entrenamiento y enriquecimiento del HMM se han movido a execute_data_pipeline (shared)
+        # para que se ejecuten una sola vez por ventana.
 
         # [GAP-05 · FIX-A1] Capturar mtime ANTES del entrenamiento XGBoost
         _t_before_xgb = time.time() - 1.0  # Buffer 1s para resolución filesystem Windows
@@ -1153,9 +1190,10 @@ class LunaPipelineExecutor:
                         f"Re-ejecutando _run_hmm_enrichment() de emergencia ANTES del XGBoost."
                     )
                     logger.warning(
-                        "[H-06-FIX] PRE-XGB GUARD: HMM_Semantic cov=%.1f%% — re-enriquecimiento de emergencia.",
+                        "[H-06-FIX] PRE-XGB GUARD: HMM_Semantic cov={:.1f}% — re-enriquecimiento de emergencia.",
                         _cov_pre * 100
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] PRE-XGB GUARD: HMM_Semantic cov={_cov_pre * 100:.1f}% — re-enriquecimiento de emergencia.")
                     self._run_hmm_enrichment()
                     # Verificar que el re-enriquecimiento funcionó
                     if _val_p_c1_pre.exists():
@@ -1173,11 +1211,13 @@ class LunaPipelineExecutor:
                         print(f"[H-06-FIX] Re-enriquecimiento exitoso: cov={_cov_post:.1%}. XGBoost puede continuar.")
                 else:
                     print(f"[H-06-FIX] PRE-XGB: HMM_Semantic OK (cov={_cov_pre:.1%}). Procediendo con XGBoost.")
-                    logger.debug("[H-06-FIX] HMM_Semantic pre-XGB OK (cov=%.1f%%).", _cov_pre * 100)
+                    logger.debug("[H-06-FIX] HMM_Semantic pre-XGB OK (cov={:.1f}%).", _cov_pre * 100)
+                    print(f"[BUG-FIX-LOG 2026-06-05] HMM_Semantic pre-XGB OK (cov={_cov_pre * 100:.1f}%)")
         except RuntimeError:
             raise  # Propagar HARD STOP
         except Exception as _e_h06:
-            logger.warning("[H-06-FIX] No se pudo verificar HMM_Semantic pre-XGB: %s", _e_h06)
+            logger.warning("[H-06-FIX] No se pudo verificar HMM_Semantic pre-XGB: {}", _e_h06)
+            print(f"[BUG-FIX-LOG 2026-06-05] No se pudo verificar HMM_Semantic pre-XGB: {_e_h06}")
 
         _xgb_executed = self._run_step("XGBoost Core Model", "luna/models/train_xgboost_v2.py")
 

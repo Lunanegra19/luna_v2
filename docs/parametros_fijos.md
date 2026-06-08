@@ -646,3 +646,16 @@ Este parÃ¡metro afecta directamente el entrenamiento del modelo. No hay fallback
 ### SOP-COST-SPOT
 - **cost_pct**:  .0025 (0.25%)
 - **Justificación**: Representa el peor caso absoluto operando en mercado Spot: Taker (0.10%) + Taker (0.10%) + Slippage conservador (0.05%). Fuerza a los agentes a encontrar estructuras macro tolerantes a alta fricción y elimina el sesgo optimista de la ejecución Maker en derivados.
+
+## ?? 4. Consenso Institucional: Métrica de Optimización (Optuna)
+
+Para evitar colapsos matemáticos (ej. underfitting por asfixia) y over-fitting (ej. hojas de un solo trade) durante la búsqueda de hiperparámetros con XGBoost o LightGBM, la métrica canónica del orquestador es obligatoriamente:
+
+- **optuna_metric: 'brier'** (Strictly Proper Scoring Rule)
+
+El uso de dsr (Deflated Sharpe Ratio) como métrica de pérdida interna para construir el árbol OOS está **estrictamente prohibido**, dado que crea funciones de optimización tipo escalón que asfixian al modelo y degeneran en DSR=0.0000 si los umbrales de partición fallan al no converger. Brier asegura que el modelo calibre probabilidades puras que luego el *MetaLabeler* y el *RegimeRouter* transformarán en *Sharpe Ratio*.
+
+### [HMM-DYNAMIC-FEATURES 2026-06-07] Desacoplamiento de Variables HMM y Alpha Decay
+- **hmm.candidate_features**: Lista de las variables que pueden usarse como pilares para el modelo HMM. (Sustituye a la lista hardcodeada anterior).
+- **hmm.min_feature_mi**: 0.0005. Umbral de Informacion Mutua requerido para que una variable sea considerada valida. Si no supera este umbral contra close_ret_720h, se descarta por Alpha Decay.
+- **hmm.min_features_required**: 4. Numero minimo de variables pilares que deben sobrevivir a los filtros de varianza y MI. Si caen por debajo de esto, el sistema hace fail-fast.

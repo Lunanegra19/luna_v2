@@ -23,10 +23,10 @@ Algoritmo de control:
 
 import sys
 import os
-import argparse
 import shutil
-import json
+import argparse
 import subprocess
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -337,7 +337,6 @@ def main():
                     # Sin pre-aprobación WFB → ejecutar Gauntlet de producción como siempre
                     logger.info("--- Iniciando Fase: Gauntlet Estadístico ---")
                     print(f"[WFB-PRE-APPROVAL] [SEED {seed}] Sin pre-aprobacion WFB. Ejecutando Gauntlet de produccion...")
-                    import subprocess
                     cmd = [sys.executable, "-u", str(_ROOT / "scripts" / "run_statistical_validation.py")]
                     run_env = os.environ.copy()
                     run_env["PYTHONPATH"] = str(_ROOT)

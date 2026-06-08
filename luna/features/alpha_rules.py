@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-05 14:16 UTC
+Timestamp: 2026-06-08 05:59 UTC
 Golden Rules: 15  |  Genetic Rules: 7
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """
@@ -16,108 +16,108 @@ import numpy as np
 GOLDEN_RULES: list[dict] = [
     {
         'type':        'golden_storm',
-        'pandas_eval': '(VIX <= 15.0025) & (NASDAQ_Ret >= 0.0102) & (Master_Causal_Signal >= 0.2333)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (KMeans_Tribe_ID <= 1.0000)',
         'win_rate':    100.0,
-        'ev_pct':      4.05,
-        'description': 'IF VIX <= 15.0025 AND NASDAQ_Ret >= 0.0102 AND Master_Causal_Signal >= 0.2333',
+        'ev_pct':      4.42,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND KMeans_Tribe_ID <= 1.0000',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(Fed_Net_Liquidity <= 6516689.6270) & (DangerZone >= 0.6075) & (MVRV_Proxy <= -0.9473)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (T10Y2Y <= -0.6400) & (KMeans_Tribe_ID <= 1.0000)',
         'win_rate':    100.0,
-        'ev_pct':      2.21,
-        'description': 'IF Fed_Net_Liquidity <= 6516689.6270 AND DangerZone >= 0.6075 AND MVRV_Proxy <= -0.9473',
+        'ev_pct':      4.42,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND T10Y2Y <= -0.6400 AND KMeans_Tribe_ID <= 1.0000',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(DangerZone >= 0.6075) & (MVRV_Proxy <= -0.9473) & (KMeans_Tribe_ID <= 1.0000)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068)',
         'win_rate':    100.0,
-        'ev_pct':      2.21,
-        'description': 'IF DangerZone >= 0.6075 AND MVRV_Proxy <= -0.9473 AND KMeans_Tribe_ID <= 1.0000',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(FedFundsRate >= 5.3300) & (DangerZone >= 0.6075) & (MVRV_Proxy <= -0.9473)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (T10Y2Y <= -0.6400) & (SSR <= 1.4068)',
         'win_rate':    100.0,
-        'ev_pct':      2.43,
-        'description': 'IF FedFundsRate >= 5.3300 AND DangerZone >= 0.6075 AND MVRV_Proxy <= -0.9473',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND T10Y2Y <= -0.6400 AND SSR <= 1.4068',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(Fed_Net_Liquidity <= 6516689.6270) & (WEI <= 1.5600) & (MVRV_Proxy <= -0.9473)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (OI_BTC >= 60255.9400) & (SSR <= 1.4068)',
         'win_rate':    100.0,
-        'ev_pct':      28.45,
-        'description': 'IF Fed_Net_Liquidity <= 6516689.6270 AND WEI <= 1.5600 AND MVRV_Proxy <= -0.9473',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND OI_BTC >= 60255.9400 AND SSR <= 1.4068',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(Fed_Net_Liquidity <= 6516689.6270) & (SP500_AboveMA200 <= 0.0000) & (MVRV_Proxy <= -0.9473)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (OI_BTC >= 60255.9400) & (KMeans_Tribe_ID <= 1.0000)',
         'win_rate':    100.0,
-        'ev_pct':      28.45,
-        'description': 'IF Fed_Net_Liquidity <= 6516689.6270 AND SP500_AboveMA200 <= 0.0000 AND MVRV_Proxy <= -0.9473',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND OI_BTC >= 60255.9400 AND KMeans_Tribe_ID <= 1.0000',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(Fed_Net_Liquidity <= 6516689.6270) & (MVRV_Proxy <= -0.9473) & (SSR <= 1.6093)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (KMeans_Tribe_ID <= 1.0000)',
         'win_rate':    100.0,
-        'ev_pct':      28.45,
-        'description': 'IF Fed_Net_Liquidity <= 6516689.6270 AND MVRV_Proxy <= -0.9473 AND SSR <= 1.6093',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068 AND KMeans_Tribe_ID <= 1.0000',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(WEI <= 1.5600) & (MVRV_Proxy <= -0.9473) & (Master_Causal_Signal >= 0.2333)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (Master_Causal_Signal <= -0.1300)',
         'win_rate':    100.0,
-        'ev_pct':      28.45,
-        'description': 'IF WEI <= 1.5600 AND MVRV_Proxy <= -0.9473 AND Master_Causal_Signal >= 0.2333',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068 AND Master_Causal_Signal <= -0.1300',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(Fed_Net_Liquidity <= 6516689.6270) & (FundingRate >= 0.0001) & (MVRV_Proxy <= -0.9473)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (KMeans_Tribe_ID <= 1.0000) & (Master_Causal_Signal <= -0.1300)',
         'win_rate':    100.0,
-        'ev_pct':      2.59,
-        'description': 'IF Fed_Net_Liquidity <= 6516689.6270 AND FundingRate >= 0.0001 AND MVRV_Proxy <= -0.9473',
+        'ev_pct':      4.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND KMeans_Tribe_ID <= 1.0000 AND Master_Causal_Signal <= -0.1300',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(FundingRate >= 0.0001) & (MVRV_Proxy <= -0.9473) & (KMeans_Tribe_ID <= 1.0000)',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (Whale_Vol_ZScore >= 0.3879) & (KMeans_Tribe_ID <= 1.0000)',
         'win_rate':    100.0,
-        'ev_pct':      2.59,
-        'description': 'IF FundingRate >= 0.0001 AND MVRV_Proxy <= -0.9473 AND KMeans_Tribe_ID <= 1.0000',
+        'ev_pct':      6.26,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND Whale_Vol_ZScore >= 0.3879 AND KMeans_Tribe_ID <= 1.0000',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(Fed_Net_Liquidity <= 6516689.6270) & (MVRV_Proxy <= -0.9473) & (Whale_Vol_ZScore <= -0.8373)',
-        'win_rate':    98.8,
-        'ev_pct':      5.89,
-        'description': 'IF Fed_Net_Liquidity <= 6516689.6270 AND MVRV_Proxy <= -0.9473 AND Whale_Vol_ZScore <= -0.8373',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (Whale_Vol_ZScore >= 0.3879)',
+        'win_rate':    100.0,
+        'ev_pct':      6.15,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068 AND Whale_Vol_ZScore >= 0.3879',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(VIX <= 15.0025) & (Whale_Vol_ZScore <= -0.8373) & (Master_Causal_Signal >= 0.2333)',
-        'win_rate':    98.4,
-        'ev_pct':      0.27,
-        'description': 'IF VIX <= 15.0025 AND Whale_Vol_ZScore <= -0.8373 AND Master_Causal_Signal >= 0.2333',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (MVRV_Proxy <= -1.1476)',
+        'win_rate':    100.0,
+        'ev_pct':      1.35,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND MVRV_Proxy <= -1.1476',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(WEI <= 1.5600) & (SSR <= 1.6093) & (KMeans_Tribe_ID <= 1.0000)',
-        'win_rate':    98.2,
-        'ev_pct':      13.76,
-        'description': 'IF WEI <= 1.5600 AND SSR <= 1.6093 AND KMeans_Tribe_ID <= 1.0000',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (T10Y2Y <= -0.6400) & (MVRV_Proxy <= -1.1476)',
+        'win_rate':    100.0,
+        'ev_pct':      1.35,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND T10Y2Y <= -0.6400 AND MVRV_Proxy <= -1.1476',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(FedFundsRate >= 5.3300) & (MVRV_Proxy <= -0.9473) & (Whale_Vol_ZScore <= -0.8373)',
-        'win_rate':    97.9,
-        'ev_pct':      2.49,
-        'description': 'IF FedFundsRate >= 5.3300 AND MVRV_Proxy <= -0.9473 AND Whale_Vol_ZScore <= -0.8373',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (OI_BTC >= 60255.9400) & (MVRV_Proxy <= -1.1476)',
+        'win_rate':    100.0,
+        'ev_pct':      1.35,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND OI_BTC >= 60255.9400 AND MVRV_Proxy <= -1.1476',
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(VIX <= 15.0025) & (DVOL <= 45.4000) & (Whale_Vol_ZScore <= -0.8373)',
-        'win_rate':    96.9,
-        'ev_pct':      1.13,
-        'description': 'IF VIX <= 15.0025 AND DVOL <= 45.4000 AND Whale_Vol_ZScore <= -0.8373',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (MVRV_Proxy <= -1.1476) & (SSR <= 1.4068)',
+        'win_rate':    100.0,
+        'ev_pct':      1.35,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND MVRV_Proxy <= -1.1476 AND SSR <= 1.4068',
     },
 ]
 
@@ -128,52 +128,52 @@ GOLDEN_RULES: list[dict] = [
 GENETIC_RULES: list[dict] = [
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(Master_Causal_Signal >= 0.3231) & (CPI_YoY <= 1.3738)',
-        'win_rate':    73.0,
-        'ev_pct':      1.32,
-        'description': '`Master_Causal_Signal >= 0.3231`<br>**AND** `CPI_YoY <= 1.3738`',
+        'pandas_eval': '(SSR <= 0.4076) & (SSR <= 0.6032) & (Stablecoin_Cap <= 60109970.0000) & (MVRV_Proxy <= -0.7455)',
+        'win_rate':    75.7,
+        'ev_pct':      0.87,
+        'description': '`SSR <= 0.4076`<br>**AND** `SSR <= 0.6032`<br>**AND** `Stablecoin_Cap <= 60109970.0000`<br>**AND** `MVRV_Proxy <= -0.745',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(CPI_YoY <= 1.3738) & (Master_Causal_Signal >= 0.3231)',
-        'win_rate':    73.0,
-        'ev_pct':      1.32,
-        'description': '`CPI_YoY <= 1.3738`<br>**AND** `Master_Causal_Signal >= 0.3231`',
+        'pandas_eval': '(SSR <= 0.4076) & (Stablecoin_Cap <= 60109970.0000)',
+        'win_rate':    75.7,
+        'ev_pct':      0.87,
+        'description': '`SSR <= 0.4076`<br>**AND** `Stablecoin_Cap <= 60109970.0000`',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(SSR <= 0.5492) & (CPI_YoY <= 1.9281) & (FearGreed <= 20.0000)',
-        'win_rate':    69.5,
-        'ev_pct':      1.58,
-        'description': '`SSR <= 0.5492`<br>**AND** `CPI_YoY <= 1.9281`<br>**AND** `FearGreed <= 20.0000`',
+        'pandas_eval': '(MVRV_Proxy <= -0.7455) & (SSR <= 0.4076) & (Stablecoin_Cap <= 60109970.0000)',
+        'win_rate':    75.7,
+        'ev_pct':      0.87,
+        'description': '`MVRV_Proxy <= -0.7455`<br>**AND** `SSR <= 0.4076`<br>**AND** `Stablecoin_Cap <= 60109970.0000`',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(FearGreed <= 20.0000) & (CPI_YoY <= 1.9281)',
-        'win_rate':    68.4,
-        'ev_pct':      1.32,
-        'description': '`FearGreed <= 20.0000`<br>**AND** `CPI_YoY <= 1.9281`',
+        'pandas_eval': '(SSR <= 0.4076) & (Whale_Vol_ZScore >= 0.6052) & (SSR <= 0.4076)',
+        'win_rate':    71.5,
+        'ev_pct':      0.29,
+        'description': '`SSR <= 0.4076`<br>**AND** `Whale_Vol_ZScore >= 0.6052`<br>**AND** `SSR <= 0.4076`',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(CPI_YoY <= 1.3738)',
-        'win_rate':    63.8,
-        'ev_pct':      0.76,
-        'description': '`CPI_YoY <= 1.3738`',
+        'pandas_eval': '(SSR <= 0.4076)',
+        'win_rate':    64.7,
+        'ev_pct':      0.51,
+        'description': '`SSR <= 0.4076`',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(SSR <= 0.3900)',
-        'win_rate':    63.0,
-        'ev_pct':      0.4,
-        'description': '`SSR <= 0.3900`',
+        'pandas_eval': '(MVRV_Proxy >= 2.3300)',
+        'win_rate':    60.7,
+        'ev_pct':      0.58,
+        'description': '`MVRV_Proxy >= 2.3300`',
     },
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(FearGreed >= 75.0000) & (CPI_YoY <= 1.9281)',
-        'win_rate':    62.7,
-        'ev_pct':      0.82,
-        'description': '`FearGreed >= 75.0000`<br>**AND** `CPI_YoY <= 1.9281`',
+        'pandas_eval': '(Stablecoin_Cap >= 208773202690.0000) & (Whale_Vol_ZScore >= 0.6052)',
+        'win_rate':    59.0,
+        'ev_pct':      0.12,
+        'description': '`Stablecoin_Cap >= 208773202690.0000`<br>**AND** `Whale_Vol_ZScore >= 0.6052`',
     },
 ]
 
@@ -181,25 +181,25 @@ GENETIC_RULES: list[dict] = [
 # CAUSAL VARIABLES (Advanced Engine — Granger*** + TE_net > 0)
 # ──────────────────────────────────────────────────────────────────
 
-CAUSAL_VARS: list[str] = ['SSR', 'DeFi_WBTC_TVL', 'KMeans_Tribe_ID', 'FearGreed', 'MVRV_Proxy', 'FundingRate', 'Stablecoin_Cap', 'DangerZone', 'CPI_YoY', 'Master_Causal_Signal']
+CAUSAL_VARS: list[str] = ['DeFi_WBTC_TVL', 'SSR', 'Master_Causal_Signal', 'FearGreed', 'MVRV_Proxy', 'Stablecoin_Cap', 'NASDAQ_Ret', 'FundingRate', 'CPI_YoY', 'KMeans_Tribe_ID', 'DangerZone']
 
 # ──────────────────────────────────────────────────────────────────
 # DTW FRACTAL PROBABILITY
 # ──────────────────────────────────────────────────────────────────
 
-DTW_BULL_PROB: float = 0.4  # P(BTC sube en 24H | análogos históricos)
+DTW_BULL_PROB: float = 1.0  # P(BTC sube en 24H | análogos históricos)
 
 # ──────────────────────────────────────────────────────────────────
 # K-MEANS TRIBE BIAS
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 1: 'NEUTRAL', 2: 'NEUTRAL', 3: 'NEUTRAL'}
+TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 2: 'NEUTRAL', 3: 'NEUTRAL', 1: 'NEUTRAL'}
 
 # ──────────────────────────────────────────────────────────────────
 # K-MEANS TRIBE WIN-RATE MAP (M3 — actualizado semanalmente)
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_WR_MAP: dict[int, float] = {0: 0.647, 1: 0.526, 2: 0.526, 3: 0.447}
+TRIBE_WR_MAP: dict[int, float] = {0: 0.648, 2: 0.527, 3: 0.526, 1: 0.455}
 
 LARGA_TRIBES   = frozenset({0})
 NEUTRAL_TRIBES = frozenset({1, 2, 3})

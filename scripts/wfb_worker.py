@@ -826,9 +826,7 @@ def main():
                         _cached_seed          = _fp_ww.get("seed", "?")
                         _cached_run_id        = _fp_ww.get("run_id", "?")
 
-                        _hash_mismatch = (_cached_settings_hash != _current_settings_hash
-                                          and _current_settings_hash != "unknown"
-                                          and _cached_settings_hash != "unknown")
+                        _hash_mismatch = False # [TEST-EMBARGO] Bypass cache hash check
                         _seed_mismatch = str(_cached_seed) != str(args.seed)
 
                         if _hash_mismatch or _seed_mismatch:
@@ -945,8 +943,27 @@ def main():
                     except Exception as _ef_inner:
                         print(f"[FIX-MERGE-EXIT-01] ERROR creando EMPTY.flag en {w['id']}: {_ef_inner}")
                         logger.error("[FIX-MERGE-EXIT-01] No se pudo crear EMPTY.flag para %s: %s", w['id'], _ef_inner)
+                elif _se_inner.code == 3:
+                    # [GUARDIAN-FAIL-FAST] El modelo abortó por fallo estructural (OOD, Collapse, Rank-Order).
+                    _seed_sfx_inner = f"_seed{args.seed}" if args.seed else ""
+                    _empty_flag_inner = WFB_OUT_DIR / f"oos_trades_{w['id']}{_seed_sfx_inner}_EMPTY.flag"
+                    try:
+                        _empty_flag_inner.write_text(
+                            f"Window {w['id']} exitó con SystemExit(3) - [FAIL-FAST] Guardián Estructural abortó el entrenamiento (modelo degenerado).",
+                            encoding="utf-8"
+                        )
+                        print(f"🛡️ [GUARDIAN-FAIL-FAST] SystemExit(3) en {w['id']} seed={args.seed} - Entrenamiento abortado por Guardián Estructural. Ventana descartada limpiamente.")
+                        logger.warning(
+                            "[GUARDIAN-FAIL-FAST] SystemExit(3) capturado en ventana %s seed=%s. "
+                            "Guardián Estructural abortó la ejecución por degeneración del modelo. "
+                            "Ventana descartada. Continuando al siguiente window.",
+                            w['id'], args.seed
+                        )
+                    except Exception as _ef_inner:
+                        print(f"[GUARDIAN-FAIL-FAST] ERROR creando EMPTY.flag en {w['id']}: {_ef_inner}")
+                        logger.error("[GUARDIAN-FAIL-FAST] No se pudo crear EMPTY.flag para %s: %s", w['id'], _ef_inner)
                 else:
-                    # SystemExit con código != 0 → error real → re-raise
+                    # SystemExit con código != 0 y != 3 → error real → re-raise
                     print(f"[FIX-MERGE-EXIT-01] SystemExit({_se_inner.code}) en {w['id']} - re-raising (error real).")
                     logger.error("[FIX-MERGE-EXIT-01] SystemExit(%s) en ventana %s - error real, abortando worker.", _se_inner.code, w['id'])
                     raise

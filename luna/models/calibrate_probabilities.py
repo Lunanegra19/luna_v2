@@ -897,10 +897,11 @@ class MetaLabelerV2Calibrator:
                 # el sweep en periodos de crash donde el XGBoost pasa pocas señales)
                 if _n_xgb_pass >= 5:
                     logger.warning(
-                        "[META-CAL-01] Solo %d señales pasan XGBoost (<min=%d). "
+                        "[META-CAL-01] Solo {} señales pasan XGBoost (<min={}). "
                         "[BUG-FIX-05] Intentando EV-sweep en modo reducido (min_trades=3).",
                         _n_xgb_pass, _mt_min_tr
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] [META-CAL-01] Solo {_n_xgb_pass} señales pasan XGBoost (<min={_mt_min_tr}). Intentando modo reducido.")
                     _cal_probs_xgb = cal_probs[_xgb_mask_cal]
                     _y_xgb = y_seq[_xgb_mask_cal]
                     _best_meta_ev = -np.inf
@@ -932,20 +933,23 @@ class MetaLabelerV2Calibrator:
                     if _best_meta_ev > 0:
                         optimal_meta_threshold = _best_meta_t
                         logger.success(
-                            "[META-CAL-01] [MODO-REDUCIDO] optimal_meta_threshold=%.2f (EV=%.4f, n=%d)",
+                            "[META-CAL-01] [MODO-REDUCIDO] optimal_meta_threshold={:.2f} (EV={:.4f}, n={})",
                             optimal_meta_threshold, _best_meta_ev, _n_xgb_pass
                         )
+                        print(f"[BUG-FIX-LOG 2026-06-05] [META-CAL-01] [MODO-REDUCIDO] optimal_meta_threshold={optimal_meta_threshold:.2f} (EV={_best_meta_ev:.4f}, n={_n_xgb_pass})")
                     else:
                         logger.warning(
-                            "[META-CAL-01] EV-sweep modo reducido: EV=%.4f <= 0. Usando threshold manual.",
+                            "[META-CAL-01] EV-sweep modo reducido: EV={:.4f} <= 0. Usando threshold manual.",
                             _best_meta_ev
                         )
+                        print(f"[BUG-FIX-LOG 2026-06-05] [META-CAL-01] EV-sweep modo reducido: EV={_best_meta_ev:.4f} <= 0. Usando threshold manual.")
                 else:
                     logger.warning(
-                        "[META-CAL-01] Solo %d señales pasan XGBoost (<min=%d, <5). "
+                        "[META-CAL-01] Solo {} señales pasan XGBoost (<min={}, <5). "
                         "EV-sweep MetaLabeler omitido — usando threshold manual.",
                         _n_xgb_pass, _mt_min_tr
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] [META-CAL-01] Solo {_n_xgb_pass} señales pasan XGBoost (<min={_mt_min_tr}, <5). Usando threshold manual.")
         except Exception as _e_meta_cal:
             logger.warning(f"[META-CAL-01] EV-sweep MetaLabeler fallido: {_e_meta_cal}")
             import traceback; logger.debug(traceback.format_exc())
@@ -960,9 +964,10 @@ class MetaLabelerV2Calibrator:
             except Exception:
                 _meta_thresh_final = 0.40
             logger.info(
-                "[MEJ-CALIB-01] EV-sweep no produjo threshold — usando manual de settings: %.2f",
+                "[MEJ-CALIB-01] EV-sweep no produjo threshold — usando manual de settings: {:.2f}",
                 _meta_thresh_final
             )
+            print(f"[BUG-FIX-LOG 2026-06-05] [MEJ-CALIB-01] EV-sweep no produjo threshold — usando manual: {_meta_thresh_final:.2f}")
 
         # [P2-META-01] dynamic_is aplicado al calibrador (mismo que train_metalabeler_v2.py)
         # Cuando el EV-sweep no encuentra un threshold positivo y cae al fallback manual,

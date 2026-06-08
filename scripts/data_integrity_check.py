@@ -38,9 +38,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))  # allow imports from proj
 
 # Forzar stdout UTF-8 en Windows (PowerShell usa cp1252 por defecto)
 if sys.platform == "win32":
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import pandas as pd
 import numpy as np

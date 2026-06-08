@@ -315,12 +315,13 @@ class MetaLabelerV2:
         _effective_min_leaf  = max(_topo_min_leaf,  getattr(self, '_rf_min_leaf_base', 30))
 
         logger.info(
-            "[V2-FIX-3] Topology-Aware RF: n_samples=%d, n_minority=%d → "
-            "max_depth=%d (base=%d), min_samples_leaf=%d (base=%d)",
+            "[V2-FIX-3] Topology-Aware RF: n_samples={}, n_minority={} → "
+            "max_depth={} (base={}), min_samples_leaf={} (base={})",
             _n_samples, _n_minority,
             _effective_max_depth, getattr(self, '_rf_max_depth_base', 5),
             _effective_min_leaf,  getattr(self, '_rf_min_leaf_base', 30)
         )
+        print(f"[BUG-FIX-LOG 2026-06-05] [V2-FIX-3] Topology-Aware RF: n_samples={_n_samples}, n_minority={_n_minority} -> max_depth={_effective_max_depth} (base={getattr(self, '_rf_max_depth_base', 5)}), min_samples_leaf={_effective_min_leaf} (base={getattr(self, '_rf_min_leaf_base', 30)})")
         # Re-instanciar RF con bounds topológicos
         from sklearn.ensemble import RandomForestClassifier as _RFC_topo
         self.rf.max_depth         = _effective_max_depth
@@ -440,6 +441,28 @@ class MetaLabelerV2:
             _positions = np.linspace(0.0, 1.0, _n_filtered)
             _sw = np.exp(-WEIGHT_DECAY_ALPHA * (1.0 - _positions))
             
+        # [FIX-CAPA2-ASYM] Asimetria Dinamica por Regimen
+        # Evita la dilucion de regimenes minoritarios y muy hostiles (ej. Bear Crash).
+        # Incrementa el peso de los WINS en regimenes donde los LOSSES dominan abrumadoramente.
+        _regime_booster = np.ones(len(y_filtered))
+        if hmm_regime_filtered is not None:
+            for r in range(hmm_regime_filtered.shape[1]):
+                mask_r = (hmm_regime_filtered[:, r] == 1)
+                if mask_r.sum() > 0:
+                    y_r = y_filtered[mask_r]
+                    wins_r = (y_r == 1).sum()
+                    losses_r = (y_r == 0).sum()
+                    if wins_r > 0 and losses_r > 0:
+                        # Ratio de dificultad del regimen
+                        local_ratio = float(losses_r) / wins_r
+                        # Usar raiz cuadrada para suavizar (booster entre 1x y 5x)
+                        booster = max(1.0, min(5.0, np.sqrt(local_ratio)))
+                        win_mask_r = mask_r & (y_filtered == 1)
+                        _regime_booster[win_mask_r] *= booster
+                        print(f"[BUG-FIX-LOG 2026-06-07] [CAPA2-ASYM] Regime {r}: wins={wins_r}, losses={losses_r}, ratio={local_ratio:.1f}x -> Win Booster={booster:.2f}x")
+                        logger.info(f"[CAPA2-ASYM] Regime {r} Win Booster: {booster:.2f}x (ratio={local_ratio:.1f})")
+
+        _sw = _sw * _regime_booster
         _sw = _sw / _sw.mean()
         self._training_sample_weights = _sw
         logger.info(
@@ -506,6 +529,26 @@ class MetaLabelerV2:
             logger.warning(
                 f"[FIX-RF-OOS-01] POSIBLE OVERFITTING RF: IS-OOS gap={is_acc - oos_acc_mean:.2%} > 10%"
             )
+
+        # ══════════════════════════════════════════════════════════════════════
+        # [GUARDIAN-03] MetaLabeler Overfit Guardian (Memorización)
+        # Si el gap entre Train y CV es > X%, el RF memorizó el ruido y su CV
+        # es peor que lanzar una moneda. Destruirá las señales en OOS.
+        # ══════════════════════════════════════════════════════════════════════
+        try:
+            from config.settings import cfg as _cfg_g
+            _max_overfit_gap = float(_cfg_g.metalabeler.guardian_max_overfit_gap)
+        except Exception as e:
+            raise RuntimeError(f"[CRITICAL-SOP] Falta metalabeler.guardian_max_overfit_gap en settings.yaml: {e}")
+
+        if is_acc - oos_acc_mean > _max_overfit_gap:
+            logger.error(
+                f"[GUARDIAN-03] MetaLabeler OVERFIT DETECTADO: IS_acc={is_acc:.2%} vs CV_acc={oos_acc_mean:.2%} "
+                f"(Gap = {is_acc - oos_acc_mean:.2%} > {_max_overfit_gap:.2%}). El árbitro no generaliza. Abortando."
+            )
+            print(f"[GUARDIAN-03] FATAL: RF MetaLabeler Overfit Extremo (Gap > {_max_overfit_gap:.2%}). Abortando.")
+            import sys
+            sys.exit(3)
 
         self._trained = True
         self._hmm_context_used = (hmm_regime is not None)  # BUG-4 FIX: flag para save()
@@ -1349,12 +1392,14 @@ class MetaLabelerV2Trainer:
                     for r in _unique_regimes
                 }
                 logger.warning(
-                    "[CPCV-COVERAGE] %d muestras (%.1f%%) sin cobertura CPCV -> prob=0.50. "
-                    "Por régimen: %s. Si >10%% investigar splits insuficientes.",
+                    "[CPCV-COVERAGE] {} muestras ({:.1f}%) sin cobertura CPCV -> prob=0.50. "
+                    "Por régimen: {}. Si >10% investigar splits insuficientes.",
                     _uncovered, _uncov_pct, _uncov_by_regime
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [CPCV-COVERAGE] {_uncovered} muestras ({_uncov_pct:.1f}%) sin cobertura CPCV -> prob=0.50. Por régimen: {_uncov_by_regime}")
             else:
-                logger.warning("[CPCV-COVERAGE] {} muestras ({.1f}%) sin cobertura CPCV -> Fallback IS.", _uncovered, _uncov_pct)
+                logger.warning("[CPCV-COVERAGE] {} muestras ({:.1f}%) sin cobertura CPCV -> Fallback IS.", _uncovered, _uncov_pct)
+                print(f"[BUG-FIX-LOG 2026-06-05] [CPCV-COVERAGE] {_uncovered} muestras ({_uncov_pct:.1f}%) sin cobertura CPCV -> Fallback IS.")
 
             try:
                 # [FIX-P1-V4-7-OPCION-B] Entrenar un modelo In-Sample rapido para rellenar
@@ -1501,17 +1546,19 @@ class MetaLabelerV2Trainer:
                     _meta_calib_source   = "ev_sweep_cpcv"
                     print(f"[FIX-CPCV-EV-SWEEP] CPCV EV-Sweep optimal threshold found: {_optimal_meta_thresh:.2f} | EV={_best_ev:.5f}")  # debug
                     logger.success(
-                        "[FIX-CPCV-EV-SWEEP] MetaLabeler CPCV threshold optimo=%.2f | EV=%.5f "
-                        "(sweep %.2f→%.2f paso=%.2f)",
+                        "[FIX-CPCV-EV-SWEEP] MetaLabeler CPCV threshold optimo={:.2f} | EV={:.5f} "
+                        "(sweep {:.2f}→{:.2f} paso={:.2f})",
                         _optimal_meta_thresh, _best_ev,
                         META_THRESH_MIN, META_THRESH_MAX, META_THRESH_STEP,
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] [FIX-CPCV-EV-SWEEP] MetaLabeler CPCV threshold optimo={_optimal_meta_thresh:.2f} | EV={_best_ev:.5f} (sweep {META_THRESH_MIN:.2f}→{META_THRESH_MAX:.2f} paso={META_THRESH_STEP:.2f})")
                 else:
                     print(f"[FIX-CPCV-EV-SWEEP] CPCV EV-sweep yielded no positive EV threshold, using fallback: {_optimal_meta_thresh:.2f}")  # debug
                     logger.warning(
-                        "[FIX-CPCV-EV-SWEEP] CPCV EV-sweep sin resultado positivo — usando fallback=%.2f.",
+                        "[FIX-CPCV-EV-SWEEP] CPCV EV-sweep sin resultado positivo — usando fallback={:.2f}.",
                         _optimal_meta_thresh,
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] [FIX-CPCV-EV-SWEEP] CPCV EV-sweep sin resultado positivo — usando fallback={_optimal_meta_thresh:.2f}.")
             except Exception as _e_meta:
                 print(f"[FIX-CPCV-EV-SWEEP] CPCV EV-sweep crashed: {_e_meta}, using fallback: {_optimal_meta_thresh:.2f}")  # debug
                 logger.warning("[FIX-CPCV-EV-SWEEP] CPCV EV-sweep fallido ({}) — usando fallback={:.2f}",

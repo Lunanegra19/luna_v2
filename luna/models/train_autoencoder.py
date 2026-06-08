@@ -142,14 +142,16 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
                     f"Previene Val Loss divergente (ratio 8.6x) y early stopping artificial."
                 )
                 logger.info(
-                    "[H-AE-VAL-01-FIX] AE features filtradas por SFI OOD: %d → %d (%d excluidas).",
+                    "[H-AE-VAL-01-FIX] AE features filtradas por SFI OOD: {} → {} ({} excluidas).",
                     _features_before, len(features), _ood_filtered
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [H-AE-VAL-01-FIX] AE features filtradas por SFI OOD: {_features_before} → {len(features)} ({_ood_filtered} excluidas)")
             else:
                 print("[H-AE-VAL-01-FIX] selected_features.json sin features aprobadas — usando todas (sin filtrado OOD).")
         except Exception as _e_ood:
             print(f"[H-AE-VAL-01-FIX] ERROR leyendo selected_features.json: {_e_ood} — usando todas las features.")
-            logger.warning("[H-AE-VAL-01-FIX] No se pudo aplicar OOD filter al AE: %s", _e_ood)
+            logger.warning("[H-AE-VAL-01-FIX] No se pudo aplicar OOD filter al AE: {}", _e_ood)
+            print(f"[BUG-FIX-LOG 2026-06-05] [H-AE-VAL-01-FIX] No se pudo aplicar OOD filter al AE: {_e_ood}")
     else:
         print(f"[H-AE-VAL-01-FIX] selected_features.json no encontrado en {_sfi_json} — usando todas las features (retrocompatible).")
         logger.debug("[H-AE-VAL-01-FIX] selected_features.json ausente. AE sin filtrado OOD.")

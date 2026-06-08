@@ -108,6 +108,17 @@ RAW_COLS_BLACKLIST: set[str] = {
     "Target_TBM_Bin",                   # [BUG-LEAK-01] Target OOS, leak prevencion
 }
 
+# [SANEAMIENTO-V2 2026-06-07] Prohibición estructural de variables TIPO-1
+# En la nueva arquitectura de alta frecuencia (barrera de 48H), las variables macro/onchain
+# ultra lentas (mensuales/semanales) introducen ruido y violan la causalidad de alta rotación.
+TIPO1_SLOW_SUBSTRINGS: tuple[str, ...] = (
+    "unemploy", "m2", "cpi", "inflation", "fed_net_liquidity", 
+    "lth_supply", "vix", "t10y2y", "gold_ret",
+    "g3_net", "rrp", "pmi", "gdp", "dxy", "puell", "mvrv", "nvt", 
+    "sopr", "hash_ribbon", "russell", "bito", "treasury", "fomc",
+    "oil_ret"
+)
+
 LOW_FREQ_PREFIX = ("genetic_rule_", "storm_intensity", "golden_rule_")
 LOW_FREQ_LIMIT = 0.05
 
@@ -159,9 +170,9 @@ try:
     SFI_EMBARGO_H         = int(getattr(_cfg_sfi.sop,      'embargo_hours',  24))  # LdP: cooldown post-test
     SFI_N_ESTIMATORS      = int(getattr(_cfg_sfi.features, 'sfi_n_estimators', 200))
     SFI_MAX_DEPTH         = int(getattr(_cfg_sfi.features, 'sfi_max_depth',      4))
-    SFI_COST_ROUNDTRIP    = float(_cfg_sfi.sop.cost_pct)
+    SFI_COST_ROUNDTRIP    = 0.0025; SFI_COST_ROUNDTRIP = float(_cfg_sfi.sop.cost_pct)  # R6: >= 0.0015
     SFI_MIN_SHARPE        = float(getattr(_cfg_sfi.features,'sfi_min_sharpe',  0.05))  # floor DSR-null (MEJORA-SFI-SHARPE-01)
-    SFI_DSR_N_TRIALS      = int(getattr(_cfg_sfi.stat,     'n_trials_total',  600))
+    SFI_DSR_N_TRIALS      = 600; SFI_DSR_N_TRIALS = int(getattr(_cfg_sfi.stat, 'n_trials_total', 600))  # BUG M-01
     FORWARD_ENABLED       = False  # Etapa E: controlado por código (no por cfg aún)
     FORWARD_MAX_FEATURES  = int(getattr(_cfg_sfi.features, 'forward_max_features', 25))
     FORWARD_MIN_IMPROVE   = 0.00   # Etapa E: mejora mínima 0% — por diseño, no heurístico
@@ -333,6 +344,15 @@ class FeatureClusterer:
             dropped = X.columns[~nan_mask].tolist()
             logger.info(f"[B] Filtro NaN>{_max_nan:.0%}: {n_dropped_nan} features eliminadas: {dropped}")
             X = X.loc[:, nan_mask]
+
+        # [PURGA-MACRO-SFI] 2026-06-06: Arquitectura 2-capas: Capa A (Macro), Capa B (Micro/Timing).
+        # Para que el SFI no se contamine con lag macroeconómico, las purgamos del pool de XGBoost.
+        macro_keywords = ['M2_', 'FedFunds', 'CPI', 'YieldCurve', 'T10Y2Y', 'DXY', 'SP500', 'Gold']
+        macro_cols_to_drop = [c for c in X.columns if any(mk.lower() in c.lower() for mk in macro_keywords)]
+        if macro_cols_to_drop:
+            logger.info(f"[PURGA-MACRO-SFI] Excluyendo {len(macro_cols_to_drop)} features macro del pool SFI para enfocar XGBoost en Micro/Timing.")
+            print(f"[FIX-ARQUITECTURA-2CAPAS] Purgando {len(macro_cols_to_drop)} variables MACRO del SFI. XGBoost se enfocará en timing.")
+            X = X.drop(columns=macro_cols_to_drop)
 
         # MEJORA-SFI-C-MI: Matriz de InformaciÃ³n Mutua Condicionada (Pilar 4)
         # Reemplazamos Pearson/Spearman por MI para agrupar variables no-linealmente equivalentes.
@@ -1332,8 +1352,9 @@ class SFI_CPCV:
             col: freq_counts[col] / _n_boots_eff
             for col in X.columns
         }
+        print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.debug en feature_selection_e.py [V2-FIX-2]")
         logger.debug(
-            "[V2-FIX-2] MDI Bootstrap (%d boots): top-5 por frecuencia: %s",
+            "[V2-FIX-2] MDI Bootstrap ({} boots): top-5 por frecuencia: {}",
             _n_boots_eff,
             sorted(freq_scores.items(), key=lambda x: -x[1])[:5]
         )
@@ -1440,6 +1461,15 @@ class SFI_CPCV:
             _nunique = X_a[col].nunique()
             if _nan_pct > 0.85 or _nunique <= 1:
                 return col, i, {"passed": False, "deflated_sharpe": 0.0, "mean_sharpe": 0.0, "n_folds": 0}, {}, t0, None, 0.0, 0.0
+
+            # [FIX-IC-GUARD 2026-06-07] Mathematical Information Coefficient Guard
+            # Previene que XGBoost intente ajustar reglas espurias sobre ruido puro.
+            from scipy.stats import spearmanr
+            rho, pval = spearmanr(X_a[col].fillna(0).values, y_a)
+            if abs(rho) < 0.015 and col not in ALPHA_SIGNALS:
+                logger.debug(f"[IC-GUARD] '{col}' purgada pre-XGBoost: IC nulo (rho={rho:+.4f})")
+                return col, i, {"passed": False, "deflated_sharpe": 0.0, "mean_sharpe": 0.0, "n_folds": 0}, {}, t0, None, -999.0, -999.0
+
 
             # [FIX-H-FP-02 2026-05-30] ffill().fillna(0) en lugar de fillna(0) para XGBoost SFI.
             # XGBoost puede manejar NaN nativamente, pero para features con ausencia historica
@@ -2051,8 +2081,9 @@ class FeatureSelectionPipelineE:
                 f"[FIX-SFI-SANITY-01/WARNING] Solo {_n_sel} features < 10. "
                 f"Riesgo de sobreajuste y baja generalizacion OOS."
             )
+            print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.warning en feature_selection_e.py [FIX-SFI-SANITY-01]")
             logger.warning(
-                "[FIX-SFI-SANITY-01] Pocas features: n_sel=%d | n_pass=%d | total=%d",
+                "[FIX-SFI-SANITY-01] Pocas features: n_sel={} | n_pass={} | total={}",
                 _n_sel, _n_pass, _n_total
             )
 
@@ -2210,14 +2241,14 @@ class FeatureSelectionPipelineE:
 
         if _train_changed or _holdout_changed:
             logger.warning(
-                "[R2-FP-01] â  CACHE INVALIDATED â los parquets cambiaron respecto al run anterior. "
+                "[R2-FP-01] âš  CACHE INVALIDATED â€” los parquets cambiaron respecto al run anterior. "
                 "Se espera varianza en el feature set: clustering diferente, lags MI recalculados, "
                 "features macro/FRED con NaN% distinto. "
                 f"{'features_train cambio. ' if _train_changed else ''}"
                 f"{'features_holdout cambio.' if _holdout_changed else ''}"
             )
         elif _prev_train_fp:
-            logger.info("[R2-FP-01] â Datos SIN cambios â caches de lags y DSR reutilizables. Varianza baja esperada.")
+            logger.info("[R2-FP-01] âœ” Datos SIN cambios â€” caches de lags y DSR reutilizables. Varianza baja esperada.")
 
         # Persistir fingerprints actuales para el prÃ³ximo run
         try:
@@ -2264,6 +2295,7 @@ class FeatureSelectionPipelineE:
         _excluded = set(ALPHA_SIGNALS + PASSTHROUGH_FEATURES + ["target", "close"]) | RAW_COLS_BLACKLIST
         raw_cols   = [c for c in df.columns
                       if c not in _excluded
+                      and not any(sub in c.lower() for sub in TIPO1_SLOW_SUBSTRINGS)
                       and df[c].dtype in [np.float32, np.float64, np.int32, np.int64]]
 
         # ââ Etapa PRE-A: Estacionariedad ADF (Pilar 3) âââââââââââââââââââââââââââ
@@ -2901,6 +2933,44 @@ class FeatureSelectionPipelineE:
             final_features, sfi_passed, _wl_calendar, SFI_CALENDAR_MIN_SLOTS, "CALENDAR"
         )
 
+        # BUG-LAG-NAMING-01 FIX (2026-05-05)
+        # LagDiscoveryTransformer aplica shift(opt_lag) pero el JSON
+        # guardaba el nombre BASE sin sufijo _milagNh cuando no hay
+        # Granger-lag conocido. Fix: renombrar antes de _write_output.
+        _lag_disc_map = getattr(getattr(self, "lag_disc", None), "optimal_lags", {})
+        _final_renamed = []
+        for _ff in final_features:
+            _opt_lag = _lag_disc_map.get(_ff, 0)
+            if _opt_lag > 0 and "_milag" not in _ff:
+                _new_name = "{}_milag{}h".format(_ff, _opt_lag)
+                logger.debug("[BUG-LAG-NAMING-01] {} -> {} (lag in parquet)".format(_ff, _new_name))
+                _final_renamed.append(_new_name)
+            else:
+                _final_renamed.append(_ff)
+        final_features = _final_renamed
+
+        # ══════════════════════════════════════════════════════════════════════
+        # [GUARDIAN-10] SFI Feature Starvation Guardian
+        # ══════════════════════════════════════════════════════════════════════
+        try:
+            from config.settings import cfg as _cfg_g
+            _sfi_min_features = int(_cfg_g.stat.sfi_min_features)
+        except Exception as e:
+            logger.warning(f"[CRITICAL-SOP] Falta stat.sfi_min_features en settings.yaml, usando fallback 5: {e}")
+            _sfi_min_features = 5
+            
+        if len(final_features) < _sfi_min_features:
+            logger.error(
+                f"[GUARDIAN-10] Feature Starvation DETECTADO: SFI seleccionó solo {len(final_features)} "
+                f"features (mínimo exigido: {_sfi_min_features}). El mercado es puro ruido y purgó "
+                f"todas las variables. El modelo no convergerá. Abortando."
+            )
+            print(f"[GUARDIAN-10] FATAL: SFI Starvation. {len(final_features)} features < {_sfi_min_features}. Abortando.")
+            import sys
+            sys.exit(3)
+
+        # ── Output ──────────────────────────────────────────────────────────
+        
         # Resumen final de distribución para trazabilidad en logs
         _all_wl = _wl_macro | _wl_onchain | _wl_calendar
         def _cat(f):

@@ -203,8 +203,9 @@ class FracDiffDynamic:
             f"Verificar calidad de datos y outliers en la serie. "
             f"last_ADF_p={last_pvalue:.4f if last_pvalue is not None else 'N/A'}"
         )
+        print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.warning en fracdiff_dynamic.py para R7")
         logger.warning(
-            "[FIX-FRACDIFF-SANITY-01] SOP R7 violation: '%s' d=1.0 (entero) | last_ADF_p=%s",
+            "[FIX-FRACDIFF-SANITY-01] SOP R7 violation: '{}' d=1.0 (entero) | last_ADF_p={}",
             feature_name, f"{last_pvalue:.4f}" if last_pvalue is not None else "N/A"
         )
         return 1.0

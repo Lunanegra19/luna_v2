@@ -187,6 +187,17 @@ class SignalFilter:
             except Exception as _e_hmm_ks:
                 logger.debug("  [HMM-PREDICTIVE-02] Penalty no aplicado en Kelly: {}", _e_hmm_ks)
                 
+        # [CAMINOB-08] Scale down Kelly sizes if Macro is adverse
+        if "macro_kelly_penalty" in df_oos.columns:
+            # Multiplicamos las fracciones de Kelly por la penalizacion macro
+            fractions *= df_oos["macro_kelly_penalty"]
+            n_penalized = int(((df_oos["macro_kelly_penalty"] < 1.0) & signal_mask).sum())
+            if n_penalized > 0:
+                logger.info(
+                    "  [MACRO-GATE] Kelly Fraction reducido en {} señales por adversidad macro (Lag Trap evitado).",
+                    n_penalized
+                )
+                
         logger.info("[KELLY-SIZER] {} señales dimensionadas. Fraccion media={:.1%} max={:.1%}",
                     n_signals, fractions[signal_mask].mean() if n_signals > 0 else 0.0,
                     fractions.max())
@@ -1131,6 +1142,46 @@ class SignalFilter:
         
         return hmm_mask
 
+    def apply_macro_gate(self, df_oos: pd.DataFrame, direction: str = "long") -> pd.Series:
+        """
+        [CAMINOB-08 2026-06-06] Capa A: Macro Gate Direccional (SOFT).
+        Ya no utiliza vetos duros. Modifica la columna 'macro_kelly_penalty' para
+        reducir el tamaño de posición si la macro es adversa.
+        Devuelve siempre True para no asfixiar el Win Rate.
+        """
+        macro_mask = pd.Series(True, index=df_oos.index)
+        macro_penalty = pd.Series(1.0, index=df_oos.index)
+        
+        # M2 Global YoY como indicador maestro de liquidez (Capa A)
+        if "M2_Global_YoY" in df_oos.columns:
+            m2 = df_oos["M2_Global_YoY"].ffill().fillna(0.0)
+            if direction == "long":
+                # Reducción a la mitad (Half) si la liquidez mundial se contrae severamente (< -2.0%)
+                _veto_mask = m2 < -2.0
+                macro_penalty[_veto_mask] *= 0.5
+                n_penalized = int(_veto_mask.sum())
+                if n_penalized > 0:
+                    logger.info(f"  [MACRO-GATE] {n_penalized} barras LONG reducidas al 50% de Kelly por contraccion severa de liquidez (M2 < -2.0%)")
+            elif direction == "short":
+                _veto_mask = m2 > 10.0
+                macro_penalty[_veto_mask] *= 0.5
+                n_penalized = int(_veto_mask.sum())
+                if n_penalized > 0:
+                    logger.info(f"  [MACRO-GATE] {n_penalized} barras SHORT reducidas al 50% de Kelly por explosion de liquidez (M2 > 10.0%)")
+                    
+        # Halving Cycle como modulador de tendencia
+        if "cal_halving_cycle_sin" in df_oos.columns:
+            halving_sin = df_oos["cal_halving_cycle_sin"].ffill().fillna(0.0)
+            if direction == "long":
+                _veto_mask = halving_sin < -0.85
+                macro_penalty[_veto_mask] *= 0.5
+                n_penalized = int(_veto_mask.sum())
+                if n_penalized > 0:
+                    logger.info(f"  [MACRO-GATE] {n_penalized} barras LONG adicionales reducidas por fase oscura del ciclo Halving (sin < -0.85)")
+
+        df_oos["macro_kelly_penalty"] = macro_penalty
+        return macro_mask
+
     def apply_session_gate(self, df_oos: pd.DataFrame) -> pd.Series:
         """
         [B1-SESSION-GATE 2026-05-30] Filtro de sesion horaria UTC.
@@ -1493,17 +1544,19 @@ class SignalFilter:
             _lgbm_min = float(df_oos["lgbm_prob"].min())
             if _lgbm_max > 1.0 or _lgbm_min < 0.0:
                 logger.error(
-                    "[SIGNAL-FILTER] lgbm_prob FUERA de [0,1]: min=%.4f max=%.4f. "
+                    "[SIGNAL-FILTER] lgbm_prob FUERA de [0,1]: min={:.4f} max={:.4f}. "
                     "El modelo LGBM NO fue calibrado con Platt Scaling. "
                     "El filtro LGBM es inefectivo — re-entrenar ensemble_lgbm.py "
                     "(CalibratedClassifierCV fix). regime_router.py corrige esto automáticamente.",
                     _lgbm_min, _lgbm_max
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [SIGNAL-FILTER] lgbm_prob FUERA de [0,1]: min={_lgbm_min:.4f} max={_lgbm_max:.4f}")
             else:
                 logger.debug(
-                    "[SIGNAL-FILTER] lgbm_prob en rango válido [0,1]: min=%.4f max=%.4f → filtro LGBM activo.",
+                    "[SIGNAL-FILTER] lgbm_prob en rango válido [0,1]: min={:.4f} max={:.4f} → filtro LGBM activo.",
                     _lgbm_min, _lgbm_max
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [SIGNAL-FILTER] lgbm_prob en rango válido [0,1]: min={_lgbm_min:.4f} max={_lgbm_max:.4f} → filtro LGBM activo.")
             lgbm_mask = self.apply_model_threshold(df_oos, prefix="lgbm_meta", prob_col="lgbm_prob", model_name="LightGBM", direction=direction)
             # [BUG-C2] Log de diagnóstico AND detallado: permite identificar si el colapso
             # a 0 señales es por un LGBM malo (LGBM=0) o por desalineamiento temporal
@@ -1573,6 +1626,11 @@ class SignalFilter:
         session_mask = self.apply_session_gate(df_oos)
         cum_mask = cum_mask & session_mask
         self.funnel_stats["after_session_gate"] = int(cum_mask.sum())
+        
+        # [CAMINOB-08] Capa A: Aplicar Macro Gate Direccional
+        macro_mask = self.apply_macro_gate(df_oos, direction=direction)
+        cum_mask = cum_mask & macro_mask
+        self.funnel_stats["after_macro_gate"] = int(cum_mask.sum())
 
         meta_mask = self.apply_metalabeler(df_oos, available_feats, direction=direction)
         cum_mask = cum_mask & meta_mask
@@ -1598,6 +1656,7 @@ class SignalFilter:
                 ("CVD",          (~cvd_mask).sum()),
                 ("HMM",          (~hmm_mask).sum()),
                 ("SessionGate",  (~session_mask).sum()),
+                ("MacroGate",    (~macro_mask).sum()),
                 ("MetaV2",       (~meta_mask).sum()),
                 ("Momentum",     (~mom_mask).sum()),
             ]
@@ -1613,6 +1672,7 @@ class SignalFilter:
                     f"| CVD-block={int((~cvd_mask).sum())} "
                     f"| HMM-block={int((~hmm_mask).sum())} "
                     f"| SessionGate-block={int((~session_mask).sum())} "
+                    f"| MacroGate-block={int((~macro_mask).sum())} "
                     f"| MetaV2={int(meta_mask.sum())} | Mom-block={int((~mom_mask).sum())} {lgbm_log}| FINAL={n_signals}")
 
         # [FUNNEL-REGIME-01] Analisis de supervivencia de senales por regimen HMM.
@@ -1792,7 +1852,7 @@ class SignalFilter:
             if _density_mode_active:
                 _base_emb_h = _MIN_EMBARGO_H
             else:
-                _base_emb_h = _hmm_embargo_map.get(_current_regime, _DEFAULT_WAIT_HOURS)
+                _base_emb_h = _DEFAULT_WAIT_HOURS # [FIX-EMBARGO-HARDCODED] Cumplir regla No-Magic-Numbers y usar settings.yaml
 
             # Aplicar decaimiento por volatilidad si está activo
             _emb_h = _base_emb_h

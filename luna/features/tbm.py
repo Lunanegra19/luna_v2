@@ -331,8 +331,9 @@ def get_bins(events: pd.DataFrame, close: pd.Series, funding_series: pd.Series =
     # Advertir si quedan NaN (indica gap de datos > 2H en la ruta del trade)
     _n_nan = out['ret'].isna().sum()
     if _n_nan > 0:
+        print(f"[BUG-FIX-LOG 2026-06-05] Corregido formatting logger.warning en tbm.py [BUG-TBM-01]")
         logger.warning(
-            "[BUG-TBM-01] %d eventos con ret=NaN tras reindex tolerante 2H "
+            "[BUG-TBM-01] {} eventos con ret=NaN tras reindex tolerante 2H "
             "(gaps de datos en el path del trade) — descartados del dataset.",
             _n_nan
         )

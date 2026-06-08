@@ -100,7 +100,6 @@ deployment:
   service_name: mamba_luna
   wal_backup_target: ${WAL_BACKUP_PATH}
 session_gate:
-  # [VOLUME-FIX 2026-06-04] session_gate desactivado para evitar amputar el 97% de las señales OOS.
   enabled: false
   allowed_hours_utc:
   - 7
@@ -151,13 +150,9 @@ fase2:
     - 2_VOLATILE_RANGE_D
     - 2_CALM_RANGE
   use_lgbm_ensemble: false
-  # [DTW-DISABLE-01 2026-06-03] DTW_BULL_PROB=1.0 hardcodeado en alpha_rules.py -> dtw_direction=+1 siempre
-  # alpha_dtw_signal = tanh(mom_24H*20) = momentum puro, no DTW real
-  # WR con trigger=47.3% vs sin trigger=56.0% (Mann-Whitney p<0.0001, N=3767 trades, 78 seeds)
   use_dtw_signal: false
   use_monetary_loss: false
-
-  use_ofi_features: false
+  use_ofi_features: true
   use_regime_agents: true
 features:
   correlation_threshold: 0.7
@@ -194,10 +189,6 @@ features:
   sfi_n_groups: 6
   sfi_n_reps_per_cluster: 2
   sfi_top_n: 13
-  # Leyenda de clasificacion de features por tipo de origen [ARCH-03]:
-  # TIPO-1: Features endogenas (precios, returns, vols) — siempre disponibles, alta frecuencia
-  # TIPO-2: Features macro/onchain (M2, DXY, Exchange Flows, LTH) — lag 24H-240H, menor frecuencia
-  # TIPO-3: Features derivadas/combinadas (HMM regime, alpha_rules, DXY-HMM conditional) — lag minimo 1H
   stability_min_dsr: 0.0
   stability_min_positive: 3
   stability_penalty_weight: 0.5
@@ -211,15 +202,7 @@ features:
   stability_maturity_min_years: 3
   stability_dead_threshold_years: 2
   stability_gap_penalty: -0.5
-  # [SFI-BALANCE-01 2026-06-03] Boost aditivo para features OOS-estables en ranking de cluster.
-  # Aplica a TODAS las categorías (macro + onchain + calendar) por igual.
   sfi_macro_stable_boost: 0.25
-
-  # ── CATEGORÍA 1: Macro Estructural ──────────────────────────────────────────
-  # Features de ciclo trimestral/anual — OOS-estables porque reflejan condiciones
-  # macroeconómicas que NO cambian de semana en semana.
-  # Quota: mínimo 3 slots de los 13 Top-N garantizados para esta categoría.
-  # [SFI-BALANCE-01 2026-06-03]
   sfi_macro_features:
   - M2_MoM_Chg
   - M2_YoY_Chg
@@ -233,28 +216,22 @@ features:
   - yield_curve_pct_1y
   - RealYield_10Y
   - FedFundsRate
-  - CreditSpread_HY_IG          # [CREDIT-SPREAD-01 2026-06-03]
+  - CreditSpread_HY_IG
   - CreditSpread_HY_IG_z90d
   - CreditSpread_HY_z90d
   - CPI_YoY
   - fear_greed_normalized
   - MOVE
   - DVOL
-  - DXY_HMM_cond         # [DXY-HMM-01 2026-06-03] DXY_Ret x regime_sign — sin ambigüedad
-  - DXY_HMM_bull_neg     # [DXY-HMM-01 2026-06-03] DXY_Ret x bull_flag x(-1) — señal pura en bull
-  - DXY_HMM_interact     # [DXY-HMM-01 2026-06-03] DXY_Zscore x regime_norm — interacción suave
-  sfi_macro_min_slots: 3
-
-  # ── CATEGORÍA 2: Onchain Valuation ──────────────────────────────────────────
-  # Features de valoración onchain — causal (precio del suministro BTC, no momentum).
-  # MVRV y SSR son los mejores indicadores de ciclo de acumulación/distribución.
-  # Quota: mínimo 1 slot garantizado — evita runs sin ningún contexto onchain.
-  # [SFI-BALANCE-01 2026-06-03]
+  - DXY_HMM_cond
+  - DXY_HMM_bull_neg
+  - DXY_HMM_interact
+  sfi_macro_min_slots: 0
   sfi_onchain_features:
   - MVRV_Proxy
   - SSR_ZScore
   - SSR
-  - Stablecoins_Delta_30d
+  - Stablecoins_Delta_30d_milag12h
   - Stablecoin_Cap_Delta
   - Puell_Multiple
   - puell_multiple_proxy
@@ -262,25 +239,19 @@ features:
   - Hash_Rate
   - FundingRate
   - dv_funding_rate
-  - Exchange_NetFlow           # [EXCHANGE-FLOW-01 2026-06-03] flujo diario BTC real
-  - Exchange_NetFlow_7dEMA     # [EXCHANGE-FLOW-01 2026-06-03] suavizado EMA 7d
-  - Exchange_NetFlow_z30d      # [EXCHANGE-FLOW-01 2026-06-03] z-score 30d (OOS-estable)
-  - Exchange_NetFlow_Accum30d  # [EXCHANGE-FLOW-01 2026-06-03] tendencia acumulada 30d
-  - Exchange_Outflow_Signal    # [EXCHANGE-FLOW-01 2026-06-03] binario: acumulacion activa
-  - NonEx_Supply               # [LTH-SUPPLY-01 2026-06-03] BTC en wallets no-exchange
-  - Exchange_Supply_Pct        # [LTH-SUPPLY-01 2026-06-03] % BTC en exchanges (cae=acumulacion)
-  - LTH_Supply_Change_30d      # [LTH-SUPPLY-01 2026-06-03] cambio 30d en supply HODLers
-  - LTH_Accum_Signal           # [LTH-SUPPLY-01 2026-06-03] binario: acumulacion sostenida
-  - NonEx_Supply_z90d          # [LTH-SUPPLY-01 2026-06-03] z-score 90d (cross-ciclo)
-  sfi_onchain_min_slots: 1
-
-
-  # ── CATEGORÍA 3: Calendar / Halving ─────────────────────────────────────────
-  # Features determinísticas del ciclo de suministro de BTC.
-  # Máxima estabilidad OOS posible: el halving no depende del mercado.
-  # La codificación sin/cos elimina la discontinuidad del ciclo lineal.
-  # Quota: mínimo 1 slot garantizado — el halving SIEMPRE debe estar en XGBoost.
-  # [HALVING-HARMONIC-01 2026-06-03] [SFI-BALANCE-01 2026-06-03]
+  - Exchange_NetFlow
+  - Exchange_NetFlow_7dEMA
+  - Exchange_NetFlow_z30d
+  - Exchange_NetFlow_Accum30d
+  - Exchange_Outflow_Signal
+  - NonEx_Supply
+  - Exchange_Supply_Pct
+  - LTH_Supply_Change_30d
+  - LTH_Accum_Signal
+  - NonEx_Supply_z90d
+  - DVOL
+  - mt_vol_realized_4bar
+  sfi_onchain_min_slots: 4
   sfi_calendar_features:
   - cal_halving_cycle_sin
   - cal_halving_cycle_cos
@@ -288,11 +259,6 @@ features:
   - cal_days_since_halving
   - cal_halving_cycle_pct
   sfi_calendar_min_slots: 1
-
-  # ── Lista unificada para el mecanismo de boost (backward compatible) ─────────
-  # Esta lista es la UNIÓN de las tres categorías anteriores.
-  # La usa el boost de cluster-ranking en la Etapa B del SFI.
-  # NOTA: Mantener sincronizada con las tres listas de arriba.
   sfi_macro_stable_features:
   - M2_MoM_Chg
   - M2_YoY_Chg
@@ -316,7 +282,7 @@ features:
   - MVRV_Proxy
   - SSR_ZScore
   - SSR
-  - Stablecoins_Delta_30d
+  - Stablecoins_Delta_30d_milag12h
   - Stablecoin_Cap_Delta
   - Puell_Multiple
   - puell_multiple_proxy
@@ -329,21 +295,17 @@ features:
   - cal_days_to_next_halving
   - cal_days_since_halving
   - cal_halving_cycle_pct
-  - DXY_HMM_cond         # [DXY-HMM-01 2026-06-03]
-  - DXY_HMM_bull_neg     # [DXY-HMM-01 2026-06-03]
-  - DXY_HMM_interact     # [DXY-HMM-01 2026-06-03]
-  - Exchange_NetFlow_z30d      # [EXCHANGE-FLOW-01 2026-06-03]
-  - Exchange_NetFlow_Accum30d  # [EXCHANGE-FLOW-01 2026-06-03]
-  - Exchange_Outflow_Signal    # [EXCHANGE-FLOW-01 2026-06-03]
-  - LTH_Supply_Change_30d      # [LTH-SUPPLY-01 2026-06-03]
-  - LTH_Accum_Signal           # [LTH-SUPPLY-01 2026-06-03]
-  - NonEx_Supply_z90d          # [LTH-SUPPLY-01 2026-06-03]
-  - Exchange_Supply_Pct        # [LTH-SUPPLY-01 2026-06-03]
+  - DXY_HMM_cond
+  - DXY_HMM_bull_neg
+  - DXY_HMM_interact
+  - Exchange_NetFlow_z30d
+  - Exchange_NetFlow_Accum30d
+  - Exchange_Outflow_Signal
+  - LTH_Supply_Change_30d
+  - LTH_Accum_Signal
+  - NonEx_Supply_z90d
+  - Exchange_Supply_Pct
   timing_features_bypass_sfi: false
-
-
-
-
 fiscal:
   exchange_regulated: OKX (MiCA Malta) / OKX (MiCA Malta)
   irpf_rates:
@@ -385,16 +347,23 @@ hmm:
   post_ath_ath_window_h: 720
   post_ath_ath_min_periods: 360
   post_ath_confirm_h: 48
+  candidate_features:
+  - mt_vol_realized_4bar
+  - dv_dvol_raw
+  - frac_diff_close
+  - btc_drawdown_from_ath
+  min_feature_mi: 0.0001
+  min_features_required: 2
 kelly_sizer:
   enabled: true
   kelly_fraction: 0.5
-  max_position: 0.15
+  max_position: 20.0
+  target_sl_pct: 0.05
   pt_ratio: 1.2
   sl_ratio: 1.0
-  # [OOF-CALIB-V2 2026-06-03] Limitar probabilidad maxima para Kelly para evitar sobreexposicion en colas
-  probability_cap: 0.62     # Cap maximo para evitar sizing desmedido
+  probability_cap: 0.62
 lightgbm:
-  optuna_metric: brier
+  optuna_metric: dsr
   optuna_search_space:
     bagging_fraction_max: 1.0
     bagging_fraction_min: 0.6
@@ -438,10 +407,10 @@ metalabeler:
   meta_sweep_step: 0.005
   meta_v2_dynamic_edge_pct: 0.05
   meta_v2_min_prob: 0.38
-  meta_v2_min_prob_bull_long: 0.55
+  meta_v2_min_prob_bull_long: 0.38
   meta_v2_threshold_mode: dynamic_is
-  meta_v2_thresh_bull_strong: 0.48
-  meta_v2_thresh_bull_unstable: 0.57
+  meta_v2_thresh_bull_strong: 0.38
+  meta_v2_thresh_bull_unstable: 0.45
   meta_v2_rolling_percentile: 0.6
   meta_v2_rolling_min_n: 100
   momentum_filter_threshold: -15.0
@@ -457,8 +426,9 @@ metalabeler:
   rf_n_estimators: 200
   seq_len: 48
   simulate_online_recalibration: false
-  skip_metalabeler: true
+  skip_metalabeler: false
   weight_decay_alpha: 0.5
+  guardian_max_overfit_gap: 0.25
 ood_guard:
   block_on_low_unique: true
   contamination: 0.005
@@ -483,27 +453,18 @@ position_sizer:
   max_orderbook_pct: 0.05
   target_vol_annual: 0.25
   spot_dust_threshold: 20.0
-  # [H5-ROLL-SR-GATE 2026-06-03] Kelly gate por Sharpe Rolling intra-ventana OOS
-  # MECANISMO VALIDO: rho(roll_SR, ret_t+1)=0.42 p<0.001 (validado, no overfitting)
-  # DESHABILITADO 2026-06-03: implementacion per-seed con deque que se reinicia por ventana
-  #   genera falsos positivos severos en ventanas buenas:
-  #   - W3: 54 trades gateados con WR=88.9% (trades BUENOS del ensemble eliminados)
-  #   - Causa: con solo 10-18 trades/ventana, la deque empieza vacia y cualquier racha
-  #     de 2 perdidas early en W3 dispara el gate sobre la recuperacion posterior.
-  #   - Requiere: >= 150 portfolio trades en historia estable (multi-window) para activar.
-  # RE-ACTIVAR cuando: ensemble tenga >= 5 ventanas OOS con >= 30 trades/ventana c/u.
-  roll_sr_gate_enabled: false      # DESHABILITADO (ver comentario arriba)
-  roll_sr_window: 10               # Ventana de trades para calcular rolling Sharpe
-  roll_sr_threshold: 0.0           # Kelly=0 si roll_SR < este umbral (0.0 = optimo validado)
+  roll_sr_gate_enabled: false
+  roll_sr_window: 10
+  roll_sr_threshold: 0.0
 project:
   description: Unified AI trading system merging Correlaciones + Luna v2
   name: Luna V1
   version: 1.0.0
 sop:
   annual_factor: 93.6
-  cost_pct: 0.0015
+  cost_pct: 0.0025
   cpcv_groups: 10
-  embargo_hours: 96
+  embargo_hours: 48
   purge_hours: 96
 stat:
   alpha_binomial: 0.2
@@ -536,17 +497,17 @@ stat:
   brier_margin_range: 0.03
   brier_margin_default: 0.025
 temporal_splits:
-  embargo_hours: 24
-  hmm_train_end: 2025-03-31
+  embargo_hours: 48
+  hmm_train_end: 2025-12-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-06-30
-  holdout_start: 2025-04-01
-  train_end: 2025-01-31
+  holdout_end: 2026-03-31
+  holdout_start: 2026-01-01
+  train_end: 2025-10-31
   train_start: '2017-08-17'
-  validation_end: 2025-03-31
-  validation_start: 2025-02-01
+  validation_end: 2025-12-31
+  validation_start: 2025-11-01
 wfb:
-  ensemble_consensus_threshold: 3
+  ensemble_consensus_threshold: 2
   consensus_bucket_hours: 2
   max_seeds_to_explore: 20
   min_seeds_to_approve: 3
@@ -555,17 +516,7 @@ wfb:
   soft_embargo_hours: 24.0
   active_seeds:
   - 42
-  - 100
-  - 777
-  - 1337
-  - 2025
-  - 29611
-  - 85199
-  - 43812
-  - 28559
-  - 76576
-  - 62815
-  - 60075
+  - 70295
   circuit_breaker:
     enabled: true
     min_seeds_adverse: 4
@@ -612,14 +563,15 @@ wfb:
     val_end: '2025-12-31'
     val_start: '2025-11-01'
 xgboost:
-  # [CALIBRATION-FIX 2026-06-04] Requerimiento isotónico incrementado a 50000 para forzar el uso del método 'sigmoid' (Platt Scaling) y evitar la compresión de probabilidades en muestras OOS pequeñas.
+  ev_tolerance_pct: 0.01
+  optuna_trials: 100
   calibration_min_samples_isotonic: 50000
   calibration_fallback_method: sigmoid
   embargo_dynamic_decay: true
   embargo_decay_atr_lookback: 24
   embargo_low_density_threshold: 20
-  embargo_hours: 96
-  embargo_min_hours: 96.0
+  embargo_hours: 48
+  embargo_min_hours: 48.0
   dynamic_barrier: true
   dynamic_horizon_min_h: 24
   event_sampling_hours: 12
@@ -629,37 +581,31 @@ xgboost:
   linear_decay_pt: false
   n_estimators_min_floor: 100
   min_viable_train_samples: 200
-  bull_gate_min_dsr: 0.2
+  bull_gate_min_dsr: 0.0
   n_purged_splits: 8
-  # Tabla de referencia CPCV — ETA de robustez por n_groups [ARCH-03]:
-  # n=6  -> ~200 combinaciones | RobustezBaja  | ETA ~12.4H  | prod minimo
-  # n=8  -> ~1820 combinaciones | RobustezMedia | ETA ~24H    | recomendado [ACTUAL]
-  # n=10 -> ~45045 combinaciones | RobustezAlta  | ETA ~72H    | solo holdout final
-  # BajaRobustez (n<6): no apto para produccion — max-PBO inflado
   optuna_metric: brier
   optuna_search_space:
     colsample_bytree_max: 0.85
     colsample_bytree_min: 0.4
     focal_loss_gamma_max: 4.0
     focal_loss_gamma_min: 0.5
-    gamma_max: 2.0
-    gamma_min: 0.05
-    learning_rate_max: 0.15
+    gamma_max: 1.0
+    gamma_min: 0.0
+    learning_rate_max: 0.05
     learning_rate_min: 0.01
     max_depth_max: 4
     max_depth_min: 2
-    min_child_weight_max: 5
-    min_child_weight_min: 3
-    n_estimators_max: 2000
+    min_child_weight_max: 20
+    min_child_weight_min: 5
+    n_estimators_max: 800
     n_estimators_min: 100
-    reg_alpha_max: 0.5
-    reg_alpha_min: 0.01
-    reg_lambda_max: 2.0
+    reg_alpha_max: 10.0
+    reg_alpha_min: 0.001
+    reg_lambda_max: 10.0
     reg_lambda_min: 0.01
     subsample_max: 0.85
     subsample_min: 0.5
-  optuna_seed: 42
-  optuna_trials: 100
+  optuna_seed: 3333
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -677,7 +623,7 @@ xgboost:
   sl_mult_max: 1.5
   sl_mult_min: 1.5
   target_recall: 0.7
-  tbm_min_return: 0.003
+  tbm_min_return: 0.005
   threshold_min_density_pct: 0.15
   threshold_min_trades: 20
   threshold_sweep_max: 0.72
@@ -685,11 +631,17 @@ xgboost:
   threshold_sweep_step: 0.005
   use_focal_loss: false
   use_regime_agents: true
-  vertical_barrier_hours: 96
+  vertical_barrier_hours: 48
   weight_decay_alpha: 0.5
   xgb_min_signals_count: 0
   xgb_min_signals_threshold: 0.45
   xgb_signal_threshold: 0.48
+  guardian_shap_max_monopoly: 0.5
+  guardian_ood_kl_threshold: 2.0
+  guardian_ood_max_failures: 2
+  guardian_tbm_min_class_pct: 0.05
+  guardian_min_p_iqr: 0.02
+  guardian_hmm_min_mi: 0.001
 dashboard_healthcheck:
   enabled: true
   base_url: http://localhost:5050
@@ -713,18 +665,10 @@ dashboard_healthcheck:
     required_fields:
     - status
     allow_standby: true
-
-# ─── SHAP Feature Auditor ─────────────────────────────────────────────────────
-# Mide empiricamente si las features forzadas por cuota/boost del SFI
-# aportan valor real o son slots desperdiciados.
-# [SHAP-AUDIT-01 2026-06-03]
 shap_audit:
   enabled: true
-  min_importance_threshold: 0.02   # FI normalizada minima para considerarse "activa"
-                                    # < 2% en una ventana = no esta contribuyendo
-  consecutive_windows_alert: 3     # N ventanas consecutivas bajo umbral → WARNING
-  consecutive_windows_remove: 5    # N ventanas consecutivas bajo umbral → CRITICAL
-                                    # (candidato a eliminar de la whitelist)
-  importance_types:                 # tipos de FI a trackear (gain es el mas informativo)
+  min_importance_threshold: 0.02
+  consecutive_windows_alert: 3
+  consecutive_windows_remove: 5
+  importance_types:
   - gain
-

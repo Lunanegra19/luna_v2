@@ -373,14 +373,8 @@ class LunaTearSheet:
         Muestra para cada estado: barras horizontales Wins (verde) / Losses (rojo),
         Win Rate anotado, y cobertura del régimen en % del período OOS.
         """
-        hmm = self._load_hmm_regimes()
-        if hmm is None or len(hmm) == 0 or len(trades_df) == 0:
+        if len(trades_df) == 0:
             ax.set_axis_off()
-            ax.text(0.5, 0.5, "HMM regimes no disponibles",
-                    ha="center", va="center", color=_GRAY, fontsize=11,
-                    transform=ax.transAxes)
-            ax.set_title("Régimen HMM — Distribución de Trades",
-                         fontsize=11, color=_GRAY, pad=6)
             return
 
         # --- Mapear régimen a cada trade ---
@@ -390,23 +384,38 @@ class LunaTearSheet:
         else:
             t_idx = t_idx.tz_convert("UTC")
 
-        # FIX-HMM-TEARSHEET-01: reindex() requiere índice MONOTÓNICO.
-        # hmm ya viene filtrado por [start, end] — asegurar orden.
-        hmm_sorted = hmm.sort_index()
-        mapped = hmm_sorted.reindex(t_idx, method="nearest", tolerance=pd.Timedelta("2H"))
-        cov = mapped.notna().mean()
-        if cov < 0.50:
-            logger.warning(
-                "HMM regime map: cobertura baja (%.0f%%). "
-                "trades rango=%s→%s | HMM parquet=%s→%s | "
-                "Verificar timezone y rango de hmm_regime_labels.parquet.",
-                cov * 100,
-                t_idx.min().date() if len(t_idx) > 0 else "N/A",
-                t_idx.max().date() if len(t_idx) > 0 else "N/A",
-                hmm_sorted.index.min().date(), hmm_sorted.index.max().date(),
-            )
         df = trades_df.copy()
-        df["_regime"] = mapped.values
+        
+        # [FIX-TEARSHEET-HMM-02] Priorizar columna hmm_regime validada
+        if "hmm_regime" in df.columns:
+            df["_regime"] = df["hmm_regime"].astype(str)
+            hmm = self._load_hmm_regimes()
+            hmm_sorted = hmm.sort_index() if hmm is not None and len(hmm) > 0 else None
+        else:
+            hmm = self._load_hmm_regimes()
+            if hmm is None or len(hmm) == 0:
+                ax.set_axis_off()
+                ax.text(0.5, 0.5, "HMM regimes no disponibles",
+                        ha="center", va="center", color=_GRAY, fontsize=11,
+                        transform=ax.transAxes)
+                ax.set_title("Régimen HMM — Distribución de Trades",
+                             fontsize=11, color=_GRAY, pad=6)
+                return
+
+            hmm_sorted = hmm.sort_index()
+            mapped = hmm_sorted.reindex(t_idx, method="nearest", tolerance=pd.Timedelta("2H"))
+            cov = mapped.notna().mean()
+            if cov < 0.50:
+                logger.warning(
+                    "HMM regime map: cobertura baja (%.0f%%). "
+                    "trades rango=%s→%s | HMM parquet=%s→%s | "
+                    "Verificar timezone y rango de hmm_regime_labels.parquet.",
+                    cov * 100,
+                    t_idx.min().date() if len(t_idx) > 0 else "N/A",
+                    t_idx.max().date() if len(t_idx) > 0 else "N/A",
+                    hmm_sorted.index.min().date(), hmm_sorted.index.max().date(),
+                )
+            df["_regime"] = mapped.values
 
 
         # Orden de estados (de mejor a peor WR esperado)

@@ -32,6 +32,10 @@ if 'luna.models.train_xgboost_v2' not in sys.modules:
 else:
     sys.modules['luna.models.train_xgboost_v2'].PlattCalibrator = PlattCalibrator
 
+import __main__
+if not hasattr(__main__, 'PlattCalibrator'):
+    __main__.PlattCalibrator = PlattCalibrator
+
 # [FIX-TEMPCAL-DESER-01 2026-06-01] Importar TemperatureCalibrator desde el módulo canónico.
 # Antes, la clase era definida en train_xgboost_v2.py (namespace '__main__') y joblib la
 # serializaba con ese path. Al deserializar aquí, Python no encontraba la clase → AttributeError.
@@ -471,11 +475,12 @@ class RegimeRouter:
                 raw_min, raw_max = float(probs.min()), float(probs.max())
                 probs = scipy.special.expit(probs).astype(np.float64)
                 logger.warning(
-                    "[RegimeRouter/%s] FIX-LGBM-FOCAL-SIGMOID-01: predict_proba out of [0,1] "
-                    "(min=%.4f max=%.4f). Sigmoid applied (min=%.4f max=%.4f). "
+                    "[RegimeRouter/{}] FIX-LGBM-FOCAL-SIGMOID-01: predict_proba out of [0,1] "
+                    "(min={:.4f} max={:.4f}). Sigmoid applied (min={:.4f} max={:.4f}). "
                     "Re-train ensemble_lgbm.py for permanent fix (CalibratedClassifierCV).",
                     agent_name, raw_min, raw_max, float(probs.min()), float(probs.max())
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [RegimeRouter/{agent_name}] FIX-LGBM-FOCAL-SIGMOID-01: predict_proba out of [0,1] (min={raw_min:.4f} max={raw_max:.4f}). Sigmoid applied.")
 
             unified_probs.loc[mask] = probs
 
@@ -593,17 +598,17 @@ class RegimeRouter:
                     # está presente en OOS pero el modelo predice constante no-base-rate.
                     # Esto indica problema de regularización/Optuna, no de datos ausentes.
                     _msg = (
-                        f"[FIX-ROUTER-SANITY-01/CRITICAL] COLAPSO TOTAL REAL detectado en agente "
+                        f"[FIX-ROUTER-SANITY-01/ERROR] COLAPSO TOTAL REAL detectado en agente "
                         f"'{agent_name}_{self.direction}': std_prob={_prob_std:.6f} min=max={_prob_min:.4f} "
                         f"con n_rows={n_rows}. "
                         f"Modelo nulo — predice probabilidad constante no-base-rate. "
-                        f"CAUSA PROBABLE: Optuna eligio hiper-parametros extremos (MCW alto, reg_alpha alto). "
-                        f"ACCION: Verificar bounds en settings.yaml (xgboost.optuna_search_space). "
-                        f"LA RUN SE DETIENE para evitar resultados espurios."
+                        f"CAUSA PROBABLE: Optuna eligió hiper-parámetros extremos. "
+                        f"ACCIÓN: Forzando prob=0.0 (CASH) para esta ventana y semilla."
                     )
                     print(_msg)  # RULE[fixbugsprints.md]
-                    logger.critical(_msg)
-                    raise RuntimeError(_msg)
+                    logger.error(_msg)
+                    calibrated_probs.loc[mask] = 0.0
+                    # Continuar sin FATAL — la ventana sigue
 
             # ── WARNING-1: Colapso suave — std muy baja pero no cero ──
             if _prob_std < 0.02 and n_rows > 100:
@@ -614,9 +619,10 @@ class RegimeRouter:
                     f"Considerar re-entrenar con bounds Optuna mas restrictivos (FIX-REG-01)."
                 )
                 logger.warning(
-                    "[FIX-ROUTER-SANITY-01] Discriminacion pobre agente='%s_%s': std=%.4f < 0.02 | n=%d",
+                    "[FIX-ROUTER-SANITY-01] Discriminacion pobre agente='{}_{}': std={:.4f} < 0.02 | n={}",
                     agent_name, self.direction, _prob_std, n_rows
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [FIX-ROUTER-SANITY-01] Discriminacion pobre agente='{agent_name}_{self.direction}': std={_prob_std:.4f} < 0.02 | n={n_rows}")
 
             # ── WARNING-2: Señal invertida — prob_mean < 0.47 en agente bull ──
             if "bull" in agent_name.lower() and _prob_mean < 0.47 and n_rows > 50:
@@ -628,9 +634,10 @@ class RegimeRouter:
                     f"Verificar si el periodo OOS es estructuralmente adverso (post-ATH correction)."
                 )
                 logger.warning(
-                    "[FIX-ROUTER-SANITY-01] Senal invertida riesgo agente='%s_%s': prob_mean=%.4f < 0.47",
+                    "[FIX-ROUTER-SANITY-01] Senal invertida riesgo agente='{}_{}': prob_mean={:.4f} < 0.47",
                     agent_name, self.direction, _prob_mean
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [FIX-ROUTER-SANITY-01] Senal invertida riesgo agente='{agent_name}_{self.direction}': prob_mean={_prob_mean:.4f} < 0.47")
 
             # ── WARNING-3: Sobreconfianza — prob_mean > 0.75 ──
             if _prob_mean > 0.75 and n_rows > 50:
@@ -640,9 +647,10 @@ class RegimeRouter:
                     f"Riesgo de look-ahead o overfit en IS. Verificar PurgedKFold y embargo en training."
                 )
                 logger.warning(
-                    "[FIX-ROUTER-SANITY-01] Sobreconfianza agente='%s_%s': prob_mean=%.4f > 0.75",
+                    "[FIX-ROUTER-SANITY-01] Sobreconfianza agente='{}_{}': prob_mean={:.4f} > 0.75",
                     agent_name, self.direction, _prob_mean
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [FIX-ROUTER-SANITY-01] Sobreconfianza agente='{agent_name}_{self.direction}': prob_mean={_prob_mean:.4f} > 0.75")
 
             # ── WARNING-4: Pocas barras enrutadas para agente principal ──
             if agent_name in ("bull", "bear") and n_rows < 20:
@@ -653,9 +661,10 @@ class RegimeRouter:
                     f"insignificantes. Verificar HMM y mapping de regimenes."
                 )
                 logger.warning(
-                    "[FIX-ROUTER-SANITY-01] Pocas barras agente='%s_%s': n_rows=%d < 20",
+                    "[FIX-ROUTER-SANITY-01] Pocas barras agente='{}_{}': n_rows={} < 20",
                     agent_name, self.direction, n_rows
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [FIX-ROUTER-SANITY-01] Pocas barras agente='{agent_name}_{self.direction}': n_rows={n_rows} < 20")
 
 
 

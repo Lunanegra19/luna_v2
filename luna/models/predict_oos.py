@@ -112,18 +112,18 @@ HMM_TBM_PARAMS = {
     "3_BEAR_CRASH":      {"sl": 1.5, "tp": 1.5},
 }
 HMM_HORIZON_MAP = {
-    "1_VOLATILE_BULL":   240,
-    # [FIX-TBM-BULLGRIND-01 2026-06-02] Horizonte 120H para BULL_GRIND (menor que BULL_TREND por menor momentum)
-    "1_BULL_GRIND":      120,
-    "1_BULL_TREND":      168,
-    "2_CALM_RANGE":      96,
-    "2_VOLATILE_RANGE":  120,
-    # [CRASH-FIX-TBM 2026-05-30] 3_CALM_BEAR: horizonte intermedio entre VOLATILE_RANGE y BEAR_CRASH
-    "3_CALM_BEAR":       144,
-    "3_BEAR_CRASH":      168,
+    # [CAPA-4-ARQUITECTURA Camino B] Reducción agresiva de la Barrera Vertical (VB)
+    # Evita trades zombies con retorno negativo sistemático pasadas 48H.
+    "1_VOLATILE_BULL":   48,
+    "1_BULL_GRIND":      48,
+    "1_BULL_TREND":      48,
+    "2_CALM_RANGE":      24,
+    "2_VOLATILE_RANGE":  24,
+    "3_CALM_BEAR":       24,
+    "3_BEAR_CRASH":      24,
 }
 _HMM_TBM_FALLBACK = {"sl": 0.8, "tp": 1.5}
-_HMM_HORIZON_FALLBACK = 168
+_HMM_HORIZON_FALLBACK = 48
 
 # --- RESOLVEDORES ROBUSTOS CONTRA SILENT REGIME FALLBACK ---
 # [BUG-FIX-HMM-RESOLVER] (2026-05-20): Permite mapear variantes semánticas dinámicas
@@ -601,10 +601,11 @@ class OOSTradesGenerator:
                 if _hmm_reg_aligned.notna().mean() > 0.5:
                     df_oos["HMM_Regime"] = pd.to_numeric(_hmm_reg_aligned, errors="coerce").fillna(0.0)
                     logger.info(
-                        "  [FIX-HMM-OOS-PROPAGATION] HMM_Regime propagado: cov=%.0f%% dtype=%s",
+                        "  [FIX-HMM-OOS-PROPAGATION] HMM_Regime propagado: cov={:.0f}% dtype={}",
                         df_oos["HMM_Regime"].notna().mean() * 100,
                         df_oos["HMM_Regime"].dtype,
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] HMM_Regime propagado: cov={df_oos['HMM_Regime'].notna().mean() * 100:.0f}% dtype={df_oos['HMM_Regime'].dtype}")
                 else:
                     df_oos["HMM_Regime"] = 0.0
                     logger.warning("  [FIX-HMM-OOS-PROPAGATION] HMM_Regime sin cobertura en drift -- fallback 0.0")
@@ -620,10 +621,11 @@ class OOSTradesGenerator:
                 if _hmm_sem_aligned.notna().mean() > 0.5:
                     df_oos["HMM_Semantic"] = _hmm_sem_aligned
                     logger.info(
-                        "  [FIX-HMM-OOS-PROPAGATION-SEMANTIC] HMM_Semantic propagado: cov=%.0f%% dtype=%s",
+                        "  [FIX-HMM-OOS-PROPAGATION-SEMANTIC] HMM_Semantic propagado: cov={:.0f}% dtype={}",
                         df_oos["HMM_Semantic"].notna().mean() * 100,
                         df_oos["HMM_Semantic"].dtype,
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] HMM_Semantic propagado: cov={df_oos['HMM_Semantic'].notna().mean() * 100:.0f}% dtype={df_oos['HMM_Semantic'].dtype}")
                 else:
                     df_oos["HMM_Semantic"] = "UNKNOWN" # Fallback si no hay cobertura
                     logger.warning("  [FIX-HMM-OOS-PROPAGATION-SEMANTIC] HMM_Semantic sin cobertura en drift -- fallback 'UNKNOWN'")
@@ -634,10 +636,11 @@ class OOSTradesGenerator:
                     _hmm_ref_conv = _HMM_SEM_CONV.load(self.models_dir)
                     df_oos["HMM_Semantic"] = df_oos["HMM_Regime"].map(_hmm_ref_conv.state_map).fillna("UNKNOWN")
                     logger.info(
-                        "  [FIX-HMM-OOS-PROPAGATION-SEMANTIC] HMM_Semantic creado desde HMM_Regime numérico: cov=%.0f%% dtype=%s",
+                        "  [FIX-HMM-OOS-PROPAGATION-SEMANTIC] HMM_Semantic creado desde HMM_Regime numérico: cov={:.0f}% dtype={}",
                         df_oos["HMM_Semantic"].notna().mean() * 100,
                         df_oos["HMM_Semantic"].dtype,
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] HMM_Semantic creado desde HMM_Regime numérico: cov={df_oos['HMM_Semantic'].notna().mean() * 100:.0f}% dtype={df_oos['HMM_Semantic'].dtype}")
                 except Exception as _e_sem_conv:
                     df_oos["HMM_Semantic"] = "UNKNOWN"
                     logger.warning(f"  [FIX-HMM-OOS-PROPAGATION-SEMANTIC] Fallback 'UNKNOWN' al crear HMM_Semantic: {_e_sem_conv}")
@@ -932,10 +935,11 @@ class OOSTradesGenerator:
                     _psi_kelly_penalty = _drift_result.get("kelly_penalty", 1.0)
                     if _psi_kelly_penalty < 1.0:
                         logger.warning(
-                            "  [V2-P3-DRIFT] Kelly penalty=%.0f%% activo: %d features en drift CRÍTICO. "
+                            "  [V2-P3-DRIFT] Kelly penalty={:.0f}% activo: {} features en drift CRÍTICO. "
                             "max_position se reduce proporcionalmente en todos los trades.",
                             _psi_kelly_penalty * 100, _drift_result.get("n_drifted", 0)
                         )
+                        print(f"[BUG-FIX-LOG 2026-06-05] Kelly penalty={_psi_kelly_penalty * 100:.0f}% activo: {_drift_result.get('n_drifted', 0)} features en drift CRÍTICO.")
                 else:
                     logger.info("  [V2-P3-DRIFT] Sin features comunes para PSI — omitiendo drift monitor.")
             else:

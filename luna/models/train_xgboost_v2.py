@@ -690,7 +690,8 @@ class XGBoostTrainer:
                 else:
                     logger.debug("[TBM-REGIME-01] regime_tbm_profiles no configurado → TBM global activo")
             except Exception as _e_tbm_regime:
-                logger.warning("[TBM-REGIME-01] Error leyendo perfil régimen: %s → usando global", _e_tbm_regime)
+                logger.warning("[TBM-REGIME-01] Error leyendo perfil régimen: {} → usando global", _e_tbm_regime)
+                print(f"[BUG-FIX-LOG 2026-06-05] Error leyendo perfil régimen: {_e_tbm_regime} → usando global")
 
         # FIX-TBM-DYNAMIC-01: dynamic_barrier y event_sampling_hours configurables.
         # dynamic_barrier=True usa horizonte ATR adaptativo (Mejora 4 implementada
@@ -1396,6 +1397,7 @@ class XGBoostTrainer:
         _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_embargo_gap)
 
         _is_scores = []
+        _proba_is_std = []  # [FIX-PROB-CLUSTERING]
         fold_sharpes = []
         test_lengths = []
         best_iters = []
@@ -1426,6 +1428,7 @@ class XGBoostTrainer:
                 _clf_is.get_booster().set_param({'objective': 'binary:logistic'})
             
             _proba_is = _clf_is.predict_proba(self.X.iloc[_val_i])[:, 1]
+            _proba_is_std.append(np.std(_proba_is))  # [FIX-PROB-CLUSTERING]
             _y_val = self.y.iloc[_val_i].values
             
             # Calcular mÃ©trica principal
@@ -1461,15 +1464,22 @@ class XGBoostTrainer:
                 test_lengths.append(len(_val_i))
             else:
                 _rets_te = self.close_rets.iloc[_val_i].values
-                strat_rets = _preds_bin * (_rets_te - COST_PCT)
-                n_obs_clean = len(strat_rets[~np.isnan(strat_rets)])
-                mean_ret = np.mean(strat_rets)
-                std_ret  = np.std(strat_rets) or 1e-6
-                # [FIX-MATH-OPTUNA-02]: Anualizar con constante (8760) en lugar del fold_length
-                # para evitar inflar el Sharpe Ratio en folds más largos (y distorsionar Optuna).
-                sharpe = (mean_ret / std_ret) * np.sqrt(365 * 24)
-                fold_sharpes.append(sharpe)
-                test_lengths.append(len(_val_i))
+                # [FIX-MATH-OPTUNA-03 2026-06-07] Calcular Sharpe SOLO sobre trades reales, no sobre ceros
+                trade_rets = _rets_te[_preds_bin == 1.0] - COST_PCT
+                trade_rets_clean = trade_rets[~np.isnan(trade_rets)]
+                
+                # Exigir un mínimo de 3 trades por fold para evitar varianza cero o DSR distorsionado
+                if len(trade_rets_clean) < 3 or np.std(trade_rets_clean) < 1e-8:
+                    fold_sharpes.append(0.0)
+                    test_lengths.append(len(_val_i))
+                else:
+                    mean_ret = np.mean(trade_rets_clean)
+                    std_ret  = np.std(trade_rets_clean)
+                    # No multiplicamos por sqrt(365*24) aquí: el test_lengths (n_trades) actuará
+                    # como tamaño de muestra t en _compute_dsr (Bailey). Anualizar aquí distorsiona el T-Stat.
+                    sharpe = mean_ret / std_ret
+                    fold_sharpes.append(sharpe)
+                    test_lengths.append(len(trade_rets_clean))  # N = número de apuestas (trades) reales
 
             # Reportar a Optuna para pruning
             # MedianPruner abortarÃ¡ trials ineficientes ahorrando 50% de cÃ³mputo extra.
@@ -1496,6 +1506,12 @@ class XGBoostTrainer:
         # Al finalizar los 5 folds temporales, calculamos telemetrÃ­a global
         _metric_val = float(np.mean(_is_scores)) if _is_scores else 1.0
         
+        # [FIX-PROB-CLUSTERING] Detectar colapso de conviccion (asfixia del arbol)
+        _mean_std = float(np.mean(_proba_is_std)) if _proba_is_std else 0.0
+        _prob_clustering_penalty = False
+        if _mean_std < 0.01:
+            _prob_clustering_penalty = True
+        
         _n_trials_local = max(2, trial.number + 1)
         _dsr_telemetry = self._compute_dsr(fold_sharpes, test_lengths=test_lengths, n_trials=_n_trials_local)
 
@@ -1513,11 +1529,19 @@ class XGBoostTrainer:
             # [FIX-MATH-OPTUNA-03]: dsr_safe ya esta en escala [0.0, 1.0]. Dividirlo por 100.0
             # aniquilaba matematicamente la penalizacion sobre Brier/Logloss.
             _composite_val = (0.7 * _metric_val) - (0.3 * _dsr_safe)
-            logger.debug(
-                f"[V2-FIX-1] {_optuna_metric.upper()} IS={_metric_val:.4f} -> Comp={_composite_val:.4f} (splits={_n_splits_is}, gap={_embargo_gap}h) | {_telemetry_str}"
-            )
+            
+            # [FIX-PROB-CLUSTERING] Castigo letal si Optuna hizo trampa
+            if _prob_clustering_penalty:
+                _composite_val = 1.0
+                logger.debug(f"[V2-FIX-1] Penalizacion de Clustering Activa: STD={_mean_std:.4f}. Comp forzado a 1.0")
+            else:
+                logger.debug(
+                    f"[V2-FIX-1] {_optuna_metric.upper()} IS={_metric_val:.4f} -> Comp={_composite_val:.4f} (splits={_n_splits_is}, gap={_embargo_gap}h) | {_telemetry_str}"
+                )
         else:
             _composite_val = _dsr_safe
+            if _prob_clustering_penalty:
+                _composite_val = -1.0 # Castigo en maximizacion
             logger.debug(f"[V2-FIX-1] DSR IS={_composite_val:.4f} (splits={_n_splits_is}, gap={_embargo_gap}h) | {_telemetry_str}")
 
         trial.set_user_attr('naive_is', float(np.mean(_naive_scores)) if _naive_scores else 0.50)
@@ -1554,13 +1578,15 @@ class XGBoostTrainer:
                 if params:
                     warmstart.append(params)
                     logger.info(
-                        "[IDEA-E] WarmStart: cargados params de W%d/%s: n_est=%s lr=%s depth=%s",
+                        "[IDEA-E] WarmStart: cargados params de W{}/{}: n_est={} lr={} depth={}",
                         w_idx, self.regime_name,
                         params.get("n_estimators"), params.get("learning_rate"),
                         params.get("max_depth")
                     )
+                    print(f"[BUG-FIX-LOG 2026-06-05] WarmStart: cargados params de W{w_idx}/{self.regime_name}: n_est={params.get('n_estimators')} lr={params.get('learning_rate')} depth={params.get('max_depth')}")
             except Exception as _e_ws:
-                logger.debug("[IDEA-E] WarmStart: no se pudo leer %s: %s", sig_path.name, _e_ws)
+                logger.debug("[IDEA-E] WarmStart: no se pudo leer {}: {}", sig_path.name, _e_ws)
+                print(f"[BUG-FIX-LOG 2026-06-05] WarmStart: no se pudo leer {sig_path.name}: {_e_ws}")
         return warmstart
 
 
@@ -1744,7 +1770,25 @@ class XGBoostTrainer:
 
         
         self.best_params = self.study.best_params
-        logger.success(f"Tuning completado! Mejor DSR OOS estimado: {self.study.best_value:.4f}")
+        
+        # [FAIL-FAST] Validar colapso matemático total (Asfixia del árbol)
+        if hasattr(self.study, "best_value"):
+            _best_val = float(self.study.best_value)
+            _metric = _optuna_metric_dir
+            if _metric == 'dsr' and _best_val <= 0.0000:
+                logger.error(f"[FAIL-FAST] Optuna colapsado: Mejor DSR OOS = {_best_val:.4f}. Modelo estéril. Abortando run.")
+                import sys
+                sys.exit(3)
+            # En Brier, un score superior a 0.25 (random guessing en binario balanceado)
+            # o igual al naive prior, indica que no aprendió. Pero para ser conservadores
+            # con el Fail-Fast, abortamos si TODOS los trials fueron PRUNED.
+            pruned_trials = [t for t in self.study.trials if t.state.name == "PRUNED"]
+            if len(pruned_trials) == len(self.study.trials) and len(self.study.trials) > 0:
+                logger.error("[FAIL-FAST] Optuna colapsado: TODOS los trials fueron podados. Asfixia por parámetros.")
+                import sys
+                sys.exit(3)
+
+        logger.success(f"Tuning completado! Mejor {_optuna_metric_dir} OOS estimado: {self.study.best_value:.4f}")
         logger.info(f"Mejores params: {self.best_params}")
         
     def _calibrate_threshold(self) -> float:
@@ -1979,12 +2023,14 @@ class XGBoostTrainer:
                             _pt_c = float(getattr(_prof, 'pt_mult_min', _pt_c))
                             _sl_c = float(getattr(_prof, 'sl_mult_min', _sl_c))
                             logger.debug(
-                                "[FORENSIC-FIX] Calibrator TBM regime '%s' → pt=%.2fx sl=%.2fx",
+                                "[FORENSIC-FIX] Calibrator TBM regime '{}' → pt={:.2f}x sl={:.2f}x",
                                 _pk, _pt_c, _sl_c
                             )
+                            print(f"[BUG-FIX-LOG 2026-06-05] Calibrator TBM regime '{_pk}' -> pt={_pt_c:.2f}x sl={_sl_c:.2f}x")
                             break
             except Exception as _e_regime_cal:
-                logger.debug("[FORENSIC-FIX] No se pudo leer regime_tbm_profiles en calibrador: %s", _e_regime_cal)
+                logger.debug("[FORENSIC-FIX] No se pudo leer regime_tbm_profiles en calibrador: {}", _e_regime_cal)
+                print(f"[BUG-FIX-LOG 2026-06-05] No se pudo leer regime_tbm_profiles en calibrador: {_e_regime_cal}")
             _vbh_c = int(getattr(cal_cfg, 'vertical_barrier_hours', 96))
             # BUG-XGB-02 FIX (2026-04-06): leer tbm_min_return desde settings en lugar de
             # hardcode 0.005. En training se usa 0.003 (tbm_min_return de settings.yaml).
@@ -1994,9 +2040,10 @@ class XGBoostTrainer:
             _lin_decay_c = bool(getattr(cal_cfg, 'linear_decay_pt', False))
             _pt_decay_frac_c = float(getattr(cal_cfg, 'pt_decay_fraction', 0.75))
             logger.debug(
-                "[BUG-XGB-02] Calibración TBM: min_return=%.4f (de settings, consistente con training).",
+                "[BUG-XGB-02] Calibración TBM: min_return={:.4f} (de settings, consistente con training).",
                 _tbm_min_c
             )
+            print(f"[BUG-FIX-LOG 2026-06-05] Calibración TBM: min_return={_tbm_min_c:.4f}")
 
             _tbm_val = _atb(
                 price_series=df_val["close"],
@@ -2053,16 +2100,18 @@ class XGBoostTrainer:
             if abs(t_min_eff - t_min) > 0.001 or abs(t_max_eff - t_max) > 0.001:
                 logger.info(
                     "[FIX-SWEEP-ADAPTIVE-01] Rango adaptado desde distribucion real del modelo: "
-                    "[%.3f, %.3f] cfg -> [%.3f, %.3f] efectivo "
-                    "(P5=%.3f, P50=%.3f, P99=%.3f)",
+                    "[{:.3f}, {:.3f}] cfg -> [{:.3f}, {:.3f}] efectivo "
+                    "(P5={:.3f}, P50={:.3f}, P99={:.3f})",
                     t_min, t_max, t_min_eff, t_max_eff,
                     _p5_probs, _p50_probs, _p99_probs
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] Rango adaptado: [{t_min:.3f}, {t_max:.3f}] cfg -> [{t_min_eff:.3f}, {t_max_eff:.3f}] efectivo (P5={_p5_probs:.3f}, P50={_p50_probs:.3f}, P99={_p99_probs:.3f})")
             else:
                 logger.debug(
-                    "[FIX-SWEEP-ADAPTIVE-01] Rango cfg coincide con distribucion (P5=%.3f P99=%.3f) — sin ajuste.",
+                    "[FIX-SWEEP-ADAPTIVE-01] Rango cfg coincide con distribucion (P5={:.3f} P99={:.3f}) — sin ajuste.",
                     _p5_probs, _p99_probs
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] Rango cfg coincide con distribucion (P5={_p5_probs:.3f} P99={_p99_probs:.3f}) — sin ajuste.")
 
             thresholds = np.arange(t_min_eff, t_max_eff + t_step / 2, t_step)
 
@@ -2124,6 +2173,7 @@ class XGBoostTrainer:
                 try:
                     from config.settings import cfg as _cfg_ev
                     _ev_tol = float(_cfg_ev.xgboost.ev_tolerance_pct)
+                    print(f"[BUG-FIX-LOG 2026-06-05] ev_tolerance_pct cargada exitosamente: {_ev_tol:.4f}")
                 except Exception as e_ev:
                     raise RuntimeError(f"Falta ev_tolerance_pct en settings.yaml (SOP No-Fallback): {e_ev}")
                 ev_adjusted = ev + _ev_tol
@@ -2155,12 +2205,13 @@ class XGBoostTrainer:
             best_threshold = fallback_t
         else:
             logger.success(
-                "[Calibrate] Threshold Global Ã³ptimo=%.2f | EV=%.5f | wr=%.1f%% | "
-                "%d combinaciones evaluadas",
+                "[Calibrate] Threshold Global óptimo={:.2f} | EV={:.5f} | wr={:.1f}% | "
+                "{} combinaciones evaluadas",
                 best_threshold, best_ev,
                 next((r["wr"] for r in calibration_log if abs(r["threshold"] - best_threshold) < 1e-6), 0) * 100,
                 len(calibration_log)
             )
+            print(f"[BUG-FIX-LOG 2026-06-05] [Calibrate] Threshold Global óptimo={best_threshold:.2f} | EV={best_ev:.5f} | wr={next((r['wr'] for r in calibration_log if abs(r['threshold'] - best_threshold) < 1e-6), 0) * 100:.1f}% | {len(calibration_log)} combinaciones evaluadas")
 
         # 2. Calibración I4: Threshold por Régimen HMM
         self._threshold_per_regime = {}
@@ -2235,10 +2286,11 @@ class XGBoostTrainer:
                 f"Señal OOS = base_rate → 0 trades (correcto)."
             )
             logger.warning(
-                "[H-RANGE-01-FIX] GATE PRE-FIT abortado: agente=%s n_train=%d < min_viable=%d "
+                "[H-RANGE-01-FIX] GATE PRE-FIT abortado: agente={} n_train={} < min_viable={} "
                 "→ MODEL COLLAPSE deterministico. Retornando modelo nulo.",
                 self.regime_name, _n_train_gate, _min_viable
             )
+            print(f"[BUG-FIX-LOG 2026-06-05] [H-RANGE-01-FIX] GATE PRE-FIT abortado: agente={self.regime_name} n_train={_n_train_gate} < min_viable={_min_viable} → MODEL COLLAPSE deterministico.")
             # Configurar modelo nulo para que el pipeline downstream no falle
             self.final_model = None
             self.threshold = 0.56  # base_rate + margen estandar
@@ -2327,6 +2379,66 @@ class XGBoostTrainer:
 
         # ARCH-02: decaimiento exponencial configurable — ver _compute_sample_weights
         sw_full = self._compute_sample_weights(self.X.index)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # [GUARDIAN-09] Target Leakage Guardian (Look-Ahead Bias)
+        # ══════════════════════════════════════════════════════════════════════
+        try:
+            from config.settings import cfg as _cfg_g
+            _corr_leak_thresh = float(_cfg_g.debug.corr_leakage_threshold)
+        except Exception as e:
+            raise RuntimeError(f"[CRITICAL-SOP] Falta debug.corr_leakage_threshold en settings.yaml: {e}")
+            
+        try:
+            if not self.X.empty and not self.y.empty:
+                _corrs = self.X.corrwith(self.y).abs()
+                _max_corr = _corrs.max()
+                if pd.notna(_max_corr) and _max_corr > _corr_leak_thresh:
+                    _leaky_feat = _corrs.idxmax()
+                    logger.error(
+                        f"[GUARDIAN-09] Target Leakage DETECTADO: La feature '{_leaky_feat}' "
+                        f"tiene una correlación de {_max_corr:.4f} (> {_corr_leak_thresh:.4f}) con el Target. "
+                        f"Esto es un flagrante Look-Ahead Bias. Abortando."
+                    )
+                    print(f"[GUARDIAN-09] FATAL: Leakage en '{_leaky_feat}' (corr={_max_corr:.4f}). Abortando.")
+                    import sys
+                    sys.exit(3)
+        except SystemExit:
+            raise
+        except Exception as _e_g9:
+            logger.warning(f"[GUARDIAN-09] Fallo al verificar Target Leakage: {_e_g9}")
+
+        # ══════════════════════════════════════════════════════════════════════
+        # [GUARDIAN-06] Target Imbalance (TBM) Guardian
+        # ══════════════════════════════════════════════════════════════════════
+        try:
+            from config.settings import cfg as _cfg_g
+            _tbm_min_class_pct = float(_cfg_g.xgboost.guardian_tbm_min_class_pct)
+            _hmm_min_mi = float(_cfg_g.xgboost.guardian_hmm_min_mi)
+        except Exception as e:
+            raise RuntimeError(f"[CRITICAL-SOP] Faltan params de G-06/G-08 en settings.yaml: {e}")
+            
+        try:
+            _y_mean = self.y.mean()
+            _minority_class_pct = min(_y_mean, 1 - _y_mean)
+            if _minority_class_pct < _tbm_min_class_pct:
+                logger.error(
+                    f"[GUARDIAN-06] Target Imbalance DETECTADO: Clase minoritaria es {_minority_class_pct:.2%} "
+                    f"(< {_tbm_min_class_pct:.2%}). Las barreras dinámicas (TBM) fallaron. Abortando."
+                )
+                print(f"[GUARDIAN-06] FATAL: TBM Degeneration. Clase minoritaria {_minority_class_pct:.2%} < {_tbm_min_class_pct:.2%}. Abortando.")
+                import sys
+                sys.exit(3)
+        except SystemExit:
+            raise
+        except Exception as _e_g6:
+            logger.warning(f"[GUARDIAN-06] Fallo al verificar TBM Imbalance: {_e_g6}")
+
+        # ══════════════════════════════════════════════════════════════════════
+        # [GUARDIAN-08] HMM Mutual Information Guardian (SOP R9)
+        # NOTA: Comprobado globalmente en hmm_regime.py. El cálculo local por agente es erróneo y se ha desactivado.
+        # ══════════════════════════════════════════════════════════════════════
+        pass
         logger.info(
             "[LOSS-TRACE-01] Iniciando fit: n_train={} | n_features={} | n_estimators={} | "
             "scale_pos_weight={:.3f} | use_focal_loss={}",
@@ -2371,6 +2483,34 @@ class XGBoostTrainer:
             logger.info(f"  {feat}: {imp:.4f}")
 
         # ══════════════════════════════════════════════════════════════════════
+        # [GUARDIAN-04] SHAP/Gini Monopolization (Agotamiento de Features)
+        # Si una variable copa > X% de la importancia, el modelo es extremadamente
+        # frágil y ciego al resto del Data Lake.
+        # ══════════════════════════════════════════════════════════════════════
+        try:
+            from config.settings import cfg as _cfg_g
+            _max_monopoly = float(_cfg_g.xgboost.guardian_shap_max_monopoly)
+        except Exception as e:
+            raise RuntimeError(f"[CRITICAL-SOP] Falta xgboost.guardian_shap_max_monopoly en settings.yaml: {e}")
+
+        try:
+            if len(importances) > 0:
+                _max_imp = float(importances.max())
+                _max_feat = importances.idxmax()
+                if _max_imp > _max_monopoly:
+                    logger.error(
+                        f"[GUARDIAN-04] SHAP Monopolization DETECTADO: '{_max_feat}' tiene "
+                        f"{_max_imp:.1%} de la importancia total (> {_max_monopoly:.1%}). Modelo frágil/ciego. Abortando."
+                    )
+                    print(f"[GUARDIAN-04] FATAL: Monopolio de feature '{_max_feat}' ({_max_imp:.1%}) > {_max_monopoly:.1%}. Abortando.")
+                    import sys
+                    sys.exit(3)
+        except SystemExit:
+            raise
+        except Exception as _e_g4:
+            logger.warning(f"[GUARDIAN-04] Fallo al verificar monopolización: {_e_g4}")
+
+        # ══════════════════════════════════════════════════════════════════════
         # [FIX-COLLAPSE-DETECT-01] Diagnóstico de Model Collapse post-fit (IS).
         # Detecta std_raw(IS) < 0.01 → modelo colapsa a probabilidad constante.
         # Esto es el precursor del colapso que genera 0 señales en OOS.
@@ -2394,24 +2534,27 @@ class XGBoostTrainer:
             )
             if _IS_COLLAPSE:
                 logger.error(
-                    "[FIX-COLLAPSE-DETECT-01] MODEL COLLAPSE en IS: agente=%s dir=%s "
-                    "std_IS=%.6f — el modelo produce prob constante=%.4f. "
+                    "[FIX-COLLAPSE-DETECT-01] MODEL COLLAPSE en IS: agente={} dir={} "
+                    "std_IS={:.6f} — el modelo produce prob constante={:.4f}. "
                     "Causa: regularización excesiva (gamma/min_child_weight muy alto) o "
                     "dataset IS sin variabilidad. "
-                    "universal_mode=%s | n_train=%d | n_features=%d. "
+                    "universal_mode={} | n_train={} | n_features={}. "
                     "ACCIÓN RECOMENDADA: aumentar n_estimators o reducir regularización.",
                     self.regime_name or "global", self.native_direction,
                     _std_is, _mean_is, _universal_active, len(self.X), len(self.features)
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [FIX-COLLAPSE-DETECT-01] MODEL COLLAPSE en IS: agente={self.regime_name or 'global'} dir={self.native_direction} std_IS={_std_is:.6f} — el modelo produce prob constante={_mean_is:.4f}.")
             else:
                 logger.info(
-                    "[FIX-COLLAPSE-DETECT-01] OK: std_IS=%.4f mean=%.4f range=[%.4f,%.4f] "
-                    "agente=%s dir=%s",
+                    "[FIX-COLLAPSE-DETECT-01] OK: std_IS={:.4f} mean={:.4f} range=[{:.4f},{:.4f}] "
+                    "agente={} dir={}",
                     _std_is, _mean_is, _min_is, _max_is,
                     self.regime_name or "global", self.native_direction
                 )
+                print(f"[BUG-FIX-LOG 2026-06-05] [FIX-COLLAPSE-DETECT-01] OK: std_IS={_std_is:.4f} mean={_mean_is:.4f} range=[{_min_is:.4f},{_max_is:.4f}]")
         except Exception as _e_cd01:
-            logger.warning("[FIX-COLLAPSE-DETECT-01] Diagnóstico fallido (no bloqueante): %s", _e_cd01)
+            logger.warning("[FIX-COLLAPSE-DETECT-01] Diagnóstico fallido (no bloqueante): {}", _e_cd01)
+            print(f"[BUG-FIX-LOG 2026-06-05] Diagnóstico de collapse fallido: {_e_cd01}")
         # ══════════════════════════════════════════════════════════════════════
 
         # ——— Overfit check: train AUC vs DSR OOS ———
@@ -2449,10 +2592,12 @@ class XGBoostTrainer:
                 self._stable_fi = sorted(set.intersection(*_fi_sets_g)) if _fi_sets_g else sorted(self._fi_gain_top20)
             else:
                 self._stable_fi = sorted(self._fi_gain_top20)
-            logger.info("[IDEA-G] FI calculadas: gain=%d weight=%d stable=%d",
+            logger.info("[IDEA-G] FI calculadas: gain={} weight={} stable={}",
                         len(self._fi_gain_top20), len(self._fi_weight_top20), len(self._stable_fi))
+            print(f"[BUG-FIX-LOG 2026-06-05] [IDEA-G] FI calculadas: gain={len(self._fi_gain_top20)} weight={len(self._fi_weight_top20)} stable={len(self._stable_fi)}")
         except Exception as _e_ig:
-            logger.warning("[IDEA-G] FI no calculadas: %s", _e_ig)
+            logger.warning("[IDEA-G] FI no calculadas: {}", _e_ig)
+            print(f"[BUG-FIX-LOG 2026-06-05] FI no calculadas: {_e_ig}")
             self._fi_gain_top20 = self._fi_weight_top20 = self._fi_cover_top20 = {}
             self._stable_fi = []
         # IDEA-A: calcular base_rate IS para brier_adaptive_gate
@@ -2634,9 +2779,10 @@ class XGBoostTrainer:
                 f"→ NULL_MODEL guardado en {_null_marker.name}. 0 señales OOS."
             )
             logger.warning(
-                "[H-RANGE-01-FIX] save_model: NULL_MODEL guardado agente=%s. 0 señales.",
+                "[H-RANGE-01-FIX] save_model: NULL_MODEL guardado agente={}. 0 señales.",
                 self.regime_name
             )
+            print(f"[BUG-FIX-LOG 2026-06-05] [H-RANGE-01-FIX] save_model: NULL_MODEL guardado agente={self.regime_name}. 0 señales.")
             return
         self.final_model.save_model(model_path)
         print(f"[FIX-ISOTONIC-CAL-01] save_model OK: {model_path.name} — iniciando calibracion isotonica")  # debug
@@ -2806,6 +2952,98 @@ class XGBoostTrainer:
                     else:
                         # Si es features_validation.parquet (already out-of-sample), usar predicciones directas
                         _p_raw = self.final_model.predict_proba(_X_val)[:, 1]
+                    # ══════════════════════════════════════════════════════════════════════
+                    # [GUARDIAN-07] Probability Clustering Guardian (Conviction)
+                    # ══════════════════════════════════════════════════════════════════════
+                    try:
+                        from config.settings import cfg as _cfg_g
+                        _min_iqr = float(_cfg_g.xgboost.guardian_min_p_iqr)
+                    except Exception as e:
+                        raise RuntimeError(f"[CRITICAL-SOP] Falta xgboost.guardian_min_p_iqr en settings.yaml: {e}")
+                    
+                    try:
+                        if len(_p_raw) >= 50:
+                            _p_p25 = np.percentile(_p_raw, 25)
+                            _p_p75 = np.percentile(_p_raw, 75)
+                            _iqr = _p_p75 - _p_p25
+                            if _iqr < _min_iqr:
+                                logger.error(
+                                    f"[GUARDIAN-07] Probability Clustering DETECTADO: IQR de predicciones es {_iqr:.4f} "
+                                    f"(< {_min_iqr:.4f}). El modelo perdió convicción y clusteriza en torno a la media. Abortando."
+                                )
+                                print(f"[GUARDIAN-07] FATAL: XGBoost perdió convicción (IQR={_iqr:.4f} < {_min_iqr:.4f}). Abortando.")
+                                import sys
+                                sys.exit(3)
+                    except SystemExit:
+                        raise
+                    except Exception as _e_g7:
+                        logger.warning(f"[GUARDIAN-07] Fallo al verificar Probability Clustering: {_e_g7}")
+
+                    # ══════════════════════════════════════════════════════════════════════
+                    # [GUARDIAN-01] Spearman Rank-Order Quintiles (Poder de Clasificación)
+                    # Si el Top 20% de predicciones de más alta confianza tiene peor Win Rate
+                    # que el Bottom 20%, la "confianza" es ruido y el modelo no ordena.
+                    # ══════════════════════════════════════════════════════════════════════
+                    try:
+                        if len(_p_raw) >= 50:
+                            _df_rank = pd.DataFrame({"p": _p_raw, "y": _y_val})
+                            _df_rank["quintile"] = pd.qcut(_df_rank["p"], 5, labels=False, duplicates='drop')
+                            _q_stats = _df_rank.groupby("quintile")["y"].mean()
+                            if len(_q_stats) > 1:
+                                _bot_q = _q_stats.index.min()
+                                _top_q = _q_stats.index.max()
+                                _top_wr = _q_stats[_top_q]
+                                _bot_wr = _q_stats[_bot_q]
+                                print(f"[GUARDIAN-01] Rank-Order Win Rates: Q{_bot_q} (Bottom)={_bot_wr:.1%} | Q{_top_q} (Top)={_top_wr:.1%}")
+                                if _top_wr <= _bot_wr and _top_wr < 0.50:
+                                    logger.error(
+                                        f"[GUARDIAN-01] Rank-Order FALLIDO: Top WR ({_top_wr:.1%}) <= Bottom WR ({_bot_wr:.1%}). "
+                                        f"El modelo no sabe ordenar trades (probabilidades aleatorias). Abortando."
+                                    )
+                                    print(f"[GUARDIAN-01] FATAL: Top WR ({_top_wr:.1%}) <= Bottom WR ({_bot_wr:.1%}). Abortando.")
+                                    import sys
+                                    sys.exit(3)
+                    except SystemExit:
+                        raise
+                    except Exception as _e_g1:
+                        logger.warning(f"[GUARDIAN-01] Fallo al calcular Rank-Order: {_e_g1}")
+
+                    # ══════════════════════════════════════════════════════════════════════
+                    # [GUARDIAN-05] Desintegración de Distribución (OOD Covariate Shift)
+                    # ══════════════════════════════════════════════════════════════════════
+                    try:
+                        from config.settings import cfg as _cfg_g
+                        _ood_kl_thresh = float(_cfg_g.xgboost.guardian_ood_kl_threshold)
+                        _ood_max_fails = int(_cfg_g.xgboost.guardian_ood_max_failures)
+                    except Exception as e:
+                        raise RuntimeError(f"[CRITICAL-SOP] Falta guardian_ood_kl_threshold/guardian_ood_max_failures en settings.yaml: {e}")
+
+                    try:
+                        if len(_X_val) >= 50 and len(self.X) >= 50:
+                            import scipy.stats as _stats
+                            _kl_failures = 0
+                            _importances = pd.Series(self.final_model.feature_importances_, index=self.X.columns)
+                            _top_feats_kl = _importances.sort_values(ascending=False).head(5).index
+                            for _f_kl in _top_feats_kl:
+                                _p_dist, _ = np.histogram(self.X[_f_kl].dropna(), bins=10, density=True)
+                                _q_dist, _ = np.histogram(_X_val[_f_kl].dropna(), bins=10, density=True)
+                                _p_dist = np.where(_p_dist == 0, 1e-6, _p_dist)
+                                _q_dist = np.where(_q_dist == 0, 1e-6, _q_dist)
+                                _kl_div = _stats.entropy(_p_dist, _q_dist)
+                                if _kl_div > _ood_kl_thresh:
+                                    _kl_failures += 1
+                            if _kl_failures >= _ood_max_fails:
+                                logger.error(
+                                    f"[GUARDIAN-05] Covariate Shift EXTREMO: {_kl_failures} de las 5 features "
+                                    f"top están OOD (KL > {_ood_kl_thresh}). El modelo no generalizará. Abortando."
+                                )
+                                print(f"[GUARDIAN-05] FATAL: OOD Explosion detectada. KL > {_ood_kl_thresh} en {_kl_failures}/5 features top. Abortando.")
+                                import sys
+                                sys.exit(3)
+                    except SystemExit:
+                        raise
+                    except Exception as _e_g5:
+                        logger.warning(f"[GUARDIAN-05] Fallo al verificar Covariate Shift: {_e_g5}")
 
                     # ── [LUNA-V2-CALIB] Parámetros de calibración desde settings ──
                     try:
@@ -2847,16 +3085,17 @@ class XGBoostTrainer:
 
                     if _MODEL_COLLAPSE:
                         # CASO A: colapso del modelo — ningún calibrador puede ayudar
-                        logger.warning(
-                            "[FIX-CALIB-TEMP-01] MODEL COLLAPSE agente={} dir={} | "
+                        logger.error(
+                            "[GUARDIAN-02] MODEL COLLAPSE agente={} dir={} | "
                             "std(p_raw)={:.2e} range={:.6f} — XGBoost produce probs sin varianza. "
                             "Causa típica: régimen ausente en val period (distribución OOD). "
-                            "Ningún calibrador puede crear señal inexistente. "
-                            "Raw fallback: threshold sweep encontrará EV≈0 → 0 trades (correcto).",
+                            "Ningún calibrador puede crear señal inexistente. Abortando.",
                             self.regime_name or "global", self.native_direction,
                             _std_raw, _range_raw
                         )
-                        _iso_ok = False
+                        print(f"[GUARDIAN-02] FATAL: Model Collapse pre-calibración. std={_std_raw:.2e}. Abortando.")
+                        import sys
+                        sys.exit(3)
                     else:
                         # CASO B+ : hay señal — intentar cascada de calibración
                         # [FIX-ISOTONIC-BLINDNESS-01] Nivel 1: PlattCalibrator incondicional
@@ -2950,17 +3189,16 @@ class XGBoostTrainer:
                                     print(f"[FIX-CALIB-TEMP-01] TemperatureCalibrator GUARDADO: {_iso_path.name}")
                                 else:
                                     # También colapsa — model collapse más sutil (el pre-check era limítrofe)
-                                    logger.warning(
-                                        "[FIX-CALIB-TEMP-01] Temperature Scaling L2 también colapsa | "
+                                    logger.error(
+                                        "[GUARDIAN-02] Temperature Scaling L2 también colapsa | "
                                         "agente={} dir={} T={:.4f} std_temp={:.2e}. "
-                                        "Señal insuficiente incluso con T-Scaling. Raw fallback final.",
+                                        "Señal insuficiente incluso con T-Scaling. Abortando.",
                                         self.regime_name or "global", self.native_direction,
                                         _temp_cal.temperature, _std_temp
                                     )
-                                    print(
-                                        f"[FIX-CALIB-TEMP-01] ⚠ L2 también colapsa std_temp={_std_temp:.2e} → Raw fallback final."
-                                    )
-                                    _iso_ok = False
+                                    print(f"[GUARDIAN-02] FATAL: L2 también colapsa std_temp={_std_temp:.2e} → Abortando.")
+                                    import sys
+                                    sys.exit(3)
 
                             except Exception as _e_temp:
                                 logger.warning(
