@@ -498,14 +498,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 48
-  hmm_train_end: 2025-12-31
+  hmm_train_end: 2025-09-30
   hmm_train_start: '2020-01-01'
-  holdout_end: 2026-03-31
-  holdout_start: 2026-01-01
-  train_end: 2025-10-31
+  holdout_end: 2025-12-31
+  holdout_start: 2025-10-01
+  train_end: 2025-07-31
   train_start: '2017-08-17'
-  validation_end: 2025-12-31
-  validation_start: 2025-11-01
+  validation_end: 2025-09-30
+  validation_start: 2025-08-01
 wfb:
   ensemble_consensus_threshold: 2
   consensus_bucket_hours: 2
@@ -516,7 +516,25 @@ wfb:
   soft_embargo_hours: 24.0
   active_seeds:
   - 42
-  - 70295
+  - 100
+  - 777
+  - 1337
+  - 2024
+  - 2025
+  - 2026
+  - 888
+  - 999
+  - 1111
+  - 2222
+  - 3333
+  - 4444
+  - 5555
+  - 6666
+  - 7777
+  - 8888
+  - 9999
+  - 12345
+  - 54321
   circuit_breaker:
     enabled: true
     min_seeds_adverse: 4
@@ -605,7 +623,7 @@ xgboost:
     reg_lambda_min: 0.01
     subsample_max: 0.85
     subsample_min: 0.5
-  optuna_seed: 8888
+  optuna_seed: 12345
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8

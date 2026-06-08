@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-08 05:59 UTC
+Timestamp: 2026-06-08 06:14 UTC
 Golden Rules: 15  |  Genetic Rules: 7
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """

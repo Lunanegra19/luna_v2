@@ -4,8 +4,11 @@
     "FundingRate": "bybit",
     "DVOL": "deribit",
     "LSR": "bybit",
-    "ETF_Flow": "yfinance"
+    "Top_LSR": "binance_futures",
+    "Taker_LSR": "binance_futures",
+    "ETF_Flow": "yfinance",
+    "Futures_Klines": "binance_futures"
   },
-  "ts": "2026-06-04 13:09:14.242439+00:00",
+  "ts": "2026-06-07 07:43:46.913411+00:00",
   "strategy": "bybit_first"
 }
