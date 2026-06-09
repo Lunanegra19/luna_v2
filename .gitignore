@@ -21,8 +21,6 @@ tools/dumps/
 *.txt
 
 # Archivos del orquestador y OS
-.gemini/
-.agents/
 .DS_Store
 Thumbs.db
 
