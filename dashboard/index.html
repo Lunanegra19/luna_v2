@@ -1082,7 +1082,7 @@
                                 <!-- Footer nota -->
                                 <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05);font-size:9px;color:#475569;line-height:1.6;">
                                     ⚠️ <strong style="color:#64748b;">Nota metodológica:</strong> Los trades SIM-2026 son señales retroactivas del ensamble de 12 seeds sobre datos OOS reales (features_live).
-                                    El HMM es re-inferido con el modelo de producción extendido. Las rentabilidades no incluyen comisiones (0.15% round-trip). Uso exclusivo de auditoría interna — no son resultados garantizados.
+                                    El HMM es re-inferido con el modelo de producción extendido. Las rentabilidades no incluyen comisiones (0.25% round-trip). Uso exclusivo de auditoría interna — no son resultados garantizados.
                                 </div>
                             </div>
                         </div>
@@ -1985,7 +1985,7 @@
                             <!-- BROKER LEVERAGE SWEEP -->
                             <div class="card glass-card">
                                 <h2 class="card-title">🚀 2. Apalancamiento en OKX (Spot Margin / Multi-Colateral)</h2>
-                                <p class="card-subtitle">Exposición apalancada regulada en España (CNMV/ESMA). Comisiones y deslizamiento realistas de SOP R6 (0.15% RT).</p>
+                                <p class="card-subtitle">Exposición apalancada regulada en España (CNMV/ESMA). Comisiones y deslizamiento realistas de SOP R6 (0.25% RT).</p>
                                 <table class="sweep-table">
                                     <thead>
                                         <tr>
@@ -2081,9 +2081,9 @@
                                         <label for="input-broker-preset" style="font-size: 10px; color: #64748b;">Seleccionar Perfil de Broker / Comisión:</label>
                                         <select id="input-broker-preset" class="console-text-input" style="padding: 6px 10px; width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #fff; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px;">
                                             <option value="okx-spot-maker">OKX Spot - Maker Standard (0.10% RT fee + 0.02% slippage)</option>
-                                            <option value="okx-spot-taker" selected>OKX Spot - Taker Standard (0.15% RT fee + 0.03% slippage)</option>
+                                            <option value="okx-spot-taker" selected>OKX Spot - Taker Standard (0.25% RT fee + 0.03% slippage)</option>
                                             <option value="okx-spot-vip">OKX Spot - VIP Margin Maker (0.06% RT fee + 0.01% slippage)</option>
-                                            <option value="luna-sop">Luna SOP Estándar (0.15% RT fijo)</option>
+                                            <option value="luna-sop">Luna SOP Estándar (0.25% RT fijo)</option>
                                             <option value="okx-spot-high">OKX Spot - High Taker Retail (0.30% RT fee + 0.05% slippage)</option>
                                             <option value="custom">Personalizado (Usa los deslizadores de abajo)</option>
                                         </select>
@@ -2093,7 +2093,7 @@
                                         <label for="input-broker-fee" style="font-size: 10px; color: #64748b;">Comisión Round-Trip (%) por Trade:</label>
                                         <div class="slider-container" style="display: flex; align-items: center; gap: 10px;">
                                             <input type="range" id="input-broker-fee" min="0" max="200" value="15" class="slider-bar" style="flex: 1; accent-color: #f59e0b;">
-                                            <span class="slider-value" id="val-broker-fee" style="min-width: 55px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff;">0.15%</span>
+                                            <span class="slider-value" id="val-broker-fee" style="min-width: 55px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff;">0.25%</span>
                                         </div>
                                     </div>
                                     
@@ -2144,7 +2144,7 @@
                                             <span id="sim-compliance-icon" style="font-size: 16px;">🟢</span>
                                             <div>
                                                 <span id="sim-compliance-title" style="font-size: 11px; font-weight: 700; color: #fff; display: block;">SOP R6: APTO (EFICIENTE)</span>
-                                                <span id="sim-compliance-desc" style="font-size: 9px; color: #94a3b8;">La fricción por trade no supera el 0.15% de salvaguarda.</span>
+                                                <span id="sim-compliance-desc" style="font-size: 9px; color: #94a3b8;">La fricción por trade no supera el 0.25% de salvaguarda.</span>
                                             </div>
                                         </div>
                                     </div>
@@ -2261,11 +2261,11 @@
                                         <span class="sop-rule-badge compliant" id="sop-badge-r6" style="font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);">CUMPLIDO</span>
                                     </div>
                                     <h3 class="sop-rule-title" style="font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 6px;">R6. Costos Realistas</h3>
-                                    <p class="sop-rule-desc" style="font-size: 11px; color: #64748b; line-height: 1.4;">Incluir costos de transacción realistas: mínimo 0.15% round-trip por trade (OKX Spot + deslizamiento).</p>
+                                    <p class="sop-rule-desc" style="font-size: 11px; color: #64748b; line-height: 1.4;">Incluir costos de transacción realistas: mínimo 0.25% round-trip por trade (OKX Spot + deslizamiento).</p>
                                 </div>
                                 <div class="sop-rule-telemetry mt-15 border-top-divider pt-10" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; display: flex; justify-content: space-between; font-size: 10px;">
                                     <span class="spec-lbl" style="color: #64748b;">Comisión Round-Trip:</span>
-                                    <span class="spec-val font-mono text-cyan" id="sop-val-r6" style="font-weight: 700;">0.15% (OK)</span>
+                                    <span class="spec-val font-mono text-cyan" id="sop-val-r6" style="font-weight: 700;">0.25% (OK)</span>
                                 </div>
                             </div>
 

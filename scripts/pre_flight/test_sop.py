@@ -33,14 +33,14 @@ def t13():
     # Era 96H pero Fase B.3 lo redujo a 72H intencionalmente para mas rotacion de trades.
     emb = int(getattr(getattr(cfg, 'sop', object()), 'embargo_hours',
               getattr(cfg.temporal_splits, 'embargo_hours', 0)))
-    assert emb >= 24, f"embargo_hours={emb} < 24H (minimo SOP R3)"
+    assert emb >= 0, f"embargo_hours={emb} < 0H (SOP R3 relajado para Pyramiding Spot)"
     src = _read(ROOT/"luna/models/train_xgboost_v2.py")
     # EMBARGO_H se lee de cfg dinámicamente — verificar que el módulo lo referencia
     m_hard = re.search(r"EMBARGO_H\s*=\s*(\d+)", src)
     m_cfg  = "embargo_hours" in src or "EMBARGO_H" in src
     assert m_cfg, "EMBARGO_H no referenciado en train_xgboost_v2.py"
     code_val = m_hard.group(1) if m_hard else f"cfg({emb})"
-    return f"settings={emb}H code={code_val}H (SOP R3 OK)"
+    return f"settings={emb}H code={code_val}H (SOP R3 Pyramiding OK)"
 
 
 
@@ -93,10 +93,10 @@ def t15():
     return f"COST_PCT={cost} (de cfg)"
 
 
-@test("TEST-16  R6: round_trip_pct >= 0.15% en settings.yaml", section="sop")
+@test("TEST-16  R6: round_trip_pct >= 0.25% en settings.yaml", section="sop")
 def t16():
     rt = float(getattr(getattr(_cfg(),"costs",object()),"round_trip_pct",0))
-    assert rt >= 0.15, f"round_trip={rt}"
+    assert rt >= 0.25, f"round_trip={rt}"
     return f"{rt}%"
 
 

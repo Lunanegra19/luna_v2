@@ -137,6 +137,7 @@ class MasterPatternEngine:
                     covariance_type="diag",
                     n_iter=200,       # aumentado de 100 a 200 para mejor convergencia
                     random_state=_seed,
+                    min_covar=0.01,   # [SENTINEL-FIX] Previene log-likelihood negativa
                     verbose=False,
                 )
                 try:
@@ -156,6 +157,7 @@ class MasterPatternEngine:
                     covariance_type="diag",
                     n_iter=200,
                     random_state=42,
+                    min_covar=0.01,
                     verbose=False,
                 )
                 model.fit(X)

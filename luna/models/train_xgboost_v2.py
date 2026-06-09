@@ -1744,6 +1744,11 @@ class XGBoostTrainer:
             self._spw_ideal = _spw_ideal
             self._spw_min = max(0.1,  _spw_ideal * 0.5)
             self._spw_max = min(2.0,  _spw_ideal * 2.5)  # SOP_LIMIT=2.0
+            
+            # [FIX-SPW-CRASH] Evitar low > high si min > 2.0
+            if self._spw_min >= self._spw_max:
+                self._spw_min = max(0.1, self._spw_max * 0.5)
+                
             logger.info(
                 f"[SPW-AUTO-01] pos={_spw_pos} neg={_spw_neg} ideal={_spw_ideal:.3f} "
                 f"-> range=[{self._spw_min:.2f}, {self._spw_max:.2f}] (SOP_LIMIT=2.0)"

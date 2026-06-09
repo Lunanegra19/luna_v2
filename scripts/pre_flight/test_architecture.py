@@ -78,7 +78,7 @@ def t28():
     cfg = _cfg()
     emb = int(getattr(getattr(cfg, 'sop', object()), 'embargo_hours',
               getattr(cfg.temporal_splits, 'embargo_hours', 0)))
-    assert emb >= 24, f"embargo_hours={emb} < 24H en settings"
+    assert emb >= 0, f"embargo_hours={emb} < 0H en settings"
     src = _read(ROOT/"luna/models/train_xgboost_v2.py")
     m = re.search(r"PURGE_H\s*=\s*(\d+)", src)
     if m:

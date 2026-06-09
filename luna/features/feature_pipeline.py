@@ -1387,6 +1387,22 @@ class FeaturePipeline:
                 logger.info("Regime feature (P4-1-1): funding_regime")
                 break
 
+        # ── [HMM-FIX-ZSCORE-OOS 2026-06-07] Generación Global de Features HMM ───────────
+        try:
+            hmm_z_cols = ['btc_drawdown_from_ath', 'mt_vol_realized_4bar']
+            for col in hmm_z_cols:
+                if col in df.columns:
+                    z_col = f"{col}_z90d"
+                    if z_col not in df.columns:
+                        import numpy as np
+                        _roll_mean = df[col].rolling(window=2160, min_periods=24).mean()
+                        _roll_std  = df[col].rolling(window=2160, min_periods=24).std().replace(0, np.nan).bfill()
+                        df[z_col] = (df[col] - _roll_mean) / _roll_std
+                        df[z_col] = df[z_col].fillna(0.0)
+                        logger.info(f"[HMM-FIX-ZSCORE-OOS] Transformación {z_col} inyectada globalmente.")
+        except Exception as _e_hmmz:
+            logger.warning(f"[HMM-FIX-ZSCORE-OOS] Error inyectando variables z90d globalmente: {_e_hmmz}")
+
         # ── [P2] HMM Transition Velocity (2026-04-09) ──────────────────────────────
         # Derivada suavizada de la probabilidad HMM del régimen BULL.
         # Convierte el vector de probabilidades del HMM (normalmente sólo categórico)
@@ -1419,7 +1435,7 @@ class FeaturePipeline:
                 if _hmm_model is not None and _hmm_scaler is not None and _hmm_features is not None:
                     # Preparar features HMM disponibles en el df actual
                     _hmm_feats_avail = [f for f in _hmm_features if f in df.columns]
-                    if len(_hmm_feats_avail) >= 3:  # mínimo 3 features para predicción fiable
+                    if len(_hmm_feats_avail) == len(_hmm_features):  # requiere todas las features del modelo
                         _X_hmm = df[_hmm_feats_avail].ffill().fillna(0).values
                         _X_scaled = _hmm_scaler.transform(_X_hmm)
 
@@ -1447,7 +1463,7 @@ class FeaturePipeline:
                         else:
                             logger.warning("[P2] HMM Velocity: no se encontró estado BULL en state_map — feature omitida")
                     else:
-                        logger.warning(f"[P2] HMM Velocity: solo {len(_hmm_feats_avail)} features disponibles en df (mín 3)")
+                        logger.warning(f"[P2] HMM Velocity: solo {len(_hmm_feats_avail)} de {len(_hmm_features)} features disponibles en df")
             else:
                 logger.debug("[P2] HMM Velocity: hmm_regime.pkl no encontrado — feature omitida (normal en primer run)")
         except Exception as _e_p2:
@@ -1592,32 +1608,6 @@ class FeaturePipeline:
         except Exception as _e_dxh:
             logger.warning(f"[HMM-DXY-01] DXY condicional fallo silenciosamente: {_e_dxh}")
         # ── Fin [DXY-HMM-01] ────────────────────────────────────────────────────────────
-
-
-        # ── [HMM-FIX-ZSCORE-OOS 2026-06-07] Generación Global de Features HMM ───────────
-        # MOTIVACIÓN: El modelo HMM entrena usando rolling z-scores (90d) de ciertas
-        # variables (ej. mt_vol_realized_4bar_z90d, btc_drawdown_from_ath_z90d).
-        # Anteriormente, esto se calculaba sólo localmente durante hmm_regime.load_data(),
-        # causando que predict_regime_series() recibiera NaN/ceros durante la validación
-        # OOS (holdout), resultando en predicciones de régimen erróneas y un bloqueo
-        # masivo de trades (inanición).
-        # CAUSALIDAD: Calculado aquí en el Feature Pipeline global, asegurando que
-        # las transformaciones z90d estén disponibles nativamente antes del split OOS,
-        # respetando la ventana temporal sin look-ahead bias.
-        try:
-            hmm_z_cols = ['btc_drawdown_from_ath', 'mt_vol_realized_4bar']
-            for col in hmm_z_cols:
-                if col in df.columns:
-                    z_col = f"{col}_z90d"
-                    if z_col not in df.columns:
-                        import numpy as np
-                        _roll_mean = df[col].rolling(window=2160, min_periods=24).mean()
-                        _roll_std  = df[col].rolling(window=2160, min_periods=24).std().replace(0, np.nan).bfill()
-                        df[z_col] = (df[col] - _roll_mean) / _roll_std
-                        df[z_col] = df[z_col].fillna(0.0)
-                        logger.info(f"[HMM-FIX-ZSCORE-OOS] Transformación {z_col} inyectada globalmente.")
-        except Exception as _e_hmmz:
-            logger.warning(f"[HMM-FIX-ZSCORE-OOS] Error inyectando variables z90d globalmente: {_e_hmmz}")
 
         return df
 

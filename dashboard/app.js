@@ -2275,7 +2275,7 @@ function updateBrokerFeeSimulation() {
         simComplianceIcon.textContent = '🟡';
         simComplianceTitle.textContent = 'SOP R6: ADVERTENCIA (Alto Costo)';
         simComplianceTitle.style.color = '#f59e0b';
-        simComplianceDesc.textContent = 'El costo total por trade supera la salvaguarda nominal de 0.15%. Proceder con precaución.';
+        simComplianceDesc.textContent = 'El costo total por trade supera la salvaguarda nominal de 0.25%. Proceder con precaución.';
     } else {
         // APTO / EFICIENTE
         simComplianceCard.style.background = 'rgba(16, 185, 129, 0.03)';
@@ -2317,13 +2317,13 @@ if (inputBrokerPreset && inputBrokerFee && inputBrokerSlippage) {
             inputBrokerFee.value = 10; // 0.10% RT fee
             inputBrokerSlippage.value = 2; // 0.02%
         } else if (val === 'okx-spot-taker') {
-            inputBrokerFee.value = 15; // 0.15% RT fee
+            inputBrokerFee.value = 25; // 0.25% RT fee
             inputBrokerSlippage.value = 3; // 0.03%
         } else if (val === 'okx-spot-vip') {
             inputBrokerFee.value = 6; // 0.06% RT fee
             inputBrokerSlippage.value = 1; // 0.01%
         } else if (val === 'luna-sop') {
-            inputBrokerFee.value = 15; // 0.15% RT
+            inputBrokerFee.value = 25; // 0.25% RT
             inputBrokerSlippage.value = 0; // 0.00%
         } else if (val === 'okx-spot-high') {
             inputBrokerFee.value = 30; // 0.30% RT fee
@@ -4170,7 +4170,7 @@ function renderSopComplianceAuditor(settings) {
         { name: "Bloques CPCV (n_blocks)", key: "stat.pbo_n_blocks", standard: "= 8", real: settings.stat ? settings.stat.pbo_n_blocks : null, ok: settings.stat && settings.stat.pbo_n_blocks === 8, diag: "Bug PBO_N_BLOCKS corregido con no-fallback." },
         { name: "Embargo de Cuarentena", key: "sop.embargo_hours", standard: ">= 72H", real: settings.sop ? `${settings.sop.embargo_hours}H` : null, ok: r3Compliant, diag: "Quarentena de seguridad en ventanas temporales." },
         { name: "Purga de Solapamiento", key: "sop.purge_hours", standard: ">= 96H", real: settings.sop ? `${settings.sop.purge_hours}H` : null, ok: settings.sop && settings.sop.purge_hours >= 96, diag: "Purga stria para evitar look-ahead bias en etiquetas." },
-        { name: "Comisiones Realistas", key: "costs.round_trip_pct", standard: ">= 0.15%", real: settings.costs ? `${settings.costs.round_trip_pct}%` : null, ok: r6Compliant, diag: "Comisiones OKX Spot + deslizamiento modelados." },
+        { name: "Comisiones Realistas", key: "costs.round_trip_pct", standard: ">= 0.25%", real: settings.costs ? `${settings.costs.round_trip_pct}%` : null, ok: r6Compliant, diag: "Comisiones OKX Spot + deslizamiento modelados." },
         { name: "Lag de Red On-Chain", key: "data.onchain_lag_hours", standard: ">= 24H", real: settings.data ? `${settings.data.onchain_lag_hours}H` : null, ok: r1Compliant, diag: "Evita look-ahead en variables fundamentales." },
         { name: "Lag de Indicadores DeFi", key: "data.defi_lag_hours", standard: ">= 24H", real: settings.data ? `${settings.data.defi_lag_hours}H` : null, ok: settings.data && settings.data.defi_lag_hours >= 24, diag: "Evita look-ahead en features de exchange descentralizado." },
         { name: "Lag de Liquidez Global M2", key: "data.m2_lag_days", standard: ">= 42D", real: settings.data ? `${settings.data.m2_lag_days}D` : null, ok: settings.data && settings.data.m2_lag_days >= 42, diag: "Retraso macroeconómico de publicación de datos M2." },
