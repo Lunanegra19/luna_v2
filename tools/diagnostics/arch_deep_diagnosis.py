@@ -142,7 +142,7 @@ if val_path.exists():
                 mask = df_td["xgb_prob_cal"] >= thr
                 n_t = mask.sum()
                 if n_t > 0:
-                    ev = df_td.loc[mask, "return_pct"].mean() - cost
+                    ev = df_td.loc[mask, "return_pct"].mean()
                     wr = (df_td.loc[mask, "return_pct"] > 0).mean()
                     print(f"    thr={thr:.2f}: N={n_t:3d}  WR={wr:.1%}  EV_neto={ev:+.4f}%")
 

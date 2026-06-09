@@ -196,7 +196,13 @@ class MetaLabelerV2Calibrator:
 
         # 3. Cargar validation set
         df_val = pd.read_parquet(val_path)
-        logger.info(f"Validation: {df_val.shape} | {df_val.index.min()} → {df_val.index.max()}")
+        
+        # [ARCH-25 FIX] Split validation (1441 bars) into val_A (Isotonic/OOD) and val_B (Threshold Sweep)
+        # MetaLabeler/Isotonic calibrator ONLY evaluates on val_A (the first half) to prevent leakage.
+        half = len(df_val) // 2
+        df_val = df_val.iloc[:half].copy()
+        
+        logger.info(f"Validation (val_A split): {df_val.shape} | {df_val.index.min()} → {df_val.index.max()}")
 
         # [FIX-P2-TIMING] Calcular timing features in-line para calibrador (2026-03-26)
         # Garantiza que el XGBoost tenga las 30 features en validation, de lo contrario

@@ -411,9 +411,9 @@ metalabeler:
   meta_v2_threshold_mode: dynamic_is
   meta_v2_thresh_bull_strong: 0.38
   meta_v2_thresh_bull_unstable: 0.45
-  meta_v2_rolling_percentile: 0.6
+  meta_v2_rolling_percentile: 0.85
   meta_v2_rolling_min_n: 100
-  momentum_filter_threshold: -15.0
+  momentum_filter_threshold: -30.0
   momentum_filter_threshold_upper: -30.0
   momentum_speed_window: 120
   momentum_crash_speed_threshold: -5.0
@@ -464,7 +464,7 @@ sop:
   annual_factor: 93.6
   cost_pct: 0.0025
   cpcv_groups: 10
-  embargo_hours: 48
+  embargo_hours: 24
   purge_hours: 96
 stat:
   alpha_binomial: 0.2
@@ -497,7 +497,7 @@ stat:
   brier_margin_range: 0.03
   brier_margin_default: 0.025
 temporal_splits:
-  embargo_hours: 48
+  embargo_hours: 24
   hmm_train_end: 2025-09-30
   hmm_train_start: '2020-01-01'
   holdout_end: 2025-12-31
@@ -588,8 +588,8 @@ xgboost:
   embargo_dynamic_decay: true
   embargo_decay_atr_lookback: 24
   embargo_low_density_threshold: 20
-  embargo_hours: 48
-  embargo_min_hours: 48.0
+  embargo_hours: 24
+  embargo_min_hours: 24.0
   dynamic_barrier: true
   dynamic_horizon_min_h: 24
   event_sampling_hours: 12
@@ -597,7 +597,7 @@ xgboost:
   hmm_velocity_ewm_span: 24
   holdout_calib_months: 0
   linear_decay_pt: false
-  n_estimators_min_floor: 100
+  n_estimators_min_floor: 5
   min_viable_train_samples: 200
   bull_gate_min_dsr: 0.0
   n_purged_splits: 8
@@ -623,7 +623,7 @@ xgboost:
     reg_lambda_min: 0.01
     subsample_max: 0.85
     subsample_min: 0.5
-  optuna_seed: 12345
+  optuna_seed: 43771
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -643,7 +643,7 @@ xgboost:
   target_recall: 0.7
   tbm_min_return: 0.005
   threshold_min_density_pct: 0.15
-  threshold_min_trades: 20
+  threshold_min_trades: 5
   threshold_sweep_max: 0.72
   threshold_sweep_min: 0.45
   threshold_sweep_step: 0.005

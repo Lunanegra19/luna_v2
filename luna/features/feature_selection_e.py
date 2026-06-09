@@ -170,7 +170,7 @@ try:
     SFI_EMBARGO_H         = int(getattr(_cfg_sfi.sop,      'embargo_hours',  24))  # LdP: cooldown post-test
     SFI_N_ESTIMATORS      = int(getattr(_cfg_sfi.features, 'sfi_n_estimators', 200))
     SFI_MAX_DEPTH         = int(getattr(_cfg_sfi.features, 'sfi_max_depth',      4))
-    SFI_COST_ROUNDTRIP    = 0.0025; SFI_COST_ROUNDTRIP = float(_cfg_sfi.sop.cost_pct)  # R6: >= 0.0015
+    SFI_COST_ROUNDTRIP    = 0.0025; SFI_COST_ROUNDTRIP = float(_cfg_sfi.sop.cost_pct)  # R6: >= 0.0025
     SFI_MIN_SHARPE        = float(getattr(_cfg_sfi.features,'sfi_min_sharpe',  0.05))  # floor DSR-null (MEJORA-SFI-SHARPE-01)
     SFI_DSR_N_TRIALS      = 600; SFI_DSR_N_TRIALS = int(getattr(_cfg_sfi.stat, 'n_trials_total', 600))  # BUG M-01
     FORWARD_ENABLED       = False  # Etapa E: controlado por código (no por cfg aún)
@@ -926,7 +926,7 @@ class SFI_CPCV:
                   n_obs_base: Optional[int] = None) -> Dict:
         """Evalúa una feature en solitario con CPCV.
 
-        R6 SOP: aplica costos 0.15% round-trip a los retornos de cada fold.
+        R6 SOP: aplica costos 0.25% round-trip a los retornos de cada fold.
         R5 SOP: usa DSR correcto Bailey & LdP (no la variante hi-expected_max).
 
         M4 (2026-03-04): Si mask != None, evaluar solo en las filas activas

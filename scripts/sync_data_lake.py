@@ -183,10 +183,9 @@ def main():
         
     executor._run_step("Feature Pipeline (Pre-SFI)", "luna/features/feature_pipeline.py", ["--skip-preflight"])
     
-    if not args.skip_sfi:
-        executor._run_step("SFI Feature Selection", "luna/features/feature_selection_e.py")
-    else:
-        logger.info("Saltando SFI por --skip-sfi")
+    # [ARCH-21/23 FIX] SFI global desactivado para evitar Look-Ahead Bias.
+    # El orquestador WFB ejecutará el SFI dinámicamente por ventana usando solo datos IS.
+    logger.info("Saltando SFI global por defecto (previene ARCH-21/23 Look-Ahead Bias)")
         
     executor._run_step("Feature Pipeline (Post-SFI)", "luna/features/feature_pipeline.py", ["--skip-preflight"])
 

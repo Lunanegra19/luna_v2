@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-08 06:14 UTC
+Timestamp: 2026-06-09 01:07 UTC
 Golden Rules: 15  |  Genetic Rules: 7
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """
@@ -14,20 +14,6 @@ import numpy as np
 # ──────────────────────────────────────────────────────────────────
 
 GOLDEN_RULES: list[dict] = [
-    {
-        'type':        'golden_storm',
-        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (KMeans_Tribe_ID <= 1.0000)',
-        'win_rate':    100.0,
-        'ev_pct':      4.42,
-        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND KMeans_Tribe_ID <= 1.0000',
-    },
-    {
-        'type':        'golden_storm',
-        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (T10Y2Y <= -0.6400) & (KMeans_Tribe_ID <= 1.0000)',
-        'win_rate':    100.0,
-        'ev_pct':      4.42,
-        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND T10Y2Y <= -0.6400 AND KMeans_Tribe_ID <= 1.0000',
-    },
     {
         'type':        'golden_storm',
         'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068)',
@@ -51,20 +37,6 @@ GOLDEN_RULES: list[dict] = [
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (OI_BTC >= 60255.9400) & (KMeans_Tribe_ID <= 1.0000)',
-        'win_rate':    100.0,
-        'ev_pct':      4.26,
-        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND OI_BTC >= 60255.9400 AND KMeans_Tribe_ID <= 1.0000',
-    },
-    {
-        'type':        'golden_storm',
-        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (KMeans_Tribe_ID <= 1.0000)',
-        'win_rate':    100.0,
-        'ev_pct':      4.26,
-        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068 AND KMeans_Tribe_ID <= 1.0000',
-    },
-    {
-        'type':        'golden_storm',
         'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (Master_Causal_Signal <= -0.1300)',
         'win_rate':    100.0,
         'ev_pct':      4.26,
@@ -72,24 +44,17 @@ GOLDEN_RULES: list[dict] = [
     },
     {
         'type':        'golden_storm',
-        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (KMeans_Tribe_ID <= 1.0000) & (Master_Causal_Signal <= -0.1300)',
-        'win_rate':    100.0,
-        'ev_pct':      4.26,
-        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND KMeans_Tribe_ID <= 1.0000 AND Master_Causal_Signal <= -0.1300',
-    },
-    {
-        'type':        'golden_storm',
-        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (Whale_Vol_ZScore >= 0.3879) & (KMeans_Tribe_ID <= 1.0000)',
-        'win_rate':    100.0,
-        'ev_pct':      6.26,
-        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND Whale_Vol_ZScore >= 0.3879 AND KMeans_Tribe_ID <= 1.0000',
-    },
-    {
-        'type':        'golden_storm',
         'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (Whale_Vol_ZScore >= 0.3879)',
         'win_rate':    100.0,
         'ev_pct':      6.15,
         'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068 AND Whale_Vol_ZScore >= 0.3879',
+    },
+    {
+        'type':        'golden_storm',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (SSR <= 1.4068) & (KMeans_Tribe_ID <= 1.0000)',
+        'win_rate':    100.0,
+        'ev_pct':      3.03,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND SSR <= 1.4068 AND KMeans_Tribe_ID <= 1.0000',
     },
     {
         'type':        'golden_storm',
@@ -118,6 +83,41 @@ GOLDEN_RULES: list[dict] = [
         'win_rate':    100.0,
         'ev_pct':      1.35,
         'description': 'IF YieldCurve_10Y3M <= -1.0100 AND MVRV_Proxy <= -1.1476 AND SSR <= 1.4068',
+    },
+    {
+        'type':        'golden_storm',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (MVRV_Proxy <= -1.1476) & (KMeans_Tribe_ID <= 1.0000)',
+        'win_rate':    100.0,
+        'ev_pct':      1.35,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND MVRV_Proxy <= -1.1476 AND KMeans_Tribe_ID <= 1.0000',
+    },
+    {
+        'type':        'golden_storm',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (MVRV_Proxy <= -1.1476) & (Master_Causal_Signal <= -0.1300)',
+        'win_rate':    100.0,
+        'ev_pct':      1.35,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND MVRV_Proxy <= -1.1476 AND Master_Causal_Signal <= -0.1300',
+    },
+    {
+        'type':        'golden_storm',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (FundingRate <= -0.0000) & (OI_BTC >= 60255.9400)',
+        'win_rate':    100.0,
+        'ev_pct':      5.56,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND FundingRate <= -0.0000 AND OI_BTC >= 60255.9400',
+    },
+    {
+        'type':        'golden_storm',
+        'pandas_eval': '(Fed_Net_Liquidity <= 7723570.3950) & (FundingRate <= -0.0000) & (MVRV_Proxy <= -1.1476)',
+        'win_rate':    100.0,
+        'ev_pct':      6.58,
+        'description': 'IF Fed_Net_Liquidity <= 7723570.3950 AND FundingRate <= -0.0000 AND MVRV_Proxy <= -1.1476',
+    },
+    {
+        'type':        'golden_storm',
+        'pandas_eval': '(YieldCurve_10Y3M <= -1.0100) & (DangerZone >= 0.6133) & (SSR <= 1.4068)',
+        'win_rate':    100.0,
+        'ev_pct':      3.51,
+        'description': 'IF YieldCurve_10Y3M <= -1.0100 AND DangerZone >= 0.6133 AND SSR <= 1.4068',
     },
 ]
 
@@ -181,7 +181,7 @@ GENETIC_RULES: list[dict] = [
 # CAUSAL VARIABLES (Advanced Engine — Granger*** + TE_net > 0)
 # ──────────────────────────────────────────────────────────────────
 
-CAUSAL_VARS: list[str] = ['DeFi_WBTC_TVL', 'SSR', 'Master_Causal_Signal', 'FearGreed', 'MVRV_Proxy', 'Stablecoin_Cap', 'NASDAQ_Ret', 'FundingRate', 'CPI_YoY', 'KMeans_Tribe_ID', 'DangerZone']
+CAUSAL_VARS: list[str] = ['DeFi_WBTC_TVL', 'SSR', 'Master_Causal_Signal', 'FearGreed', 'MVRV_Proxy', 'Stablecoin_Cap', 'KMeans_Tribe_ID', 'NASDAQ_Ret', 'CPI_YoY', 'FundingRate', 'DangerZone']
 
 # ──────────────────────────────────────────────────────────────────
 # DTW FRACTAL PROBABILITY
@@ -193,16 +193,16 @@ DTW_BULL_PROB: float = 1.0  # P(BTC sube en 24H | análogos históricos)
 # K-MEANS TRIBE BIAS
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 2: 'NEUTRAL', 3: 'NEUTRAL', 1: 'NEUTRAL'}
+TRIBE_BIAS: dict[int, str] = {3: 'LARGA', 1: 'NEUTRAL', 2: 'NEUTRAL', 0: 'NEUTRAL'}
 
 # ──────────────────────────────────────────────────────────────────
 # K-MEANS TRIBE WIN-RATE MAP (M3 — actualizado semanalmente)
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_WR_MAP: dict[int, float] = {0: 0.648, 2: 0.527, 3: 0.526, 1: 0.455}
+TRIBE_WR_MAP: dict[int, float] = {3: 0.646, 1: 0.527, 2: 0.526, 0: 0.447}
 
-LARGA_TRIBES   = frozenset({0})
-NEUTRAL_TRIBES = frozenset({1, 2, 3})
+LARGA_TRIBES   = frozenset({3})
+NEUTRAL_TRIBES = frozenset({0, 1, 2})
 
 ALL_RULES: list[dict] = GOLDEN_RULES + GENETIC_RULES
 

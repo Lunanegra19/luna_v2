@@ -89,7 +89,7 @@ Todos los candidatos investigados han sido **100% implementados, verificados y v
 | `pt_sl_multiplier PT = 2.0x` | **2.0× ATR** | `tbm.py:362` | 🟡 | Sin cambio | Optuna explore `pt_mult ∈ [1.5, 3.0]` como hiperparámetro |
 | `pt_sl_multiplier SL = 1.0x` | **1.0× ATR** | `tbm.py:362` | 🟡 | Sin cambio | Tabla régimen→(PT,SL): BULL=2.5/0.8, BEAR=1.5/1.5, RANGE=2.0/1.0 |
 | `pt_mult_min = 1.6x` (MetaLabeler) | **1.6× ATR** | `train_metalabeler_v2.py:243` | 🟡 | Sin cambio | Unificar con `xgboost.pt_mult_min` de settings |
-| `min_return = 0.0015` | **0.15%** | `tbm.py:365` | 🟢 | Sin cambio | ✅ Mantener vinculado a `sop.cost_pct` |
+| `min_return = 0.0025` | **0.25%** | `tbm.py:365` | 🟢 | Sin cambio | ✅ Mantener vinculado a `sop.cost_pct` |
 | `dynamic_horizon_min_h` / `max_h` | Configurable en settings | `tbm.py` | 🟡 | Sin cambio | Revisar que `vertical_barrier_hours` sirva de cota superior |
 
 ---
@@ -98,8 +98,8 @@ Todos los candidatos investigados han sido **100% implementados, verificados y v
 
 | Parámetro | Valor Actual | Fuente | Clase | Estado | Propuesta Dinámica |
 |---|---|---|---|---|---|
-| `sop.cost_pct` | **0.0015 (0.15%)** | `settings.yaml` → todos los módulos | 🟢 | Sin cambio | ✅ Mantener. Actualizar si cambia exchange |
-| `_COST_RT = 0.0015` | **0.0015** | `predict_oos.py:1194` | 🟢 | Sin cambio | ✅ OK — lee de cfg correctamente |
+| `sop.cost_pct` | **0.0025 (0.25%)** | `settings.yaml` → todos los módulos | 🟢 | Sin cambio | ✅ Spot OKX (Double Taker + Slippage) |
+| `_COST_RT = 0.0025` | **0.0025** | `predict_oos.py:1194` | 🟢 | Sin cambio | ✅ OK — lee de cfg correctamente |
 | `0.0015` hardcodeado duplicado | ~~0.0015 literal~~ → **`_COST_RT_F5` desde cfg** | `predict_oos.py:1320` | 🔴 | ✅ FIXED | Lee `sop.cost_pct` de cfg con fallback documentado y print |
 
 ---
@@ -271,7 +271,7 @@ Todos los candidatos investigados han sido **100% implementados, verificados y v
 
 | Parámetro | Valor | Justificación |
 |---|---|---|
-| `cost_pct = 0.0015` | 0.15% | Kraken taker×2 + slippage×2 ✅ |
+| `cost_pct = 0.0025` | 0.25% | OKX Spot taker×2 + slippage ✅ |
 | `kelly_fraction = 0.25` | Quarter-Kelly | Thorp/MacLean ✅ |
 | `threshold_sweep_step = 0.005` | Paso fino | 144 puntos de búsqueda ✅ |
 | `min_dsr = 0.75` | 0.75 | Bailey & LdP (2014) ✅ |

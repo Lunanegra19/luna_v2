@@ -524,7 +524,7 @@ Para rechazar H0 necesitamos p < 0.05.
 
 | Elemento | Implementacion | Evaluacion |
 |----------|----------------|------------|
-| Costos de transaccion | 0.15% round-trip | OK Conservador |
+| Costos de transaccion | 0.25% round-trip | OK Conservador |
 | Anti-leakage | guard_pipeline.py + SOP R1 | OK Estricto |
 | Safety lags (M2, on-chain) | M2+42d, on-chain+24H, CPI+14d | OK Correcto |
 | Embargo temporal | 96H entre train y test | OK Conservador |
@@ -554,7 +554,7 @@ learning_rate:    {_fmt(learning_rate)}
 subsample:        {_fmt(subsample, '.3f')}
 colsample_bytree: {_fmt(colsample_bytree, '.3f')}
 min_child_weight: {min_child_weight}
-cost_fee:         0.15%
+cost_fee:         0.25%
 dsr_oos_train:    {_fmt(dsr_is)}
 ```
 
@@ -599,7 +599,7 @@ R2  – Purging PurgedKFold/WFA                   OK WFA 8 splits + 96H embargo
 R3  – Embargo >= 96H                            OK Aplicado en XGBoost y MetaLabeler
 R4  – Triple frontera datos (train/val/holdout)  OK Train 2020-23, Val 2024, Holdout 2025
 R5  – DSR correcto (Bailey & LdP 2014)          OK n_trials={n_trials_total} (SOP estandar)
-R6  – Costos 0.15% minimos                      OK 0.15% descontados en todos los retornos
+R6  - Costos 0.25% minimos                      OK 0.25% descontados en todos los retornos
 R7  – FracDiff dinamico                         OK (Aplicado en feature_pipeline.py)
 R8  – Minimo 100 trades                         {"OK" if n_trades >= 100 else "WARN"} {n_trades} trades
 R9  – HMM Forward Algorithm                     OK Sin Viterbi post-hoc

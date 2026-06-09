@@ -659,3 +659,10 @@ El uso de dsr (Deflated Sharpe Ratio) como métrica de pérdida interna para const
 - **hmm.candidate_features**: Lista de las variables que pueden usarse como pilares para el modelo HMM. (Sustituye a la lista hardcodeada anterior).
 - **hmm.min_feature_mi**: 0.0005. Umbral de Informacion Mutua requerido para que una variable sea considerada valida. Si no supera este umbral contra close_ret_720h, se descarta por Alpha Decay.
 - **hmm.min_features_required**: 4. Numero minimo de variables pilares que deben sobrevivir a los filtros de varianza y MI. Si caen por debajo de esto, el sistema hace fail-fast.
+
+## [COST-FIX 2026-06-08] y [TARGET-FIX 2026-06-08]
+- **costs.round_trip_pct**: Actualizado de 0.15 a 0.25 para reflejar las comisiones institucionales reales.
+- **xgboost.regime_tbm_profiles.bear.pt_mult_min**: Aumentado de 1.0 a 1.5.
+- **xgboost.regime_tbm_profiles.bull.pt_mult_min**: Aumentado de 1.3 a 2.0.
+- **xgboost.regime_tbm_profiles.range.pt_mult_min**: Aumentado de 1.0 a 1.5.
+- *Justificacion*: El costo de 0.25% masacraba el win rate (hundiendolo de 65% a 25%) porque los recorridos del precio eran muy cortos. Al aumentar pt_mult_min, el sistema es forzado a buscar velas de recorrido mas amplias (+1.5x a +2.0x ATR) para que la comision institucional no absorba el retorno neto.

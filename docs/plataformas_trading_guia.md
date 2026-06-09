@@ -62,7 +62,7 @@ Para la arquitectura Luna V2, los **Futuros (o Margin)** son obligatorios por la
 | **Total real Taker** | — | — | **~0.14%** |
 | **Total real Maker** | — | — | **~0.06%** |
 
-> **IMPORTANTE:** El SOP de Luna V2 usa 0.15% como referencia. Con OKX Taker (0.14%) estamos perfectamente alineados. Con Maker (0.06%) mejoraremos el PnL neto de forma sustancial.
+> **IMPORTANTE:** El SOP de Luna V2 usa 0.25% como referencia para OKX Spot. Esto refleja el peor caso realista (doble Taker 0.10% + slippage 0.05%). Con OKX Taker (0.14%) en futuros estamos perfectamente alineados, pero en Spot aplicamos 0.25%.
 
 ### Integracion API Python
 ```bash
@@ -138,7 +138,7 @@ Con 57 trades (semilla 1337) y un costo de 0.90% RT:
 |---|---|---|---|
 | OKX Maker | 0.06% | 3.42% | **+11.24%** |
 | OKX Taker | 0.14% | 7.98% | **+6.68%** |
-| Luna SOP actual | 0.15% | 8.55% | **+6.11%** |
+| Luna SOP actual | 0.25% | 14.25% | **+0.41%** |
 | cTrader CFD | 0.17% | 9.69% | +4.97% (antes overnight) |
 | Kraken Margin | 0.90% | 51.3% | **-36.64%** |
 

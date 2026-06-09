@@ -1503,11 +1503,11 @@ class OOSTradesGenerator:
                     continue  # Hard exclusion: no registrar, no contaminar WR ni N de trades
 
                 # [FIX-COST-RT-01] (2026-05-16): Costo RT proporcional a la posicion Kelly ejecutada.
-                # BUG ANTERIOR: ret_kelly = ret_raw * kelly - 0.0015
-                #   Descontaba 0.15% sobre el 100% del NOMINAL, aunque Kelly=5% solo ejecuta el 5%.
-                #   Con Kelly=5%: costo efectivo era 0.15%/0.05=3x el retorno ajustado → destruia todo P&L.
+                # BUG ANTERIOR: ret_kelly = ret_raw * kelly - 0.0025
+                #   Descontaba 0.25% sobre el 100% del NOMINAL, aunque Kelly=5% solo ejecuta el 5%.
+                #   Con Kelly=5%: costo efectivo era 0.25%/0.05=5x el retorno ajustado → destruia todo P&L.
                 # FIX: ret_kelly = (ret_raw - cost_rt) * kelly
-                #   El costo 0.15% se aplica al retorno bruto ANTES del escalado Kelly.
+                #   El costo 0.25% se aplica al retorno bruto ANTES del escalado Kelly.
                 #   Equivalente matematico: cost_efectivo = cost_rt * kelly (proporcional a posicion real).
                 _COST_RT = _GLOBAL_COST_RT  # [SOP-COST-FIX] Valor leido de settings (No-Fallback)
 

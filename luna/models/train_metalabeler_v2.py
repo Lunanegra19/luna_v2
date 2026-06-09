@@ -24,7 +24,7 @@ SOP Aplicado:
   - R1: CPCV purgeado para XGBoost probs que alimentan RF (P1-8 replicado)
   - R3: Embargo 96H entre train y val split
   - R5: DSR como criterio de aceptación del modelo final
-  - R6: Costos 0.15% round-trip en evaluación de retornos
+  - R6: Costos 0.25% round-trip en evaluación de retornos
 
 NOTA: Este módulo coexiste con train_metalabeler.py (original BiLSTM).
 Activar cambiando la importación en run_features_and_training.py.

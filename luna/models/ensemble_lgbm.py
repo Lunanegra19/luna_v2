@@ -43,7 +43,7 @@ SOP Aplicado:
 
 
 
-- R6 (Costos TransacciÃƒÂ³n): 0.15% RT aplicado a las simulaciones de Sharpe.
+- R6 (Costos TransacciÃ³n): 0.25% RT aplicado a las simulaciones de Sharpe.
 
 
 

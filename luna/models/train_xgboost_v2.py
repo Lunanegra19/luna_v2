@@ -7,7 +7,7 @@ etiqueta del rÃƒÂ©gimen HMM.
 SOP Aplicado:
 - R3 (Purge/Embargo): Se usa Combinatorial Purged CV para la evaluaciÃƒÂ³n de Optuna.
 - R5 (DSR Objetivo): La mÃƒÂ©trica a maximizar por Optuna es el Deflated Sharpe OOS.
-- R6 (Costos TransacciÃƒÂ³n): 0.15% RT aplicado a las simulaciones de Sharpe.
+- R6 (Costos TransacciÃ³n): 0.25% RT aplicado a las simulaciones de Sharpe.
 """
 
 import sys
