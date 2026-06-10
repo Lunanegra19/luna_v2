@@ -373,6 +373,27 @@ def main():
                     pass
             print(f"[!] {count_deleted} archivos parquet antiguos eliminados de data/reports/wfb.")
             
+        # [CACHE-HYGIENE-01] Limpiar artefactos residuales del workspace activo
+        models_dir = Path(__file__).parent.parent / "data" / "models"
+        if models_dir.exists():
+            _stale = [f for f in models_dir.iterdir() if f.is_file()]
+            for f in _stale:
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+            print(f"[CACHE-HYGIENE-01] {len(_stale)} artefactos eliminados de data/models/")
+        
+        predictions_dir = Path(__file__).parent.parent / "data" / "predictions"
+        if predictions_dir.exists():
+            _stale_pred = [f for f in predictions_dir.glob("*.parquet")]
+            for f in _stale_pred:
+                try:
+                    f.unlink()
+                except Exception:
+                    pass
+            print(f"[CACHE-HYGIENE-01] {len(_stale_pred)} predicciones antiguas eliminadas de data/predictions/")
+
         # [FIX-BENCH-01] El dynamic_benchmark.json es un artefacto de la run anterior.
         # Con --nocache el modelo se reentrena desde cero (arquitectura o params distintos),
         # por lo que el score anterior es incomparable. Limpiarlo evita early-stop injusto
@@ -524,6 +545,7 @@ def main():
                 _run_env = os.environ.copy()
                 _run_env["PYTHONPATH"] = str(_ROOT) + (os.pathsep + _run_env.get("PYTHONPATH", "") if _run_env.get("PYTHONPATH") else "")
                 _run_env["PYTHONUNBUFFERED"] = "1"
+                _run_env["PYTHONHASHSEED"] = str(seed)
                 # [CACHE-INTEGRITY-01] Propagar LUNA_NOCACHE para que subprocesos anidados también la respeten
                 if args.nocache:
                     _run_env["LUNA_NOCACHE"] = "1"

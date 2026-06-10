@@ -276,10 +276,12 @@ class DeepDiscoveryEngine:
             X_tr, y_tr = X.iloc[:int(n*0.75)], y.iloc[:int(n*0.75)]
             X_te, y_te = X.iloc[int(n*0.75):], y.iloc[int(n*0.75):]
 
+            import os
+            _seed = int(os.environ.get("LUNA_SEED", 42))
             logger.info(f"RFE: entrenando RF sobre {len(all_feats)} features...")
             rf = RandomForestClassifier(
                 n_estimators=150, max_depth=5,
-                min_samples_leaf=50, n_jobs=-1, random_state=42
+                min_samples_leaf=50, n_jobs=-1, random_state=_seed
             )
             rf.fit(X_tr, y_tr)
             acc = rf.score(X_te, y_te)
@@ -287,7 +289,7 @@ class DeepDiscoveryEngine:
 
             # Permutation Importance en test
             perm = permutation_importance(rf, X_te, y_te, n_repeats=5,
-                                          random_state=42, n_jobs=-1)
+                                          random_state=_seed, n_jobs=-1)
             imp = pd.Series(perm.importances_mean, index=all_feats)
             imp = imp.clip(lower=0)  # ignorar negativas (sin efecto)
             imp_sorted = imp.sort_values(ascending=False)
@@ -728,8 +730,11 @@ class DeepDiscoveryEngine:
         logger.info("Deep Discovery Engine v2 — INICIO (RFE + AG + DTW)")
         logger.info("=" * 60)
 
-        random.seed(42)
-        np.random.seed(42)
+        import os
+        _seed = int(os.environ.get("LUNA_SEED", 42))
+        random.seed(_seed)
+        np.random.seed(_seed)
+        logger.info(f"Deep: random_state configurado con LUNA_SEED={_seed}")
 
         df = self.load_data()
         target = self._build_target(df)

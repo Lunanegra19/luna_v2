@@ -501,14 +501,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-09-30
+  hmm_train_end: 2024-12-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-12-31
-  holdout_start: 2025-10-01
-  train_end: 2025-07-31
+  holdout_end: 2025-03-31
+  holdout_start: 2025-01-01
+  train_end: 2024-10-31
   train_start: '2017-08-17'
-  validation_end: 2025-09-30
-  validation_start: 2025-08-01
+  validation_end: 2024-12-31
+  validation_start: 2024-11-01
 wfb:
   ensemble_consensus_threshold: 4
   consensus_bucket_hours: 2
@@ -638,7 +638,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 88219
+  optuna_seed: 42
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8

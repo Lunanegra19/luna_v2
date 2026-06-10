@@ -31,3 +31,6 @@ env/
 
 *.tar.gz
 *.zip
+
+# Backups de configuracion WFB
+config/settings_backup_*.yaml

@@ -28,6 +28,9 @@ import logging
 from loguru import logger
 import numpy as np
 import pandas as pd
+import os
+_LUNA_SEED = int(os.environ.get("LUNA_SEED", 42))
+print(f"[AUDIT-FIX] LUNA_SEED={_LUNA_SEED} inyectado en hmm_regime.py para GaussianHMM estocástico")
 from hmmlearn import hmm
 import joblib
 import matplotlib.pyplot as plt
@@ -75,7 +78,7 @@ class HMMRegimeModel:
             n_components=self.n_components,
             covariance_type="full",
             n_iter=_n_iter,
-            random_state=42,
+            random_state=_LUNA_SEED,
             tol=_tol
         )
         # CRÍTICO-2 (Auditoría): Diseño del StandardScaler.
@@ -406,7 +409,7 @@ class HMMRegimeModel:
                 X_eval = _df_eval[valid_cols]
                 y_eval = _df_eval['close_ret_720h']
                 
-                mi_scores = mutual_info_regression(X_eval, y_eval, random_state=42)
+                mi_scores = mutual_info_regression(X_eval, y_eval, random_state=_LUNA_SEED)
                 mi_dict = {col: score for col, score in zip(valid_cols, mi_scores)}
                 
                 final_hmm_cols = []
@@ -591,7 +594,7 @@ class HMMRegimeModel:
                 # (ej: delta=-0.30 sobre log-lik=-123839 = error_relativo=0.000002%).
                 # Estos modelos son matemáticamente equivalentes a convergidos pero el flag
                 # booleano los descarta, dejando best_model=None y activando el fallback
-                # no convergido de random_state=42 — peor que el seed "casi convergido".
+                # no convergido de random_state=_LUNA_SEED — peor que el seed "casi convergido".
                 # Solución: aceptar también modelos con delta_relativo < 1e-5.
                 _converged_flag = _m.monitor_.converged
                 _nearly_converged = False
@@ -614,7 +617,7 @@ class HMMRegimeModel:
             # SOP R9: MI(estados, retornos) > 0.005 — con modelo no convergido casi imposible.
             print(  # RULE[fixbugsprints.md]
                 f"[H-03-FIX] CRITICAL: Ningún seed HMM convergió tras {_n_init} inits "
-                f"(incluyendo nearly_converged). Activando fallback random_state=42. "
+                f"(incluyendo nearly_converged). Activando fallback random_state={_LUNA_SEED}. "
                 f"RIESGO: regímenes arbitrarios, MI<0.005 probable. Revisar n_init/n_iter en settings."
             )
             logger.critical(
@@ -806,7 +809,7 @@ class HMMRegimeModel:
                     n_components=n,
                     covariance_type="full",
                     n_iter=self.model.n_iter,
-                    random_state=42,
+                    random_state=_LUNA_SEED,
                     tol=self.model.tol,
                 )
                 model_n.fit(X_scaled)
@@ -1545,7 +1548,7 @@ class HMMRegimeModel:
             logger.info("F4: Usando modelo HMM global para predicciÃ³n OOS (estados consistentes con state_map)")
         else:
             # Fallback: entrenar modelo local solo si no hay modelo global disponible
-            predict_model = hmm.GaussianHMM(n_components=self.n_components, covariance_type="full", n_iter=500, random_state=42)
+            predict_model = hmm.GaussianHMM(n_components=self.n_components, covariance_type="full", n_iter=500, random_state=_LUNA_SEED)
             predict_model.fit(X_scaled[:warmup])
             logger.warning("F4: Modelo global no disponible â€” usando modelo local (posible inconsistencia de estados)")
         

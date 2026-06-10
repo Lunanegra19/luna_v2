@@ -49,6 +49,9 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+import os
+_LUNA_SEED = int(os.environ.get("LUNA_SEED", 42))
+print(f"[AUDIT-FIX] LUNA_SEED={_LUNA_SEED} inyectado en feature_selection_e.py para stochastic ensemble")
 from loguru import logger
 from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
@@ -954,7 +957,7 @@ class SFI_CPCV:
                     learning_rate=0.05,
                     subsample=0.8,
                     colsample_bytree=1.0,
-                    random_state=42,
+                    random_state=_LUNA_SEED,
                     verbosity=0,
                     n_jobs=1,  # Avoid core thrashing inside ThreadPoolExecutor
                     tree_method='hist',
@@ -1298,11 +1301,11 @@ class SFI_CPCV:
         dataset y rankea las features por su frecuencia de apariciÃ³n en el
         Top-K de importancias (Mean Decrease Impurity).
 
-        NO usa DSR ni OOS en ningÃºn momento â puramente In-Sample.
+        NO usa DSR ni OOS en ningÃºn momento â†’ puramente In-Sample.
         Evita el problem de Feature Selection Snooping de la metodologÃ­a DSR.
 
         Returns:
-            Dict {feature: freq_score} donde freq_score â [0, 1] representa
+            Dict {feature: freq_score} donde freq_score âˆˆ [0, 1] representa
             la fracciÃ³n de submodelos en los que la feature apareciÃ³ en el Top-K.
         """
         from sklearn.utils import resample as _resample
@@ -1322,7 +1325,7 @@ class SFI_CPCV:
                 # Bootstrap subsample (con reemplazo, seed determinista)
                 X_boot, y_boot = _resample(
                     X.values, y,
-                    replace=True, n_samples=len(y), random_state=42 + boot_i
+                    replace=True, n_samples=len(y), random_state=_LUNA_SEED + boot_i
                 )
                 _boot_clf = XGBClassifier(
                     n_estimators=SFI_N_ESTIMATORS,
@@ -1330,8 +1333,9 @@ class SFI_CPCV:
                     learning_rate=0.05,
                     subsample=0.8,
                     colsample_bytree=0.8,
-                    random_state=42 + boot_i,
-                    verbosity=0, n_jobs=1
+                    random_state=_LUNA_SEED + boot_i,
+                    n_jobs=1,
+                    verbosity=0
                 )
                 _boot_clf.fit(X_boot, y_boot)
                 imp = _boot_clf.feature_importances_
@@ -1367,7 +1371,7 @@ class SFI_CPCV:
                  adf_penalties: Optional[Dict[str, float]] = None,
                  adv_penalties: Optional[Dict[str, float]] = None) -> List[str]:
         """
-        EvalÃÂºa todas las features y retorna las que pasan.
+        EvalÃƒÂºa todas las features y retorna las que pasan.
 
         Args:
             X: Features candidatas (representantes de cluster + alpha signals)
@@ -1383,15 +1387,15 @@ class SFI_CPCV:
                     f"costs={SFI_COST_ROUNDTRIP:.3%} round-trip")
 
         cpcv      = PurgedCPCV(n_groups=self.n_groups)
-        # MEJORA-SFI-02: CPCV pequeÃÂ±o (n_groups=4) para evaluaciones anuales.
-        # Menos grupos = menos tiempo por aÃÂ±o (datos mÃÂ¡s escasos por aÃÂ±o).
+        # MEJORA-SFI-02: CPCV pequeÃƒÂ±o (n_groups=4) para evaluaciones anuales.
+        # Menos grupos = menos tiempo por aÃƒÂ±o (datos mÃƒÂ¡s escasos por aÃƒÂ±o).
         cpcv_small = PurgedCPCV(n_groups=4)
 
-        # Ã¢ââ¬Ã¢ââ¬ MEJORA-SFI-SHARPE-01 (2026-03-10) Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
-        # Bajo H0 (sin seÃÂ±al), SR_OOB ~ N(0, 1/sqrt(n_obs)) (aproximaciÃÂ³n iid).
+        # Ã¢â€ â‚¬Ã¢â€ â‚¬ MEJORA-SFI-SHARPE-01 (2026-03-10) Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬
+        # Bajo H0 (sin seÃƒÂ±al), SR_OOB ~ N(0, 1/sqrt(n_obs)) (aproximaciÃƒÂ³n iid).
         # Umbral significativo al 95% (z=1.645): SR* = 1.645 / sqrt(n_obs_oob)
-        # Aplica max(floor=SFI_MIN_SHARPE, SR_dynamic): el floor es la cota mÃÂ­nima.
-        # n_obs_oob Ã¢â°Ë len(datos_alineados) Ãâ (k_test / n_groups)
+        # Aplica max(floor=SFI_MIN_SHARPE, SR_dynamic): el floor es la cota mÃƒÂ­nima.
+        # n_obs_oob Ã¢â€°Ë† len(datos_alineados) Ãƒâ€” (k_test / n_groups)
         # con CPCV (n=6, k=2): k_test/n_groups = 2/6 = 0.333
         _n_obs_common_preview = max(
             len(X.dropna(how="all").index.intersection(y.dropna().index)), 1
@@ -1697,9 +1701,9 @@ class ShapRFEFeatureSelector:
     Evita la Ceguera Sinérgica del Greedy Forward Selection.
     """
     """
-    Etapa E de LdP: encuentra la combinaciÃÂ³n ÃÂ³ptima de features.
-    Parte de la feature con mayor Deflated Sharpe individual y aÃÂ±ade
-    las siguientes si mejoran el Sharpe combinado Ã¢â°Â¥ min_improve.
+    Etapa E de LdP: encuentra la combinaciÃƒÂ³n ÃƒÂ³ptima de features.
+    Parte de la feature con mayor Deflated Sharpe individual y aÃƒÂ±ade
+    las siguientes si mejoran el Sharpe combinado Ã¢â€°Â¥ min_improve.
     """
 
     def __init__(self, max_features: int = FORWARD_MAX_FEATURES,
@@ -1749,8 +1753,8 @@ class ShapRFEFeatureSelector:
             try:
                 model = XGBClassifier(
                     n_estimators=100, max_depth=4,
-                    learning_rate=0.1, random_state=42,
-                    verbosity=0, n_jobs=-1
+                    learning_rate=0.1, random_state=_LUNA_SEED,
+                    n_jobs=-1, verbosity=0
                 )
                 model.fit(Xv[:i * fold_size], yv[:i * fold_size])
                 proba = model.predict_proba(Xv[te_s:te_e])[:, 1]
@@ -1828,7 +1832,7 @@ class ShapRFEFeatureSelector:
             y_train = y.loc[common]
             
             model = LGBMClassifier(n_estimators=100, max_depth=4, learning_rate=0.05, 
-                                   subsample=0.8, colsample_bytree=0.8, random_state=42, n_jobs=-1, verbose=-1)
+                                   subsample=0.8, colsample_bytree=0.8, random_state=_LUNA_SEED, n_jobs=-1, verbose=-1)
             model.fit(X_train, y_train)
             
             try:
@@ -1891,12 +1895,12 @@ class AdversarialValidator:
     sufrido un Covariate Shift entre el set de entrenamiento y el de holdout.
 
     FIX-ADV-01 (2026-05-15): Dos niveles de acciÃ³n:
-      1. Soft penalty (AUC 0.55â0.90): multiplica adjDSR por un factor < 1.
-         Ãtil cuando la feature aÃºn aporta seÃ±al a pesar del drift moderado.
+      1. Soft penalty (AUC 0.55â€“0.90): multiplica adjDSR por un factor < 1.
+         Ãštil cuando la feature aÃºn aporta seÃ±al a pesar del drift moderado.
       2. Hard block (AUC > hard_block_auc=0.90): marca passed=False directamente.
-         El multiplier 0.10x era inerte cuando DSR=0 (0 Ã 0.10 = 0 = sin efecto).
+         El multiplier 0.10x era inerte cuando DSR=0 (0 Ã— 0.10 = 0 = sin efecto).
          Con AUC>0.90, el clasificador distingue casi perfectamente train de holdout:
-         la feature es una variable fantasma â no tiene sentido mantenerla.
+         la feature es una variable fantasma â€” no tiene sentido mantenerla.
     """
     # Umbral de exclusiÃ³n directa: AUC > 0.95 = Covariate Shift severo (Relajado de 0.90)
     HARD_BLOCK_AUC: float = 0.95
@@ -1928,7 +1932,7 @@ class AdversarialValidator:
         from sklearn.metrics import roc_auc_score
         from xgboost import XGBClassifier
 
-        cv = Adv_KF(n_splits=3, shuffle=True, random_state=42)
+        cv = Adv_KF(n_splits=3, shuffle=True, random_state=_LUNA_SEED)
         aucs = []
         for tr, te in cv.split(X, y):
             model = XGBClassifier(n_estimators=20, max_depth=3, learning_rate=0.1, n_jobs=1, missing=np.nan, verbosity=0)
@@ -1974,14 +1978,14 @@ class FeatureSelectionPipelineE:
                                                  min_improve=FORWARD_MIN_IMPROVE)
         self.results: Dict = {}
 
-    # Ã¢ââ¬Ã¢ââ¬ Helpers Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+    # Ã¢â€ â‚¬Ã¢â€ â‚¬ Helpers Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬
 
     @staticmethod
     def load_selected() -> List[str]:
         """Carga la lista de features seleccionadas + pass-through (para usar en entrenamiento)."""
         if not OUTPUT_FILE.exists():
             raise FileNotFoundError(
-                f"No se encontrÃÂ³ {OUTPUT_FILE}. "
+                f"No se encontrÃƒÂ³ {OUTPUT_FILE}. "
                 "Ejecutar feature_selection_e.py primero."
             )
         with open(OUTPUT_FILE) as f:
@@ -1992,7 +1996,7 @@ class FeatureSelectionPipelineE:
         return list(dict.fromkeys(selected + passthrough))
 
     def _save_checkpoint(self, stage: str, data: dict):
-        """Guarda checkpoint para poder retomar desde una etapa especÃÂ­fica."""
+        """Guarda checkpoint para poder retomar desde una etapa especÃƒÂ­fica."""
         existing = {}
         if CHECKPOINT.exists():
             with open(CHECKPOINT) as f:
@@ -2091,18 +2095,18 @@ class FeatureSelectionPipelineE:
         sfi_ranking = self.sfi.get_ranking()
         fwd_hist = pd.DataFrame(self.forward.history)
         md_lines = [
-            "# Feature Selection Report Ã¢â¬â Luna V1",
+            "# Feature Selection Report Ã¢â‚¬â€  Luna V1",
             f"**Fecha:** {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}  ",
-            f"**Pipeline:** LÃÂ³pez de Prado 5 Etapas  ",
+            f"**Pipeline:** LÃƒÂ³pez de Prado 5 Etapas  ",
             "",
             "## Resumen",
             f"| Etapa | Input | Output |",
             f"|---|---|---|",
-            f"| [A] FracDiff DinÃÂ¡mico | Ã¢â¬â | (externo) |",
-            f"| [B] Clustering JerÃÂ¡rquico (N={CLUSTER_FIXED_N}) | {out['n_input']} | {out['n_after_clustering']} |",
-            f"| [C] Lag Discovery MI | {out['n_after_clustering']} + 5ÃÂ± | {out['n_after_lag_discovery']} |",
+            f"| [A] FracDiff DinÃƒÂ¡mico | Ã¢â‚¬â€  | (externo) |",
+            f"| [B] Clustering JerÃƒÂ¡rquico (N={CLUSTER_FIXED_N}) | {out['n_input']} | {out['n_after_clustering']} |",
+            f"| [C] Lag Discovery MI | {out['n_after_clustering']} + 5ÃŽÂ± | {out['n_after_lag_discovery']} |",
             f"| [D] SFI-CPCV (Top {SFI_TOP_N_FEATURES} Contextuales) | {out['n_after_lag_discovery']} | {out['n_after_sfi']} |",
-            f"| [E] Forward Selection (Ã¢â°Â¥{FORWARD_MIN_IMPROVE*100:.0f}%) | {out['n_after_sfi']} | **{out['n_final']}** |",
+            f"| [E] Forward Selection (Ã¢â€°Â¥{FORWARD_MIN_IMPROVE*100:.0f}%) | {out['n_after_sfi']} | **{out['n_final']}** |",
             "",
             "## Alpha Signals (R22)",
             f"**Pasaron SFI:** {', '.join(alpha_passed) if alpha_passed else 'Ninguna'}  ",
@@ -2118,14 +2122,14 @@ class FeatureSelectionPipelineE:
             "",
             sfi_ranking.to_markdown(index=False) if len(sfi_ranking) > 0 else "N/A",
             "",
-            "## Forward Selection Ã¢â¬â Historial",
+            "## Forward Selection Ã¢â‚¬â€  Historial",
             "",
             fwd_hist.to_markdown(index=False) if len(fwd_hist) > 0 else "N/A",
         ]
         REPORT_FILE.write_text("\n".join(md_lines), encoding="utf-8")
-        logger.success(f"Ã¢Åâ¦ Reporte guardado: {REPORT_FILE}")
+        logger.success(f"Ã¢Å“â€¦ Reporte guardado: {REPORT_FILE}")
 
-    # Ã¢ââ¬Ã¢ââ¬ Pipeline principal Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬Ã¢ââ¬
+    # Ã¢â€ â‚¬Ã¢â€ â‚¬ Pipeline principal Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬
 
     def run(self, features_parquet: Optional[Path] = None,
             resume: bool = False) -> Dict:
@@ -2134,22 +2138,22 @@ class FeatureSelectionPipelineE:
 
         Args:
             features_parquet: Ruta al parquet de features (default: features_train.parquet)
-            resume: Si True, retoma desde el checkpoint mÃÂ¡s avanzado disponible
+            resume: Si True, retoma desde el checkpoint mÃƒÂ¡s avanzado disponible
 
         Returns:
             Dict con resultados de cada etapa
         """
         logger.info("=" * 65)
-        logger.info("Feature Selection Pipeline Ã¢â¬â Luna V1 (LÃÂ³pez de Prado 5 Etapas)")
+        logger.info("Feature Selection Pipeline Ã¢â‚¬â€  Luna V1 (LÃƒÂ³pez de Prado 5 Etapas)")
         logger.info("=" * 65)
         logger.info(f"ADVERTENCIA: tiempo estimado en CPU: ~8 min (26 candidatos tras clustering B)")
 
         # FIX: Siempre borrar el checkpoint al inicio de un run fresco (resume=False).
-        # AsÃÂ­ se garantiza que cada ejecuciÃÂ³n sin --resume recalcula TODO desde cero.
-        # El checkpoint solo se preserva si el usuario pasa explÃÂ­citamente --resume.
+        # AsÃƒÂ­ se garantiza que cada ejecuciÃƒÂ³n sin --resume recalcula TODO desde cero.
+        # El checkpoint solo se preserva si el usuario pasa explÃƒÂ­citamente --resume.
         if not resume and CHECKPOINT.exists():
             CHECKPOINT.unlink()
-            logger.info(f"Ã°Å¸ââÃ¯Â¸Â  Checkpoint previo eliminado Ã¢â¬â run limpio desde Etapa B (resume=False)")
+            logger.info(f"Ã°Å¸â€”â€˜Ã¯Â¸Â   Checkpoint previo eliminado Ã¢â‚¬â€  run limpio desde Etapa B (resume=False)")
 
         # Cargar datos
         fp = features_parquet or (DATA_DIR / "features_train.parquet")
@@ -2175,10 +2179,10 @@ class FeatureSelectionPipelineE:
                 df = df[df.index <= _cutoff_sfi]
                 logger.info(
                     f"[WFB-CAUSAL-FIX-SFI] DataFrame cortado a train_end={_wfb_train_end}: "
-                    f"{_orig_len} â {len(df)} filas. Datos post-cutoff excluidos de evaluaciÃ³n SFI."
+                    f"{_orig_len} â†’ {len(df)} filas. Datos post-cutoff excluidos de evaluaciÃ³n SFI."
                 )
             else:
-                logger.debug("[WFB-CAUSAL-FIX-SFI] No se encontrÃ³ train_end en settings â usando parquet completo.")
+                logger.debug("[WFB-CAUSAL-FIX-SFI] No se encontrÃ³ train_end en settings â€” usando parquet completo.")
         except Exception as _sfi_cut_err:
             logger.warning(f"[WFB-CAUSAL-FIX-SFI] No se pudo aplicar corte train_end: {_sfi_cut_err}. Continuando sin corte.")
 
@@ -2190,7 +2194,7 @@ class FeatureSelectionPipelineE:
         # El fingerprint usa: nrows | fecha_inicio | fecha_fin | ncols
         # (misma funcion que ya usan los caches de lag MI en Etapa C).
         # Se persiste en _fp_history.json junto a _lag_cache.json y _dsr_cache.json.
-        # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         def _make_fp(df_: "pd.DataFrame") -> str:
             idx = df_.index
             s = idx[0].isoformat() if hasattr(idx[0], "isoformat") else str(idx[0])
@@ -2228,15 +2232,15 @@ class FeatureSelectionPipelineE:
 
         logger.info(
             f"[R2-FP-01] features_train   fp = {_train_fp}"
-            + (" â MISMO QUE RUN ANTERIOR" if not _train_changed and _prev_train_fp else
-               " â NUEVO (sin historial)" if not _prev_train_fp else
-               " â â  CAMBIO DETECTADO")
+            + (" â†  MISMO QUE RUN ANTERIOR" if not _train_changed and _prev_train_fp else
+               " â†  NUEVO (sin historial)" if not _prev_train_fp else
+               " â†  âš  CAMBIO DETECTADO")
         )
         logger.info(
             f"[R2-FP-01] features_holdout fp = {_holdout_fp}"
-            + (" â MISMO QUE RUN ANTERIOR" if not _holdout_changed and _prev_holdout_fp else
-               " â NUEVO (sin historial)" if not _prev_holdout_fp else
-               " â â  CAMBIO DETECTADO")
+            + (" â†  MISMO QUE RUN ANTERIOR" if not _holdout_changed and _prev_holdout_fp else
+               " â†  NUEVO (sin historial)" if not _prev_holdout_fp else
+               " â†  âš  CAMBIO DETECTADO")
         )
 
         if _train_changed or _holdout_changed:
@@ -2264,7 +2268,7 @@ class FeatureSelectionPipelineE:
             )
         except Exception as _fp_save_err:
             logger.debug(f"[R2-FP-01] No se pudo guardar _fp_history.json: {_fp_save_err}")
-        # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
         # Target dinÃ¡mico (R17)
         if "Target_TBM_Bin" in df.columns:
@@ -2281,9 +2285,9 @@ class FeatureSelectionPipelineE:
             y_float[fwd_ret.isna()] = np.nan
             y = y_float
         else:
-            raise ValueError("No se encontrÃÂ³ 'Target_TBM_Bin', 'target' ni 'close' en el parquet")
+            raise ValueError("No se encontrÃƒÂ³ 'Target_TBM_Bin', 'target' ni 'close' en el parquet")
 
-        # Precios para cÃÂ¡lculo de retornos en SFI
+        # Precios para cÃƒÂ¡lculo de retornos en SFI
         prices = df["close"] if "close" in df.columns else y.cumsum()
 
         # Separar raw features de alpha signals
@@ -2298,7 +2302,7 @@ class FeatureSelectionPipelineE:
                       and not any(sub in c.lower() for sub in TIPO1_SLOW_SUBSTRINGS)
                       and df[c].dtype in [np.float32, np.float64, np.int32, np.int64]]
 
-        # ââ Etapa PRE-A: Estacionariedad ADF (Pilar 3) âââââââââââââââââââââââââââ
+        # â”€â”€ Etapa PRE-A: Estacionariedad ADF (Pilar 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         adf_penalties = {c: 1.0 for c in df.columns}
         chk_PreA = self._load_checkpoint("PreA") if resume else None
         
@@ -2312,7 +2316,7 @@ class FeatureSelectionPipelineE:
                 
                 _bad_macros = [(k, v) for k, v in adf_penalties.items() if v < 1.0]
                 if _bad_macros:
-                    logger.warning(f"[PRE-A] ð¨ {len(_bad_macros)} variables sufren de RaÃ­z Unitaria (Random Walk). Top examples:")
+                    logger.warning(f"[PRE-A] ðŸš¨ {len(_bad_macros)} variables sufren de RaÃ­z Unitaria (Random Walk). Top examples:")
                     for k, v in _bad_macros[:5]:
                         logger.warning(f"      {k:<30} -> Penalty: {v:.2f}x")
                     
@@ -2320,7 +2324,7 @@ class FeatureSelectionPipelineE:
             except Exception as e:
                 logger.error(f"[PRE-A] Error en test ADF (Â¿statsmodels no instalado?). Filtro omitido: {e}")
 
-        # ââ FIX-SFI-HOLDOUT-NAN-01 (Actualizado R4 2026-03-25) ââââââââââââââââââââ
+        # â”€â”€ FIX-SFI-HOLDOUT-NAN-01 (Actualizado R4 2026-03-25) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # Filtrar raw_cols usando NaN% en features_holdout.parquet.
         # R4: Distinguir NaNs estructurales de NaNs por "Publication Lag" (FRED).
         # features macro suelen tener trailing NaNs al final del holdout por retraso en publicaciÃ³n.
@@ -2379,7 +2383,7 @@ class FeatureSelectionPipelineE:
                                 _broken_lag.add(c)
                                 _holdout_high_nan.add(c)
                                 logger.warning(
-                                    f"[FIX-SFI-HOLDOUT-NAN-01] ð¨ ALERTA DEPRECACIÃN: Feature '{c}' eliminada. "
+                                    f"[FIX-SFI-HOLDOUT-NAN-01] ðŸš¨ ALERTA DEPRECACIÃ“N: Feature '{c}' eliminada. "
                                     f"SuperÃ³ el lÃ­mite de trailing NaNs ({trailing_nan_pct:.1%} > {_max_trailing_nan_pct:.1%}). "
                                     f"Â¿Datos discontinuados en origen o API rota?"
                                 )
@@ -2393,7 +2397,7 @@ class FeatureSelectionPipelineE:
                     if _holdout_high_nan:
                         logger.info(
                             f"[FIX-SFI-HOLDOUT-NAN-01] Filtro estructural NaN: "
-                            f"{_before}â{len(raw_cols)} features | "
+                            f"{_before}â†’{len(raw_cols)} features | "
                             f"Rotas internas ({len(_broken_internal)}) | "
                             f"Deprecadas por lag extremo ({len(_broken_lag)}) | "
                             f"Perdonadas por Publication Lag ({len(_lag_pardoned)}): {', '.join(sorted(_lag_pardoned)) if _lag_pardoned else '0'}"
@@ -2405,14 +2409,14 @@ class FeatureSelectionPipelineE:
             except Exception as _e_hnan:
                 logger.warning(f"[FIX-SFI-HOLDOUT-NAN-01] Error aplicando filtro R4: {_e_hnan}")
         else:
-            logger.warning(f"[FIX-SFI-HOLDOUT-NAN-01] {_holdout_path} no existe â filtro omitido.")
-        # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+            logger.warning(f"[FIX-SFI-HOLDOUT-NAN-01] {_holdout_path} no existe â€” filtro omitido.")
+        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-        # ââ [OOD-GUARD-SFI] DetecciÃ³n de features con distribuciÃ³n degenerada en OOS ââ
-        # POSICIÃN CRÃTICA: justo antes del paso B (clustering).
+        # â”€â”€ [OOD-GUARD-SFI] DetecciÃ³n de features con distribuciÃ³n degenerada en OOS â”€â”€
+        # POSICIÃ“N CRÃ TICA: justo antes del paso B (clustering).
         # Si el guard se aplica despuÃ©s del SFI, solo reduce la lista final sin dar
         # oportunidad a que otras features llenen los huecos. Aplicarlo aquÃ­ permite
-        # que el SFI seleccione las N mejores features VÃLIDAS en OOS.
+        # que el SFI seleccione las N mejores features VÃ LIDAS en OOS.
         # -- [ARCH-26-FIX-A 2026-06-02] OOD-GUARD-SFI con IS reciente (MISMO PATRON QUE ARCH-25) --
         # PROBLEMA: OOD-GUARD-SFI usaba features_validation.parquet = Ene-Abr 2025 (100% BULL extremo).
         # Features macro (M2, T10Y2Y, CPI, yield_curve) tienen baja varianza en bull puro ->
@@ -2489,7 +2493,7 @@ class FeatureSelectionPipelineE:
         # -----------------------------------------------------------------------------------------
 
         # [Paso B] Clustering JerÃ¡rquico & SelecciÃ³n Representantes
-        # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         X_raw = df[raw_cols].copy()
         X_alpha = df[alpha_cols]
         prices = df['close'] if 'close' in df.columns else y.cumsum()
@@ -2504,9 +2508,9 @@ class FeatureSelectionPipelineE:
 
         self.results['n_after_clustering'] = len(repr_features)
 
-        # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # [Paso C] Automatic Lag Discovery & Alignment
-        # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _lag_cache_path = Path(DATA_DIR) / '_lag_cache.json'
 
         def _data_fingerprint(df_: pd.DataFrame) -> str:
@@ -2535,7 +2539,7 @@ class FeatureSelectionPipelineE:
         X_lagged = self.lag_disc.transform(X_raw[repr_features], y,
                                            lag_cache=_effective_cache,
                                            hmm_regime=df["HMM_Regime"] if "HMM_Regime" in df.columns else None)
-        # AÃÂ±adir alpha signals (sin lag discovery Ã¢â¬â R22, lags ya baked)
+        # AÃƒÂ±adir alpha signals (sin lag discovery Ã¢â‚¬â€  R22, lags ya baked)
         for c in alpha_cols:
             X_lagged[c] = X_alpha[c]
         col_lags_saved = {col: int(lag)
@@ -2552,18 +2556,18 @@ class FeatureSelectionPipelineE:
         })
         # Persistir cache v3.0: domain_lags preservados + mi_lags del run actual
         try:
-            # Rescatar domain_lags del cache previo (si existe v3.0) o usar vacÃÂ­o
+            # Rescatar domain_lags del cache previo (si existe v3.0) o usar vacÃƒÂ­o
             prev_domain = _domain_lags if _domain_lags else {}
-            # mi_lags: los reciÃÂ©n calculados (excluir los que eran domain)
+            # mi_lags: los reciÃƒÂ©n calculados (excluir los que eran domain)
             new_mi_lags = {k: v for k, v in col_lags_saved.items()
                            if k not in prev_domain}
-            # Merge con mi_lags previos vÃÂ¡lidos (si mismo dataset, sumar features nuevas)
+            # Merge con mi_lags previos vÃƒÂ¡lidos (si mismo dataset, sumar features nuevas)
             if current_fp == _cache_data.get("mi_data_fingerprint", "") if _lag_cache_path.exists() else False:
                 merged_mi = {**_mi_lags_valid, **new_mi_lags}  # nuevos overrides previos
             else:
-                merged_mi = new_mi_lags  # dataset nuevo Ã¢â â solo lags frescos
+                merged_mi = new_mi_lags  # dataset nuevo Ã¢â€ â€™ solo lags frescos
 
-            # Merge dsr_verified: preservar verificados previos + aÃÂ±adir nuevos
+            # Merge dsr_verified: preservar verificados previos + aÃƒÂ±adir nuevos
             _prev_dsr_verified = _cache_data.get("dsr_verified_lags", {}) \
                 if _lag_cache_path.exists() and '_cache_data' in dir() else {}
             _merged_dsr_verified = {**_prev_dsr_verified, **_dsr_verified_lags}
@@ -2594,7 +2598,7 @@ class FeatureSelectionPipelineE:
                     f"({self.results['n_after_C'] - len(alpha_cols)} raw + "
                     f"{len(alpha_cols)} alpha signals)")
 
-        # ââ Etapa D.2: ValidaciÃ³n Adversaria Univariable âââââââââââââââââââââââââââ
+        # â”€â”€ Etapa D.2: ValidaciÃ³n Adversaria Univariable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         adv_penalties = {c: 1.0 for c in X_lagged.columns}
         adv_aucs = {c: 0.5 for c in X_lagged.columns}
         
@@ -2740,7 +2744,7 @@ class FeatureSelectionPipelineE:
                         continue  # Skip fold if monotonic (extreme case)
                         
                     _m = XGBClassifier(n_estimators=40, max_depth=3, learning_rate=0.05,
-                                       subsample=0.8, colsample_bytree=0.8, random_state=42 + _f, n_jobs=1)
+                                       subsample=0.8, colsample_bytree=0.8, random_state=_LUNA_SEED + _f, n_jobs=1)
                     _m.fit(X_f.values, y_f.values)
                     
                     # Normalizar importancias del fold para que sumen 1

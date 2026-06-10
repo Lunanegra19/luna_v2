@@ -261,8 +261,11 @@ class AdvancedEngine:
             X=df[cols].ffill().fillna(0); y=target
             idx=X.index.intersection(y.dropna().index); X,y=X.loc[idx],y.loc[idx]
             splits=list(TimeSeriesSplit(n_splits=3).split(X)); tr,te=splits[-1]
+            import os
+            _seed = int(os.environ.get("LUNA_SEED", 42))
+            print(f"[AUDIT-FIX] LUNA_SEED={_seed} inyectado en SHAP RF")
             rf=RandomForestClassifier(n_estimators=SHAP_N_ESTIM,max_depth=6,
-                min_samples_leaf=50,n_jobs=-1,random_state=42)
+                min_samples_leaf=50,n_jobs=-1,random_state=_seed)
             rf.fit(X.iloc[tr],y.iloc[tr])
             acc=rf.score(X.iloc[te],y.iloc[te])
             logger.info(f"SHAP RF OOS accuracy: {acc:.3f}")
@@ -299,7 +302,10 @@ class AdvancedEngine:
             X=df[cols].ffill().fillna(0); y=target
             idx=X.index.intersection(y.dropna().index); X,y=X.loc[idx],y.loc[idx]
             n=len(X); Xt=X.iloc[:int(n*0.75)]; yt=y.iloc[:int(n*0.75)]
-            rf=RandomForestClassifier(n_estimators=100,max_depth=5,min_samples_leaf=50,random_state=42)
+            import os
+            _seed = int(os.environ.get("LUNA_SEED", 42))
+            print(f"[AUDIT-FIX] LUNA_SEED={_seed} inyectado en Advanced RF")
+            rf=RandomForestClassifier(n_estimators=100,max_depth=5,min_samples_leaf=50,random_state=_seed)
             rf.fit(Xt,yt)
             imp=pd.Series(rf.feature_importances_,index=cols).sort_values(ascending=False)
             self._plot_shap(imp); return {"shap_ranking":imp.to_dict(),"rf_accuracy":0.0,"top5_shap":imp.head(5).index.tolist()}
@@ -314,7 +320,10 @@ class AdvancedEngine:
             cols=[c for c in ANALYSIS_CANDIDATES if c in df.columns]
             if not cols: return {}
             X=StandardScaler().fit_transform(df[cols].ffill().fillna(0))
-            iso=IsolationForest(n_estimators=200,contamination=ISOLATION_CONT,n_jobs=-1,random_state=42)
+            import os
+            _seed = int(os.environ.get("LUNA_SEED", 42))
+            print(f"[AUDIT-FIX] LUNA_SEED={_seed} inyectado en IsolationForest")
+            iso=IsolationForest(n_estimators=200,contamination=ISOLATION_CONT,n_jobs=-1,random_state=_seed)
             preds=iso.fit_predict(X); raw=iso.score_samples(X)
             n_anom=(preds==-1).sum()
             dates=[str(df.index[i].date()) for i in np.where(preds==-1)[0][-5:]]

@@ -10,7 +10,10 @@ import types
 class PlattCalibrator:
     def __init__(self):
         from sklearn.linear_model import LogisticRegression as _LR
-        self.model = _LR(C=1e6, random_state=42)
+        import os
+        _seed = int(os.environ.get("LUNA_SEED", 42))
+        print(f"[AUDIT-FIX] LUNA_SEED={_seed} inyectado en SignalFilter LogisticRegression")
+        self.model = _LR(C=1e6, random_state=_seed)
         self.X_thresholds_ = []
 
     def fit(self, X, y):

@@ -136,17 +136,22 @@ class ClusterPatternEngine:
             X_train = X
 
         # FIX-ALTO-4: Estabilidad de KMeans Tribus en W2-W5 (Anchoring de Centroides)
-        run_id = os.environ.get("LUNA_RUN_ID", "")
+        # [CACHE-HYGIENE-01] Usar LUNA_WINDOW_ID en lugar de LUNA_RUN_ID para detectar W1 correctamente
+        window_id = os.environ.get("LUNA_WINDOW_ID", "")
         models_dir = PROJECT_ROOT / "data" / "models"
         models_dir.mkdir(parents=True, exist_ok=True)
         scaler_path = models_dir / "kmeans_scaler.pkl"
         kmeans_path = models_dir / "kmeans_model.pkl"
 
-        is_wfb_subsequent = run_id.startswith("WFB_") and not run_id.endswith("_W1")
+        is_wfb_subsequent = window_id != "" and window_id != "W1"
+        _msg = (f"Cluster [CACHE-HYGIENE-01]: KMeans anchor check: LUNA_WINDOW_ID={window_id}   "
+                f"{'CARGAR anclajes de W1' if is_wfb_subsequent else 'ENTRENAR desde cero (W1 o standalone)'}")
+        logger.info(_msg)
+        print(_msg)
         
         if is_wfb_subsequent and scaler_path.exists() and kmeans_path.exists():
             # W2-W5: Cargar modelos anclados de W1 para prevenir Tribe Drift
-            logger.info(f"Cluster [FIX-ALTO-4]: Run {run_id}. Cargando centroides y scaler anclados de W1.")
+            logger.info(f"Cluster [FIX-ALTO-4]: Window {window_id}. Cargando centroides y scaler anclados de W1.")
             scaler = joblib.load(scaler_path)
             km = joblib.load(kmeans_path)
             X_s = scaler.transform(X)
@@ -156,8 +161,9 @@ class ClusterPatternEngine:
             scaler = StandardScaler()
             scaler.fit(X_train)          # fit SOLO en train
             X_s = scaler.transform(X)   # transform en todo (causal: sólo usa estadísticos del train)
-
-            km = KMeans(n_clusters=N_TRIBES, n_init=5, random_state=42)
+            _seed = int(os.environ.get("LUNA_SEED", 42))
+            print(f"[AUDIT-FIX] LUNA_SEED={_seed} inyectado en KMeans (Tribes)")
+            km = KMeans(n_clusters=N_TRIBES, n_init=5, random_state=_seed)
             labels = km.fit_predict(X_s)
             
             # Guardar anclajes

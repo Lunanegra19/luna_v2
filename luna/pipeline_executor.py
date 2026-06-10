@@ -85,6 +85,17 @@ def hydrate_window_state(window_id: str, seed_id=None):
             if f.is_file():
                 shutil.copy2(f, target_features / f.name)
         logger.info(f"[HYDRATE] Features restauradas desde wfb_cache/{window_id}/features/")
+    else:
+        # [CACHE-HYGIENE-01] Cache no existe (primera seed con --nocache).
+        # Limpiar workspace de todas formas para eliminar residuos de runs anteriores.
+        target_features = _ROOT / "data" / "features"
+        if target_features.exists():
+            for f in target_features.glob("*"):
+                if f.is_file():
+                    try: f.unlink()
+                    except: pass
+            logger.info(f"[CACHE-HYGIENE-01] data/features/ limpiado (sin caché disponible, primera seed)")
+            print(f"[CACHE-HYGIENE-01] data/features/ limpiado (sin caché disponible, primera seed)")
 
     # --- Modelos (aislados por seed) ---
     if seed_id is not None:
@@ -116,6 +127,16 @@ def hydrate_window_state(window_id: str, seed_id=None):
             if f.is_file():
                 shutil.copy2(f, target_models / f.name)
         logger.info(f"[HYDRATE] Modelos restaurados desde {models_cache.relative_to(_ROOT)}")
+    else:
+        # [CACHE-HYGIENE-01] Cache no existe (primera seed con --nocache).
+        target_models = _ROOT / "data" / "models"
+        if target_models.exists():
+            for f in target_models.glob("*"):
+                if f.is_file():
+                    try: f.unlink()
+                    except: pass
+            logger.info(f"[CACHE-HYGIENE-01] data/models/ limpiado (sin caché disponible, primera seed)")
+            print(f"[CACHE-HYGIENE-01] data/models/ limpiado (sin caché disponible, primera seed)")
 
         # [FALLA 7] Validar PKL HMM post-hydrate
         _validate_hmm_pkl(target_models, window_id)

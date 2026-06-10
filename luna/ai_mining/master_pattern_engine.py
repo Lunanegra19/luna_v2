@@ -152,11 +152,14 @@ class MasterPatternEngine:
             if best_model is None:
                 logger.warning("[FALLA-10-FIX] Ningún seed del MasterPattern HMM convergió — fallback seed=42 sin filtro")
                 print("[FALLA-10-FIX] WARNING: HMM MasterPattern no convergió en 5 seeds — usando fallback")
+                import os
+                _seed = int(os.environ.get("LUNA_SEED", 42))
+                print(f"[AUDIT-FIX] LUNA_SEED={_seed} inyectado en MasterPattern HMM fallback")
                 model = hmm.GaussianHMM(
                     n_components=N_HMM_STATES,
                     covariance_type="diag",
                     n_iter=200,
-                    random_state=42,
+                    random_state=_seed,
                     min_covar=0.01,
                     verbose=False,
                 )

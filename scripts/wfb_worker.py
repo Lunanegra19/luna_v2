@@ -839,7 +839,7 @@ def main():
                         _cached_seed          = _fp_ww.get("seed", "?")
                         _cached_run_id        = _fp_ww.get("run_id", "?")
 
-                        _hash_mismatch = False # [TEST-EMBARGO] Bypass cache hash check
+                        _hash_mismatch = (_cached_settings_hash != _current_settings_hash)
                         _seed_mismatch = str(_cached_seed) != str(args.seed)
 
                         if _hash_mismatch or _seed_mismatch:
