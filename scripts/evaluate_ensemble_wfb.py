@@ -227,6 +227,32 @@ def main():
         for n_seeds_val, n_buckets in bucket_unique_seeds.value_counts().sort_index(ascending=False).items():
             print(f"  {n_seeds_val} semillas únicas → {n_buckets} buckets")
 
+        # ── [MC-CONSENSUS-01] Simulador Topológico de Consenso ──
+        print(f"\n[MC-CONSENSUS-01] Ejecutando Simulador Topológico de Consenso (Barrido Monte Carlo)...")
+        print(f"{'Thr':<5} | {'Trades':<8} | {'WinRate':<8} | {'RetProm':<8} | {'Sharpe':<8}")
+        print("-" * 45)
+        for t_test in range(2, min(20, bucket_unique_seeds.max() + 1)):
+            df_test = df_all_trades[df_all_trades['consensus_count'] >= t_test]
+            n_t = df_test['consensus_bucket'].nunique()
+            if n_t < 10: continue
+            
+            # Aproximación rápida
+            df_test_agg = df_test.groupby('consensus_bucket').agg({'return_pct':'mean'})
+            df_test_agg['is_win'] = (df_test_agg['return_pct'] > 0).astype(float)
+            wr_t = df_test_agg['is_win'].mean() * 100
+            rm_t = df_test_agg['return_pct'].mean() * 100
+            
+            std_t = df_test_agg['return_pct'].std()
+            sh_t = 0.0
+            if std_t > 1e-10:
+                days_t = (df_test_agg.index.max() - df_test_agg.index.min()).days
+                n_per_year_t = n_t / (days_t / 365.25) if days_t > 0 else n_t * 365.25
+                sh_t = (df_test_agg['return_pct'].mean() / std_t) * (n_per_year_t ** 0.5)
+            
+            marker = "<-- (ACTUAL)" if t_test == threshold else ""
+            print(f"{t_test:<5} | {n_t:<8} | {wr_t:>5.1f}%   | {rm_t:>5.2f}%   | {sh_t:>5.2f}  {marker}")
+        print("-" * 45 + "\n")
+
         # Filtrar por consenso mínimo
         df_filtered_trades = df_all_trades[df_all_trades['consensus_count'] >= threshold].copy()
         n_buckets_pass = df_filtered_trades['consensus_bucket'].nunique()
@@ -418,6 +444,46 @@ def main():
         print(f"[FIX-ENSEMBLE-EVAL] Guardado portafolio ensemble en {portfolio_out_path}")
         logger.success(f"[FIX-ENSEMBLE-EVAL] Portafolio unificado guardado en {portfolio_out_path.name}")
 
+        # ── [MCTB-01] Monte Carlo Trade Bootstrapping ──
+        print("\n[MCTB-01] Ejecutando Monte Carlo Trade Bootstrapping (10,000 universos)...")
+        _returns = df_portfolio_final['return_pct'].values
+        _n_trades_mc = len(_returns)
+        
+        _mc_dd_95 = 0.0
+        _mc_dd_99 = 0.0
+        _por_x1 = 0.0
+        _por_x10 = 0.0
+        
+        if _n_trades_mc >= 10:
+            np.random.seed(42)
+            _idx = np.random.randint(0, _n_trades_mc, size=(10000, _n_trades_mc))
+            _sim_returns = _returns[_idx]
+            
+            # Constant allocation DD
+            _cum_returns = np.cumsum(_sim_returns, axis=1)
+            _running_max = np.maximum.accumulate(_cum_returns, axis=1)
+            _drawdowns = _running_max - _cum_returns
+            _max_dds = np.max(_drawdowns, axis=1)
+            
+            _mc_dd_95 = np.percentile(_max_dds, 95) * 100
+            _mc_dd_99 = np.percentile(_max_dds, 99) * 100
+            
+            _kill_unlev = 0.15
+            _kill_x10 = 0.015 # 1.5% unleveraged becomes 15% leveraged
+            
+            _por_x1 = np.mean(_max_dds > _kill_unlev) * 100
+            _por_x10 = np.mean(_max_dds > _kill_x10) * 100
+            
+            print(f"[MCTB-01] Resultados MCTB (N={_n_trades_mc}):")
+            print(f"  - MC-MaxDD (95% Confianza): {_mc_dd_95:.2f}% (Sin apalancamiento)")
+            print(f"  - MC-MaxDD (99% Confianza): {_mc_dd_99:.2f}% (Sin apalancamiento)")
+            print(f"  - Probability of Ruin (PoR al -15% DD, Apalancamiento x1): {_por_x1:.2f}%")
+            print(f"  - Probability of Ruin (PoR al -15% DD, Apalancamiento x10): {_por_x10:.2f}%")
+            if _por_x10 > 5.0:
+                print(f"  [ALERTA MCTB] La ruina supera el 5% a x10. Reducir leverage o Kelly Fraction.")
+        else:
+            print("[MCTB-01] Insuficientes trades para simulación Monte Carlo.")
+
         # ═══════════════════════════════════════════════════════════════════════
         # [ENSEMBLE-GAUNTLET-01 2026-05-28] Gauntlet estadístico sobre el portfolio
         # ensemble completo. Es el veredicto AUTORIZADO y ÚNICO de despliegue.
@@ -521,6 +587,31 @@ def main():
                     print(f"[ENSEMBLE-GAUNTLET-01] GATE ENDURECIDO por R5: DSR_adj={_dsr_adj_ens:.4f} "
                           f"< {_base_dsr_thr_ens:.3f} — deploy_approved: True → False")
 
+                # ── [MCTB-02] Disyuntor Letal de Monte Carlo (Probability of Ruin) ──
+                try:
+                    from config.settings import cfg as _cfg_ens
+                    _base_por_thr_ens = float(getattr(_cfg_ens.stat, "max_por_x10", 10.0))
+                except Exception:
+                    _base_por_thr_ens = 10.0
+
+                _ens_verdict["summary"]["por_x10_pct"] = round(_por_x10, 2)
+                
+                # Checkeamos si PoR supera el max permitido
+                _pass_por = bool(_por_x10 <= _base_por_thr_ens)
+                
+                if not "flags" in _ens_verdict:
+                    _ens_verdict["flags"] = {}
+                _ens_verdict["flags"]["pass_por"] = _pass_por
+
+                if _ens_verdict.get("deploy_approved", False) and not _pass_por:
+                    _ens_verdict["deploy_approved"] = False
+                    _ens_verdict["rejection_reason"] = (
+                        f"[MCTB DISYUNTOR] Probabilidad de Ruina (PoR a x10)={_por_x10:.2f}% "
+                        f"> umbral letal={_base_por_thr_ens:.1f}% en 10,000 universos de Monte Carlo."
+                    )
+                    print(f"[ENSEMBLE-GAUNTLET-01] GATE ENDURECIDO por MCTB: PoR={_por_x10:.2f}% "
+                          f"> {_base_por_thr_ens:.1f}% — deploy_approved: True -> False")
+                
                 _ensemble_approved = bool(_ens_verdict.get("deploy_approved", False))
 
                 # Guardar veredicto canónico del ensemble
@@ -591,6 +682,19 @@ def main():
         summary_md.append("> ⚠️ **ALERTA**: El número total de trades únicos del ensamble es inferior al mínimo estadístico recomendado de 30 trades. Considere relajar aún más los gates adaptativos del Brier score si persiste la inanición operativa.")
     else:
         summary_md.append("> ✅ **ROBUSTEZ ESTADÍSTICA**: Se supera el umbral crítico de 30 trades. Las métricas del ensamble son estadísticamente significativas.")
+
+    # Inyectar MCTB
+    summary_md.append("")
+    summary_md.append("## 3.1. Monte Carlo Trade Bootstrapping (MCTB)")
+    if '_mc_dd_99' in locals() and _mc_dd_99 > 0:
+        summary_md.append("Resultados de simular 10,000 curvas de equity barajando los trades del ensamble:")
+        summary_md.append(f"- **MC-MaxDD (95% Confianza)**: {_mc_dd_95:.2f}%")
+        summary_md.append(f"- **MC-MaxDD (99% Confianza)**: {_mc_dd_99:.2f}%")
+        summary_md.append(f"- **Prob. de Ruina (PoR a -15% con Apalancamiento x10)**: {_por_x10:.2f}%")
+        if _por_x10 > 5.0:
+            summary_md.append("> ⚠️ **ALERTA MCTB**: Probabilidad de ruina > 5%. Se recomienda bajar el Criterio de Kelly o el apalancamiento máximo a x5.")
+    else:
+        summary_md.append("- Insuficientes trades para MCTB.")
 
     # [ENSEMBLE-GAUNTLET-01] Sección 4: veredicto estadístico autorizado del ensemble
     summary_md.append("")

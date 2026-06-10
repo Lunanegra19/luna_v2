@@ -411,6 +411,8 @@ metalabeler:
   meta_v2_threshold_mode: dynamic_is
   meta_v2_thresh_bull_strong: 0.38
   meta_v2_thresh_bull_unstable: 0.45
+  meta_v2_rolling_percentile_bull: 0.7
+  meta_v2_rolling_percentile_bear: 0.9
   meta_v2_rolling_percentile: 0.85
   meta_v2_rolling_min_n: 100
   momentum_filter_threshold: -30.0
@@ -464,13 +466,13 @@ sop:
   annual_factor: 93.6
   cost_pct: 0.0025
   cpcv_groups: 10
-  # [PYRAMID-01 2026-06-09] Permitir acumulacion Spot en tendencias confirmadas
   embargo_hours: 0
   purge_hours: 96
 stat:
   alpha_binomial: 0.2
   max_drawdown: 0.6
   max_pbo: 0.45
+  max_por_x10: 10.0
   mc_block_size_hours: 96
   mc_simulations: 10000
   min_dsr: 0.75
@@ -499,21 +501,20 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-03-31
+  hmm_train_end: 2025-09-30
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-06-30
-  holdout_start: 2025-04-01
-  train_end: 2025-01-31
+  holdout_end: 2025-12-31
+  holdout_start: 2025-10-01
+  train_end: 2025-07-31
   train_start: '2017-08-17'
-  validation_end: 2025-03-31
-  validation_start: 2025-02-01
+  validation_end: 2025-09-30
+  validation_start: 2025-08-01
 wfb:
-  ensemble_consensus_threshold: 2
+  ensemble_consensus_threshold: 4
   consensus_bucket_hours: 2
   max_seeds_to_explore: 20
-  min_seeds_to_approve: 3
+  min_seeds_to_approve: 10
   prune_threshold: 0.8
-  # [PYRAMID-01 2026-06-09] Apagar soft embargo
   soft_embargo_enabled: false
   soft_embargo_hours: 0.0
   active_seeds:
@@ -593,7 +594,7 @@ xgboost:
   embargo_hours: 0
   embargo_min_hours: 0.0
   dynamic_barrier: true
-  dynamic_horizon_min_h: 24
+  dynamic_horizon_min_h: 48
   event_sampling_hours: 12
   focal_loss_gamma: 2.0
   hmm_velocity_ewm_span: 24
@@ -604,6 +605,8 @@ xgboost:
   bull_gate_min_dsr: 0.0
   n_purged_splits: 8
   optuna_metric: brier
+  vertical_barrier_hours: 48
+  dynamic_horizon_max_h: 168
   optuna_search_space:
     colsample_bytree_max: 0.85
     colsample_bytree_min: 0.4
@@ -625,7 +628,18 @@ xgboost:
     reg_lambda_min: 0.01
     subsample_max: 0.85
     subsample_min: 0.5
-  optuna_seed: 72410
+  # [REGULARIZATION-DYN-01 2026-06-10] Forzado matemático de underfitting en regímenes ruidosos
+  dynamic_regime_regularization:
+    bear:
+      max_depth_cap: 2
+      gamma_floor: 0.5
+    range:
+      max_depth_cap: 3
+      gamma_floor: 0.2
+    bull:
+      max_depth_cap: 4
+      gamma_floor: 0.0
+  optuna_seed: 88219
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -651,7 +665,6 @@ xgboost:
   threshold_sweep_step: 0.005
   use_focal_loss: false
   use_regime_agents: true
-  vertical_barrier_hours: 48
   weight_decay_alpha: 0.5
   xgb_min_signals_count: 0
   xgb_min_signals_threshold: 0.45

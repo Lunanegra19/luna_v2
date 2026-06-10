@@ -660,9 +660,43 @@ def main():
                         break  # salir del while
     
                 if pruned:
-                    print(f"[EARLY-STOP] seed{seed} descartada. Pasando a la siguiente seed.")
-                    pruned_seeds.append(seed)
-                    break  # salir del loop de intentos para esta seed
+                    # [FIX-EARLYSTOP-COUNTING-01] Comprobar si la semilla "podada" fue aprobada por el Gauntlet
+                    # gracias al merge_and_validate post-mortem (N >= 30)
+                    _deploy_approved_post_mortem = False
+                    try:
+                        import glob as _glob_pm
+                        _report_dir_pm = _ROOT / "data" / "reports"
+                        _verdict_pattern_pm = str(_report_dir_pm / f"*seed{seed}*_statistical_verdict.json")
+                        _verdict_files_pm = sorted(_glob_pm.glob(_verdict_pattern_pm), reverse=True)
+                        if _verdict_files_pm:
+                            with open(_verdict_files_pm[0], encoding="utf-8") as _vf_pm:
+                                _v_pm = json.load(_vf_pm)
+                            _deploy_approved_post_mortem = bool(_v_pm.get("deploy_approved", False))
+                    except Exception as _e_pm:
+                        print(f"[FIX-EARLYSTOP-COUNTING-01] Error leyendo verdict post-mortem para seed{seed}: {_e_pm}")
+                        
+                    if _deploy_approved_post_mortem:
+                        print(f"[FIX-EARLYSTOP-COUNTING-01] ⭐ ¡RESURRECCIÓN! seed{seed} fue podada, pero el Gauntlet (N>=30) la APROBÓ.")
+                        success = True
+                        complete_seeds.append(seed)
+                        _approved_seeds_count += 1
+                        print(f"[FIX-SEED-LIMIT] ✅ Seed {seed} APROBADA post-mortem. Total aprobadas en esta run: {_approved_seeds_count}/{_min_seeds_to_approve} requeridas.")
+                        
+                        # Evaluamos early exit por aprobaciones
+                        if _approved_seeds_count >= _min_seeds_to_approve:
+                            _n_explored_log = len(complete_seeds) + len(pruned_seeds) + len(failed_seeds)
+                            print(f"\n[FIX-SEED-EXPLORE-01] EARLY EXIT: {_approved_seeds_count} seeds aprobadas "
+                                  f">= {_min_seeds_to_approve} requeridas. Deteniendo exploracion.")
+                            print(f"[FIX-SEED-EXPLORE-01] Seeds aprobadas={_approved_seeds_count} | "
+                                  f"Exploradas={_n_explored_log} (completadas={len(complete_seeds)} "
+                                  f"podadas={len(pruned_seeds)} fallidas={len(failed_seeds)}).")
+                            seeds_to_run.clear()
+                        
+                        break  # Salimos del loop de intentos, ya fue procesada exitosamente
+                    else:
+                        print(f"[EARLY-STOP] seed{seed} descartada. Pasando a la siguiente seed.")
+                        pruned_seeds.append(seed)
+                        break  # salir del loop de intentos para esta seed
     
                 if process.returncode == 0:
                     print(f"[SUCCESS] WFB Seed {seed} finalizado correctamente.")

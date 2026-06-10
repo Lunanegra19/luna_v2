@@ -189,11 +189,8 @@ try:
 
 
 
-    PURGE_H       = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))
-
-
-
-    EMBARGO_H     = PURGE_H
+    PURGE_H       = int(getattr(_cfg_xgb.sop,   'purge_hours',  96))
+    EMBARGO_H     = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))
 
 
 
@@ -2902,19 +2899,19 @@ class LGBMTrainer:
             _optuna_metric = 'dsr'
 
         if _optuna_metric in ('brier', 'logloss'):
-            # Calcular IS Brier/LogLoss con TimeSeriesSplit (gap = embargo_hours)
+            # Calcular IS Brier/LogLoss con TimeSeriesSplit (gap = purge_hours)
             from sklearn.model_selection import TimeSeriesSplit
             from sklearn.metrics import brier_score_loss, log_loss
             try:
                 # [FIX-B1-EMBARGO] Mismo namespace fix: cfg.lightgbm (no cfg.lgbm)
-                _embargo_gap = int(getattr(_cfg_metric.lightgbm, 'embargo_hours', 96))
+                _purge_gap = int(getattr(_cfg_metric.lightgbm, 'purge_hours', 96))
             except Exception:
-                _embargo_gap = 96
+                _purge_gap = 96
 
             # n_splits adaptativo: 1 split por cada 6 meses de datos (mín 3, máx 6)
             _n_months = max(1, len(self.X) // (24 * 30 * 6))
             _n_splits_is = max(3, min(6, _n_months))
-            _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_embargo_gap)
+            _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_purge_gap)
 
             _is_scores = []
             for _tr_i, _val_i in _tscv.split(self.X):

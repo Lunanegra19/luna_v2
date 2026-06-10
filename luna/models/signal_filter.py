@@ -929,38 +929,51 @@ class SignalFilter:
                             except Exception as _e_dyn_meta:
                                 logger.warning(f"  [H3-FIX][PROPUESTA-C] Error aplicando umbrales HMM desde settings: {_e_dyn_meta}")
 
-                        # ── [H3-FIX 2026-05-30] CAPA 5: Percentil Causal Rolling ──────────────────────
-                        # Mejora sobre el EV-Sweep de simulate_online_recalibration:
-                        # En lugar de recalcular TBM completo cada 15 dias (lento),
-                        # calculamos el percentil p(meta_v2_rolling_percentile) de las probs
-                        # ya observadas antes del bar actual (causal estricto, sin look-ahead).
-                        # Evidencia: threshold p75 causal → avg_WR=56.9% vs static_0.38=47.0%.
-                        # Solo se aplica si simulate_online_recalibration=False (no duplicar capas).
+                        # ── [H3-FIX 2026-05-30 / SNIPER-ASYM-01 2026-06-09] CAPA 5: Percentil Causal Rolling Asimetrico ──
+                        # Calculamos el percentil p(meta_v2_rolling_percentile) de las probs observadas.
+                        # Novedad SNIPER-ASYM-01: El percentil varia segun el regimen (Bull relaja pyramiding, Bear asfixia ruido).
                         _use_rolling_pct = getattr(_mlab_cfg, 'meta_v2_rolling_percentile', None) if _mlab_cfg else None
+                        _pct_bull = getattr(_mlab_cfg, 'meta_v2_rolling_percentile_bull', _use_rolling_pct) if _mlab_cfg else _use_rolling_pct
+                        _pct_bear = getattr(_mlab_cfg, 'meta_v2_rolling_percentile_bear', _use_rolling_pct) if _mlab_cfg else _use_rolling_pct
                         _rolling_min_n   = int(getattr(_mlab_cfg, 'meta_v2_rolling_min_n', 50)) if _mlab_cfg else 50
+                        
                         if _use_rolling_pct is not None and not _simulate_online:
-                            _pct_q = float(_use_rolling_pct)  # ej: 0.75
+                            _pct_q_global = float(_use_rolling_pct)
+                            _pct_q_bull = float(_pct_bull) if _pct_bull is not None else _pct_q_global
+                            _pct_q_bear = float(_pct_bear) if _pct_bear is not None else _pct_q_global
+                            
                             _probs_all = meta_v2_prob_series.fillna(0.0).values
                             _rolling_thresh = np.full(len(_probs_all), _meta_thresh_global)
                             _seen_probs = []
+                            _reg_grp_vals = _regime_group.values
+                            
                             for _i_bar in range(len(_probs_all)):
                                 if len(_seen_probs) >= _rolling_min_n:
-                                    _rolling_thresh[_i_bar] = np.percentile(_seen_probs, _pct_q * 100)
+                                    _current_regime = _reg_grp_vals[_i_bar]
+                                    if _current_regime == "bull":
+                                        _q = _pct_q_bull
+                                    elif _current_regime == "bear":
+                                        _q = _pct_q_bear
+                                    else:
+                                        _q = _pct_q_global
+                                        
+                                    _rolling_thresh[_i_bar] = np.percentile(_seen_probs, _q * 100)
                                 _seen_probs.append(_probs_all[_i_bar])
+                                
                             _eff_thresh_rolling = pd.Series(_rolling_thresh, index=df_oos.index)
                             # Solo sobreescribir barras donde el percentil es más exigente que el global
                             _pct_is_tighter = _eff_thresh_rolling > _eff_thresh
                             _eff_thresh[_pct_is_tighter] = _eff_thresh_rolling[_pct_is_tighter]
                             n_tighter = int(_pct_is_tighter.sum())
                             print(
-                                f"[H3-FIX][CAPA-5] Rolling percentile p{_pct_q*100:.0f} aplicado:"
+                                f"[SNIPER-ASYM-01] Asymmetric Rolling percentile aplicado (Bull={_pct_q_bull}, Bear={_pct_q_bear}, Range={_pct_q_global}):"
                                 f" {n_tighter}/{len(df_oos)} barras con threshold mas exigente"
                                 f" | thresh_range=[{_eff_thresh_rolling.min():.4f},{_eff_thresh_rolling.max():.4f}]"
                                 f" | min_n={_rolling_min_n}"
                             )
                             logger.info(
-                                "[H3-FIX][CAPA-5] Rolling p{:.0f}: {}/{} barras mas exigentes (thresh min={:.3f} max={:.3f})",
-                                _pct_q * 100, n_tighter, len(df_oos),
+                                "[SNIPER-ASYM-01] Asym Rolling (Bull={:.2f}, Bear={:.2f}): {}/{} barras mas exigentes (thresh min={:.3f} max={:.3f})",
+                                _pct_q_bull, _pct_q_bear, n_tighter, len(df_oos),
                                 _eff_thresh_rolling.min(), _eff_thresh_rolling.max()
                             )
                         elif _use_rolling_pct is not None and _simulate_online:

@@ -666,3 +666,8 @@ El uso de dsr (Deflated Sharpe Ratio) como métrica de pérdida interna para const
 - **xgboost.regime_tbm_profiles.bull.pt_mult_min**: Aumentado de 1.3 a 2.0.
 - **xgboost.regime_tbm_profiles.range.pt_mult_min**: Aumentado de 1.0 a 1.5.
 - *Justificacion*: El costo de 0.25% masacraba el win rate (hundiendolo de 65% a 25%) porque los recorridos del precio eran muy cortos. Al aumentar pt_mult_min, el sistema es forzado a buscar velas de recorrido mas amplias (+1.5x a +2.0x ATR) para que la comision institucional no absorba el retorno neto.
+
+## [TBM-HORIZON-FIX 2026-06-09] Desacople de Horizonte TBM
+- **xgboost.vertical_barrier_hours**: 96. Horizonte base para generar los targets.
+- **xgboost.dynamic_horizon_min_h**: 48. Minimo permitido para el horizonte dinámico de TBM.
+- **xgboost.dynamic_horizon_max_h**: 168. Maximo permitido para el horizonte dinámico de TBM. Elimina dependencias hacia embargo_hours y prohibe el colapso del Target cuando embargo_hours=0.

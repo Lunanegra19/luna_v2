@@ -249,6 +249,7 @@ Todos los candidatos investigados han sido **100% implementados, verificados y v
 | `DSR >= 0.80` Alpha Mining | **0.80** | `train_xgboost_v2.py:284`, `ensemble_lgbm.py:699` | 🟡 | Sin cambio | ✅ Mantener diferenciado |
 | `alpha_binomial` | ~~1.0 en settings / 0.15 fallback código~~ → **0.05 en ambos** | `settings.yaml:301`, `generate_tearsheet.py:976,1113` | 🔴 | ✅ FIXED | **Mayor bug estadístico del sistema corregido** |
 | `max_drawdown_pct = 60` | **60% max DD** | `generate_validation_report.py:408` | 🟡 | Sin cambio | Reducir a 40% o parametrizar |
+| `max_por_x10 = 10.0` | **10.0%** | `settings.yaml`, `evaluate_ensemble_wfb.py` | ✅ | FIXED | **Disyuntor Letal de Monte Carlo (Probability of Ruin)** |
 | `meta_v2_min_prob = 0.50` | **0.50** fallback neutro | `signal_filter.py:648` | 🟢 | Sin cambio | ✅ Mantener |
 | `min_trades = 20` (XGB calibración) | **20** | `train_xgboost_v2.py:1518` → settings | 🟡 | Sin cambio | `max(20, int(holdout_hours / vertical_barrier_hours))` |
 | `meta_min_trades = 20` (MetaLabeler) | **20** | `calibrate_probabilities.py:746` → settings | 🟡 | Sin cambio | Usar mismo criterio que `min_trades` XGBoost |
@@ -281,6 +282,8 @@ Todos los candidatos investigados han sido **100% implementados, verificados y v
 | `survival_rate >= 0.80` HMM | 80% | Estándar estadístico re-sampling ✅ |
 | `p-value binomial <= 0.05` | 5% | Estándar estadístico α=0.05 ✅ |
 | `N_BINS = 10` PSI | 10 deciles | Estándar estadístico PSI ✅ |
+| `max_depth_cap (bear)` | 2 | Prevenir rank-order collapse en ventanas caóticas (underfitting forzado) ✅ |
+| `gamma_floor (bear)` | 0.5 | Poda agresiva en regímenes de alta entropía ✅ |
 
 ---
 

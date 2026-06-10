@@ -609,6 +609,19 @@ def main():
     logger.info("  INICIANDO WFB WORKER V2  ".center(60))
     logger.info("=".center(60, "="))
 
+    # [SECURITY-SETTINGS-DUMP] Imprimir settings completos al inicio
+    try:
+        _settings_dump = SETTINGS_PATH.read_text(encoding="utf-8")
+        logger.info("[SECURITY-SETTINGS-DUMP] Radiografía de settings.yaml para esta seed:")
+        for _line in _settings_dump.splitlines():
+            logger.info(f"  {_line}")
+        print("\n[SECURITY-SETTINGS-DUMP] " + "="*50)
+        print(f"[SECURITY-SETTINGS-DUMP] Radiografía de settings.yaml para seed {args.seed}:")
+        print(_settings_dump)
+        print("[SECURITY-SETTINGS-DUMP] " + "="*50 + "\n")
+    except Exception as _e_dump:
+        logger.warning(f"[SECURITY-SETTINGS-DUMP] Error leyendo settings.yaml: {_e_dump}")
+
     # [CACHE-INTEGRITY-01] Si --nocache, limpiar caché de ESTA seed antes de todo
     if args.nocache:
         _seed_cache_dir = _ROOT / "data" / "wfb_cache" / f"seed{args.seed}"

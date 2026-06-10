@@ -121,8 +121,8 @@ try:
     _cpcv_n = getattr(_cfg_xgb.sop, 'cpcv_groups', None) \
                or getattr(_cfg_xgb.xgboost, 'n_purged_splits', 8)
     CPCV_GROUPS   = int(_cpcv_n)
-    PURGE_H       = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))
-    EMBARGO_H     = PURGE_H
+    PURGE_H       = int(getattr(_cfg_xgb.sop,   'purge_hours',  96))
+    EMBARGO_H     = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))
     COST_PCT      = float(_cfg_xgb.sop.cost_pct)
     
     print("[LUNA-V2-CONFIG] STRICT CONF VALIDATION: Passed! All settings.yaml keys validated as critical and compliant.")
@@ -718,10 +718,12 @@ class XGBoostTrainer:
                 f"{len(events_idx)} eventos (reducido de {len(df_final)} â€” menos solapamiento)"
             )
 
-        _vbh = int(getattr(_cfg.xgboost, 'vertical_barrier_hours', 96)) if hasattr(_cfg, 'xgboost') else 96
-        _dyn_min = int(getattr(_cfg.xgboost, 'dynamic_horizon_min_h', 48)) if hasattr(_cfg, 'xgboost') else 48
-        # Vincular el techo maximo de la barrera dinamica al EMBARGO_H del SOP
-        _dyn_max = EMBARGO_H
+        try:
+            _vbh = int(_cfg.xgboost.vertical_barrier_hours)
+            _dyn_min = int(_cfg.xgboost.dynamic_horizon_min_h)
+            _dyn_max = int(_cfg.xgboost.dynamic_horizon_max_h)
+        except Exception as e:
+            raise RuntimeError(f"Faltan parametros de horizonte TBM en settings.yaml (SOP No-Fallback): {e}")
         _lin_decay = bool(getattr(_cfg.xgboost, 'linear_decay_pt', False)) if hasattr(_cfg, 'xgboost') else False
         _pt_decay_frac = float(getattr(_cfg.xgboost, 'pt_decay_fraction', 0.75)) if hasattr(_cfg, 'xgboost') else 0.75
         
@@ -1233,7 +1235,27 @@ class XGBoostTrainer:
         # We enforce strict regularizers as per Luna v2 architecture.
         # min_child_weight MUST be strictly at least 30 to prevent leaf-level overfitting.
         # max_depth is capped at 4.
-        _gamma_max = sp.gamma_max
+        
+        # [REGULARIZATION-DYN-01] Forzado matemático de underfitting por régimen
+        try:
+            _dyn_reg = _cfg_xgb.xgboost.dynamic_regime_regularization
+            # Check if self.regime_name exists in yaml, if not error out
+            _regime_caps = getattr(_dyn_reg, self.regime_name)
+            _md_cap = int(_regime_caps.max_depth_cap)
+            _gamma_fl = float(_regime_caps.gamma_floor)
+        except Exception as e:
+            raise RuntimeError(f"Falta el bloque dynamic_regime_regularization en settings.yaml o el régimen '{self.regime_name}' no está definido. (Política No-Fallback): {e}")
+
+        _dyn_md_min = min(sp.max_depth_min, _md_cap)
+        _dyn_md_max = min(sp.max_depth_max, _md_cap)
+        _dyn_gamma_min = max(sp.gamma_min, _gamma_fl)
+        _dyn_gamma_max = max(sp.gamma_max, _gamma_fl)
+
+        logger.info(
+            f"[REGULARIZATION-DYN-01] Optuna restringido dinámicamente para régimen '{self.regime_name}': "
+            f"max_depth=[{_dyn_md_min}, {_dyn_md_max}], gamma=[{_dyn_gamma_min}, {_dyn_gamma_max}]"
+        )
+
         _mcw_min   = sp.min_child_weight_min
         _mcw_max   = sp.min_child_weight_max
 
@@ -1272,7 +1294,7 @@ class XGBoostTrainer:
             _mcw_max = _mcw_max_adaptive
         
         if trial.number == 0:
-            print(f"[LUNA-V2-REGULARIZATION] STRICT BOUNDS active | min_child_weight range=[{_mcw_min}, {_mcw_max}], max_depth in [{sp.max_depth_min}, {sp.max_depth_max}], gamma_max={_gamma_max}")
+            print(f"[LUNA-V2-REGULARIZATION] STRICT BOUNDS active | min_child_weight range=[{_mcw_min}, {_mcw_max}], max_depth in [{sp.max_depth_min}, {sp.max_depth_max}], gamma_max={_dyn_gamma_max}")
             print(  # [FIX-REG-01 2026-05-31] Trazabilidad de nuevos bounds anti-sobreregularizacion
                 f"[FIX-REG-01] Bounds activos: "
                 f"lr_min={sp.learning_rate_min} (era 0.005) | "
@@ -1281,7 +1303,7 @@ class XGBoostTrainer:
                 f"mcw_max={_mcw_max} (era 100) | "
                 f"n_train={_n_train_agent}"
             )
-            logger.info(f"[LUNA-V2-REGULARIZATION] STRICT BOUNDS active | min_child_weight range=[{_mcw_min}, {_mcw_max}], max_depth in [{sp.max_depth_min}, {sp.max_depth_max}], gamma_max={_gamma_max}")
+            logger.info(f"[LUNA-V2-REGULARIZATION] STRICT BOUNDS active | min_child_weight range=[{_mcw_min}, {_mcw_max}], max_depth in [{sp.max_depth_min}, {sp.max_depth_max}], gamma_max={_dyn_gamma_max}")
             logger.info(
                 "[FIX-REG-01] lr_min=%.4f | reg_alpha_max=%.2f | mcw=[%d,%d] | n_train=%d",
                 sp.learning_rate_min, sp.reg_alpha_max, _mcw_min, _mcw_max, _n_train_agent
@@ -1289,7 +1311,7 @@ class XGBoostTrainer:
 
         params = {
             'max_depth':        trial.suggest_int(
-                'max_depth', sp.max_depth_min, sp.max_depth_max),
+                'max_depth', _dyn_md_min, _dyn_md_max),
             'learning_rate':    trial.suggest_float(
                 'learning_rate', sp.learning_rate_min, sp.learning_rate_max, log=True),
             'subsample':        trial.suggest_float(
@@ -1300,7 +1322,7 @@ class XGBoostTrainer:
                 'min_child_weight', _mcw_min, _mcw_max),
             # RegularizaciÃ³n (BUG-R12-03): ausentes en versiÃ³n anterior
             'gamma':            trial.suggest_float(
-                'gamma', sp.gamma_min, _gamma_max),
+                'gamma', _dyn_gamma_min, _dyn_gamma_max),
             'reg_alpha':        trial.suggest_float(
                 'reg_alpha', sp.reg_alpha_min, sp.reg_alpha_max, log=True),
             'reg_lambda':       trial.suggest_float(
@@ -1362,10 +1384,9 @@ class XGBoostTrainer:
         try:
             from config.settings import cfg as _cfg_metric
             _optuna_metric = str(getattr(_cfg_metric.xgboost, 'optuna_metric', 'dsr')).lower()
-            _embargo_gap = int(getattr(_cfg_metric.xgboost, 'embargo_hours', 96))
-        except Exception:
-            _optuna_metric = 'dsr'
-            _embargo_gap = 96
+            _purge_gap = int(_cfg_metric.sop.purge_hours)
+        except Exception as e:
+            raise RuntimeError(f"Falta purge_hours o parametros metricos en settings.yaml (SOP No-Fallback): {e}")
 
         from sklearn.model_selection import TimeSeriesSplit
         from sklearn.metrics import brier_score_loss, log_loss
@@ -1388,13 +1409,13 @@ class XGBoostTrainer:
         if trial.number == 0:
             print(  # RULE[fixbugsprints.md]
                 f"[FIX-CRIT-01-NSPLITS] n_splits_is={_n_splits_is} para n_train={_n_train_for_splits}"
-                f" | embargo_gap={_embargo_gap}H | T_test~{_n_train_for_splits // (_n_splits_is + 1)} eventos"
+                f" | purge_gap={_purge_gap}H | T_test~{_n_train_for_splits // (_n_splits_is + 1)} eventos"
             )
             logger.info(
                 "[FIX-CRIT-01-NSPLITS] Optuna TimeSeriesSplit: n_splits=%d | n_train=%d | gap=%dH",
-                _n_splits_is, _n_train_for_splits, _embargo_gap
+                _n_splits_is, _n_train_for_splits, _purge_gap
             )
-        _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_embargo_gap)
+        _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_purge_gap)
 
         _is_scores = []
         _proba_is_std = []  # [FIX-PROB-CLUSTERING]
@@ -1536,13 +1557,13 @@ class XGBoostTrainer:
                 logger.debug(f"[V2-FIX-1] Penalizacion de Clustering Activa: STD={_mean_std:.4f}. Comp forzado a 1.0")
             else:
                 logger.debug(
-                    f"[V2-FIX-1] {_optuna_metric.upper()} IS={_metric_val:.4f} -> Comp={_composite_val:.4f} (splits={_n_splits_is}, gap={_embargo_gap}h) | {_telemetry_str}"
+                    f"[V2-FIX-1] {_optuna_metric.upper()} IS={_metric_val:.4f} -> Comp={_composite_val:.4f} (splits={_n_splits_is}, gap={_purge_gap}h) | {_telemetry_str}"
                 )
         else:
             _composite_val = _dsr_safe
             if _prob_clustering_penalty:
                 _composite_val = -1.0 # Castigo en maximizacion
-            logger.debug(f"[V2-FIX-1] DSR IS={_composite_val:.4f} (splits={_n_splits_is}, gap={_embargo_gap}h) | {_telemetry_str}")
+            logger.debug(f"[V2-FIX-1] DSR IS={_composite_val:.4f} (splits={_n_splits_is}, gap={_purge_gap}h) | {_telemetry_str}")
 
         trial.set_user_attr('naive_is', float(np.mean(_naive_scores)) if _naive_scores else 0.50)
         trial.set_user_attr('dsr_telemetry', _dsr_telemetry)
@@ -2427,15 +2448,14 @@ class XGBoostTrainer:
             _y_mean = self.y.mean()
             _minority_class_pct = min(_y_mean, 1 - _y_mean)
             if _minority_class_pct < _tbm_min_class_pct:
-                logger.error(
+                logger.warning(
                     f"[GUARDIAN-06] Target Imbalance DETECTADO: Clase minoritaria es {_minority_class_pct:.2%} "
-                    f"(< {_tbm_min_class_pct:.2%}). Las barreras dinámicas (TBM) fallaron. Abortando."
+                    f"(< {_tbm_min_class_pct:.2%}). Las barreras dinámicas (TBM) fallaron. "
+                    f"Agente={self.regime_name}. Estableciendo modelo nulo y omitiendo fit."
                 )
-                print(f"[GUARDIAN-06] FATAL: TBM Degeneration. Clase minoritaria {_minority_class_pct:.2%} < {_tbm_min_class_pct:.2%}. Abortando.")
-                import sys
-                sys.exit(3)
-        except SystemExit:
-            raise
+                print(f"[GUARDIAN-06] WARNING: TBM Degeneration. Clase minoritaria {_minority_class_pct:.2%} < {_tbm_min_class_pct:.2%}. Omitiendo agente.")
+                self.final_model = None
+                return self
         except Exception as _e_g6:
             logger.warning(f"[GUARDIAN-06] Fallo al verificar TBM Imbalance: {_e_g6}")
 
@@ -2480,7 +2500,47 @@ class XGBoostTrainer:
         logger.info("[R20-B/ARCH-02] sample_weight activo: decaimiento exp(alpha={:.2f}) desde train_end", _alpha_log)
 
 
-        # ——— Feature importance top-10 siempre visible ———
+        # ── [MC-PFI-01] Monte Carlo Permutation Feature Importance (In-Sample) ──
+        logger.info("[MC-PFI-01] Ejecutando Permutation Feature Importance (50 iteraciones MC) sobre In-Sample...")
+        from sklearn.metrics import brier_score_loss
+        try:
+            _y_pred_base = self.final_model.predict_proba(self.X)[:, 1]
+            _base_brier = brier_score_loss(self.y, _y_pred_base)
+            
+            _pfi_results = []
+            for _f_idx, _f_name in enumerate(self.features):
+                _brier_shuffled_list = []
+                _X_shuffled = self.X.copy()
+                for _mc_iter in range(50):
+                    np.random.seed(42 + _mc_iter)
+                    _X_shuffled.iloc[:, _f_idx] = np.random.permutation(_X_shuffled.iloc[:, _f_idx].values)
+                    _y_pred_shuf = self.final_model.predict_proba(_X_shuffled)[:, 1]
+                    _brier_shuffled_list.append(brier_score_loss(self.y, _y_pred_shuf))
+                
+                _mean_brier_shuf = np.mean(_brier_shuffled_list)
+                # Si el Brier sube (peor), la feature era importante. Si el Brier baja o queda igual, era ruido.
+                _importance = _mean_brier_shuf - _base_brier
+                _pfi_results.append((_f_name, _importance))
+            
+            _pfi_results.sort(key=lambda x: x[1]) # Orden ascendente (menor a mayor importance)
+            _noise_features = [f for f, imp in _pfi_results if imp <= 0]
+            
+            print(f"[MC-PFI-01] Evaluados {len(self.features)} features con MC-PFI.")
+            if _noise_features:
+                print(f"[ALERTA MC-PFI] Detectadas {len(_noise_features)} variables Shadow/Noise (Importance <= 0):")
+                for _nf in _noise_features[:10]:
+                    print(f"  - {_nf}")
+                if len(_noise_features) > 10:
+                    print(f"  ... y {len(_noise_features) - 10} más.")
+                logger.warning(f"[MC-PFI-01] Shadow/Noise features detectados: {_noise_features}")
+            else:
+                print("[MC-PFI-01] Todas las variables mostraron aporte predictivo (Importance > 0).")
+        except Exception as _pfi_err:
+            logger.error(f"[MC-PFI-01] Error ejecutando Permutation Feature Importance: {_pfi_err}")
+            print(f"[MC-PFI-01] Error MC-PFI: {_pfi_err}")
+
+
+        # ─── Feature importance top-10 siempre visible ───———
         importances = pd.Series(self.final_model.feature_importances_, index=self.X.columns)
         top10 = importances.sort_values(ascending=False).head(10)
         logger.info("[XGB] Feature Importance TOP-10:")
@@ -2908,12 +2968,12 @@ class XGBoostTrainer:
                         
                         try:
                             from config.settings import cfg as _cfg_oof
-                            _embargo_gap = int(_cfg_oof.sop.embargo_hours)
+                            _purge_gap = int(_cfg_oof.sop.purge_hours)
                         except Exception as e_emb:
-                            raise RuntimeError(f"Falta embargo_hours en cfg.sop (SOP No-Fallback): {e_emb}")
+                            raise RuntimeError(f"Falta purge_hours en cfg.sop (SOP No-Fallback): {e_emb}")
                             
                         _n_splits_cal = 5 if len(self.X) >= 500 else 3
-                        _tscv_cal = TimeSeriesSplit(n_splits=_n_splits_cal, gap=_embargo_gap)
+                        _tscv_cal = TimeSeriesSplit(n_splits=_n_splits_cal, gap=_purge_gap)
                         
                         # Generar predicciones OOF para cada split
                         for _train_idx, _test_idx in _tscv_cal.split(self.X):
