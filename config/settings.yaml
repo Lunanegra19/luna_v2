@@ -478,7 +478,8 @@ stat:
   min_dsr: 0.75
   min_trades: 30
   n_trials_total: 100
-  pbo_n_blocks: 8
+  # [ENSEMBLE-GAUNTLET-01 2026-06-10] Relajar pbo_n_blocks para permitir ensamble con 31 trades (requiere 28 mínimos)
+  pbo_n_blocks: 7
   total_return_cap: 1000000.0
   wfv_max_std_dsr: 0.3
   wfv_min_window_dsr: 0.1
@@ -501,22 +502,22 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2024-12-31
+  hmm_train_end: 2025-12-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-03-31
-  holdout_start: 2025-01-01
-  train_end: 2024-10-31
+  holdout_end: 2026-03-31
+  holdout_start: 2026-01-01
+  train_end: 2025-10-31
   train_start: '2017-08-17'
-  validation_end: 2024-12-31
-  validation_start: 2024-11-01
+  validation_end: 2025-12-31
+  validation_start: 2025-11-01
 wfb:
   ensemble_consensus_threshold: 4
   consensus_bucket_hours: 2
   max_seeds_to_explore: 20
   min_seeds_to_approve: 10
   prune_threshold: 0.8
-  soft_embargo_enabled: false
-  soft_embargo_hours: 0.0
+  soft_embargo_enabled: true
+  soft_embargo_hours: 6.0
   active_seeds:
   - 42
   - 100
@@ -638,7 +639,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 42
+  optuna_seed: 51103
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -704,3 +705,7 @@ shap_audit:
   consecutive_windows_remove: 5
   importance_types:
   - gain
+
+# [CONF-SCALER-01 2026-06-10] Flag para desactivar ampliacion dinamica TP/SL
+tbm:
+  use_confidence_scaler: false

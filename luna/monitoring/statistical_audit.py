@@ -207,11 +207,19 @@ class LunaStatisticalAuditor:
         print(f"[TRACKING-FIX] CSCV utilizando pbo_n_blocks={n_blocks} directo desde settings.yaml (No-Fallback).")
         n = len(returns_oos)
         if n < n_blocks * 4:
-            # Dataset demasiado pequeño — estimación conservadora
-            print(f"[FIX-PBO-01] WARN CSCV: {n} trades < {n_blocks * 4} mínimo (n_blocks={n_blocks}*4). Retornando PBO=0.50 conservador.")
-            logger.warning(f"[PBO] Solo {n} trades disponibles (min recomendado: {n_blocks * 4}). "
-                           "PBO poco fiable — estimación conservadora 0.50.")
-            return 0.50
+            if n >= 5 * 4:
+                # [FIX-PBO-ADAPTIVE] Reducir n_blocks dinámicamente en lugar de abortar
+                _old_blocks = n_blocks
+                n_blocks = max(2, n // 4)
+                print(f"[FIX-PBO-ADAPTIVE] Trades ({n}) insuficientes para n_blocks={_old_blocks}. "
+                      f"Reduciendo dinámicamente pbo_n_blocks a {n_blocks}.")
+                logger.warning(f"[PBO] Reducción adaptativa de n_blocks: {_old_blocks} -> {n_blocks} por bajo número de trades ({n}).")
+            else:
+                # Dataset demasiado pequeño — estimación conservadora
+                print(f"[FIX-PBO-01] WARN CSCV: {n} trades < {n_blocks * 4} mínimo (n_blocks={n_blocks}*4). Retornando PBO=0.50 conservador.")
+                logger.warning(f"[PBO] Solo {n} trades disponibles (min recomendado: {n_blocks * 4}). "
+                               "PBO poco fiable — estimación conservadora 0.50.")
+                return 0.50
         print(f"[FIX-PBO-01] CSCV activo: n_trades={n} >= {n_blocks*4} mínimo | n_blocks={n_blocks} | calculando PBO real...")
 
         block_size = n // n_blocks
@@ -293,7 +301,8 @@ class LunaStatisticalAuditor:
         sharpe_crudo = (mean_ret / std_ret) * annual_factor_trades if std_ret > 1e-10 else 0.0
 
         # Calmar Ratio
-        calmar = sharpe_crudo / max_dd if max_dd > 1e-10 else float('inf')
+        # [FIX-CALMAR-01] Calcular con total_return (CAGR pct) / max_dd pct
+        calmar = float(total_ret_pct_raw) / (max_dd * 100.0) if max_dd > 1e-10 else float('inf')
 
         # Momentos de distribución (para DSR)
         skewness = float(stats.skew(returns))  if len(returns) > 2 else 0.0

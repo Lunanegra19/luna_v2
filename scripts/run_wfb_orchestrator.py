@@ -10,6 +10,8 @@ import argparse
 from pathlib import Path
 import pandas as pd
 import numpy as np
+import atexit
+import shutil
 
 # Forzar UTF-8 en consola Windows
 if sys.platform == 'win32':
@@ -17,6 +19,26 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 _ROOT = Path(__file__).resolve().parent.parent
+
+def _restore_master_settings():
+    _settings_path = _ROOT / "config" / "settings.yaml"
+    _master_backup_path = _ROOT / "config" / "master_settings_backup_wfb.yaml"
+    if _master_backup_path.exists():
+        if _settings_path.exists() and _settings_path.stat().st_mtime > _master_backup_path.stat().st_mtime:
+            try:
+                import shutil
+                shutil.copy2(_settings_path, _master_backup_path)
+                print("\n[FIX-GLOBAL-RESTORE] settings.yaml editado por el usuario. Conservando cambios y actualizando backup maestro.")
+            except Exception as e:
+                print(f"\n[FIX-GLOBAL-RESTORE] ERROR actualizando backup maestro: {e}")
+        else:
+            try:
+                import shutil
+                shutil.copy2(_master_backup_path, _settings_path)
+                _master_backup_path.unlink(missing_ok=True)
+                print("\n[FIX-GLOBAL-RESTORE] settings.yaml restaurado exitosamente desde el backup maestro.")
+            except Exception as e:
+                print(f"\n[FIX-GLOBAL-RESTORE] ERROR restaurando settings.yaml: {e}")
 
 def get_wfb_pid():
     for p in psutil.process_iter(['pid', 'name', 'cmdline']):
@@ -272,6 +294,36 @@ def main():
         print(">>>>>  [ATENCION] MODO SMOKE TEST ACTIVADO <<<<<")
         print(">>>>>  Se utilizaran pocos datos y 1 epoch/trial para todas las semillas <<<<<")
 
+    # [FIX-GLOBAL-RESTORE] Self-healing and master backup initialization
+    _settings_path = _ROOT / "config" / "settings.yaml"
+    _master_backup_path = _ROOT / "config" / "master_settings_backup_wfb.yaml"
+
+    if _master_backup_path.exists():
+        if _settings_path.exists() and _settings_path.stat().st_mtime > _master_backup_path.stat().st_mtime:
+            print("\n[FIX-GLOBAL-RESTORE] settings.yaml es mas reciente que el backup maestro (editado por el usuario).")
+            print("[FIX-GLOBAL-RESTORE] Conservando los cambios del usuario y actualizando el backup maestro...")
+            try:
+                shutil.copy2(_settings_path, _master_backup_path)
+            except Exception as e:
+                print(f"[FIX-GLOBAL-RESTORE] Error actualizando backup maestro: {e}")
+        else:
+            print("\n[FIX-GLOBAL-RESTORE] ALERTA: Se detectó un backup maestro huérfano (posible hard-crash anterior).")
+            print("[FIX-GLOBAL-RESTORE] Curando corrupción temporal: restaurando settings.yaml original...")
+            try:
+                shutil.copy2(_master_backup_path, _settings_path)
+                _master_backup_path.unlink(missing_ok=True)
+                print("[FIX-GLOBAL-RESTORE] Self-healing completado.")
+            except Exception as e:
+                print(f"[FIX-GLOBAL-RESTORE] Error en self-healing: {e}")
+
+    if _settings_path.exists() and not _master_backup_path.exists():
+        try:
+            shutil.copy2(_settings_path, _master_backup_path)
+            atexit.register(_restore_master_settings)
+            print("[FIX-GLOBAL-RESTORE] Backup maestro creado. settings.yaml blindado contra hard-crashes.\n")
+        except Exception as e:
+            print(f"[FIX-GLOBAL-RESTORE] Error creando backup maestro: {e}")
+
     # ── GATE: Validación estática de código (AST, sin ejecución, ~200ms) ──────
     # Detecta bugs de lógica (KeyError, variables no definidas, etc.) ANTES de
     # invertir horas de cálculo. Si hay errores, el pipeline se bloquea aquí.
@@ -382,7 +434,7 @@ def main():
                     f.unlink()
                 except Exception:
                     pass
-            print(f"[CACHE-HYGIENE-01] {len(_stale)} artefactos eliminados de data/models/")
+            print(f"[CACHE-HYGIENE-01] {len(_stale)} artefactos eliminados de data/models/ (modelos residuales).")
         
         predictions_dir = Path(__file__).parent.parent / "data" / "predictions"
         if predictions_dir.exists():
@@ -546,6 +598,7 @@ def main():
                 _run_env["PYTHONPATH"] = str(_ROOT) + (os.pathsep + _run_env.get("PYTHONPATH", "") if _run_env.get("PYTHONPATH") else "")
                 _run_env["PYTHONUNBUFFERED"] = "1"
                 _run_env["PYTHONHASHSEED"] = str(seed)
+                _run_env["LUNA_SEED"] = str(seed)
                 # [CACHE-INTEGRITY-01] Propagar LUNA_NOCACHE para que subprocesos anidados también la respeten
                 if args.nocache:
                     _run_env["LUNA_NOCACHE"] = "1"

@@ -1,0 +1,4 @@
+
+# [CONF-SCALER-01 2026-06-10] Flag para desactivar ampliacion dinamica TP/SL
+tbm:
+  use_confidence_scaler: false
