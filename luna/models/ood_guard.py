@@ -110,6 +110,18 @@ class OODGuardTrainer:
         scores = model.decision_function(X)
         _pct = int(_contamination * 100)  # percentile consistente con contamination
         threshold = np.percentile(scores, _pct)
+        # [H3-TEST-01 2026-06-11] Guardar percentiles IS del KL score para el gate causal.
+        # Estos valores se derivan EXCLUSIVAMENTE de datos IS (antes de ver cualquier OOS).
+        # signal_filter.apply_ood() los leera para aplicar el filtro experimental H3
+        # sin look-ahead: umbral IS fijo aplicado a barras OOS genuinamente futuras.
+        _kl_q25_train = float(np.percentile(scores, 25))
+        _kl_q50_train = float(np.percentile(scores, 50))
+        _kl_q75_train = float(np.percentile(scores, 75))
+        print(
+            f"[H3-TEST-01] KL percentiles IS (training set): "
+            f"Q25={_kl_q25_train:.6f} | Q50={_kl_q50_train:.6f} | Q75={_kl_q75_train:.6f} "
+            f"(anomaly_threshold={threshold:.6f})"
+        )
         
         with open(self.sig_path, 'w') as f:
             # MEJ-OOD-01 FIX (2026-04-06): añadir hash del selected_features.json y timestamp.
@@ -128,11 +140,18 @@ class OODGuardTrainer:
                 "trained_at": _datetime.datetime.now().isoformat(),
                 "sfi_hash": _sfi_hash,  # MEJ-OOD-01: para detectar drift de features
                 "fillna_strategy": "fillna(0)",  # LOGIC-OOD-01: consistente con apply_ood()
-                "description": "Si score(X) < threshold_referencia, el vector X es una anomalía OOD."
+                "description": "Si score(X) < threshold_referencia, el vector X es una anomalia OOD.",
+                # [H3-TEST-01 2026-06-11] Percentiles IS para gate causal inverso (H3)
+                # Q75: bloquear OOS bars donde KL > kl_q75_training (demasiado 'normales' segun IS)
+                # Causal: umbral derivado de IS -> aplicado a OOS sin look-ahead
+                "kl_q25_training": _kl_q25_train,
+                "kl_q50_training": _kl_q50_train,
+                "kl_q75_training": _kl_q75_train,
             }, f, indent=4)
             
-        logger.success("OOD Guard entrenado y persistido. Detectará Cisnes Negros en Live.")
+        logger.success("OOD Guard entrenado y persistido. Detectara Cisnes Negros en Live.")
         logger.info("[MEJ-OOD-01] SFI hash={} | features={} | Fill strategy: fillna(0)", _sfi_hash, len(use_cols))
+        logger.info("[H3-TEST-01] KL IS percentiles guardados: Q25={:.6f} Q50={:.6f} Q75={:.6f}", _kl_q25_train, _kl_q50_train, _kl_q75_train)
 
 
 

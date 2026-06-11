@@ -554,10 +554,47 @@ class SignalFilter:
                     # [V2-P6] OOD Guard Continuo: Ya no bloquea de forma binaria.
                     # Se mantiene ood_mask en True para todas las barras. La penalización se aplica en KellySizer.
                     ood_mask = pd.Series(True, index=df_oos.index)
-                    n_anomalies = int((ood_preds == -1).sum()) # -1 es anomalía en IsolationForest
-                    logger.info("  OOD Guard (Continuo): {} anomalías detectadas de {} ({:.1f}% off-distribution). "
-                                "Se aplicará penalización Kelly en lugar de bloqueo binario.",
+                    n_anomalies = int((ood_preds == -1).sum())
+                    logger.info("  OOD Guard (Continuo): {} anomalias detectadas de {} ({:.1f}% off-distribution). "
+                                "Se aplicara penalizacion Kelly en lugar de bloqueo binario.",
                                 n_anomalies, len(df_oos), n_anomalies / max(len(df_oos), 1) * 100)
+
+                    # [H3-TEST-01 2026-06-11] Gate experimental: filtro KL inverso causal
+                    # Hipotesis H3: KL bajo (anomalo segun IS) = mejor trade en regimen 2025-2026
+                    # Umbral: kl_q75_training derivado SOLO de datos IS en training, guardado en firma
+                    # Gate: bloquear barras OOS donde KL > kl_q75_training (demasiado 'normales')
+                    # Causal: umbral IS no contamina OOS -> respeta SOP R1 causalidad estricta
+                    _cfg_ood = {}
+                    try:
+                        from config.settings import cfg as _cfg_main
+                        _cfg_ood = _cfg_main.ood_guard if hasattr(_cfg_main, "ood_guard") else {}
+                        _cfg_ood = vars(_cfg_ood) if hasattr(_cfg_ood, "__dict__") else {}
+                    except Exception:
+                        pass
+                    _use_h3_gate = _cfg_ood.get("experimental_kl_gate", False)
+                    if _use_h3_gate and "kl_q75_training" in ood_sig:
+                        _kl_thresh = ood_sig["kl_q75_training"]
+                        _n_before = int(ood_mask.sum())
+                        _h3_pass = df_oos["ood_kl_distance"] <= _kl_thresh
+                        ood_mask = ood_mask & _h3_pass
+                        _n_after = int(ood_mask.sum())
+                        _n_blocked = _n_before - _n_after
+                        print(
+                            f"[H3-TEST-01] Gate KL activo: umbral_IS_Q75={_kl_thresh:.6f} | "
+                            f"Bloqueadas {_n_blocked}/{_n_before} ({_n_blocked/max(_n_before,1)*100:.1f}%) | "
+                            f"Pasan {_n_after} barras (KL<=Q75_training)"
+                        )
+                        logger.info(
+                            "[H3-TEST-01] Gate KL inverso activo: kl_q75_IS={:.6f} | "
+                            "bloqueadas={} ({:.1f}%) | pasan={}",
+                            _kl_thresh, _n_blocked, _n_blocked/max(_n_before,1)*100, _n_after
+                        )
+                    elif _use_h3_gate:
+                        print("[H3-TEST-01] AVISO: experimental_kl_gate=true pero kl_q75_training NO en firma. "
+                              "Re-entrenar OOD Guard con --nocache para generarlo.")
+                        logger.warning("[H3-TEST-01] kl_q75_training ausente en firma OOD Guard -- gate H3 omitido")
+                    else:
+                        print("[H3-TEST-01] Gate KL experimental: INACTIVO (experimental_kl_gate=false o ausente)")
                 else:
                     logger.warning("  OOD Guard: ninguna feature de la firma esperada en json — omitiendo")
             except Exception as e:

@@ -1,4 +1,4 @@
-_roadmap:
+﻿_roadmap:
   gauntlet:
     live_initial_capital_pct: 0.25
     paper_min_trades: 30
@@ -440,6 +440,12 @@ ood_guard:
   min_unique_values: 3
   n_estimators: 200
   random_state: 42
+  # [H3-TEST-01 2026-06-11] Gate KL experimental - hipotesis inversa OOD Guard
+  # false = comportamiento original sin cambios (default seguro)
+  # true  = bloquear barras OOS donde KL > kl_q75_training (demasiado 'normales')
+  # REQUIERE re-entrenar OOD Guard con --nocache para generar kl_q75_training en firma
+  # Evidencia: XGB>=Q75+KL<=Q25 -> WR=73.6% Sharpe=3.21 en W4-W5 holdout temporal
+  experimental_kl_gate: false
   structural_features:
   - HMM_Regime
   - HMM_Semantic
@@ -518,20 +524,26 @@ wfb:
   soft_embargo_enabled: true
   soft_embargo_hours: 6.0
   active_seeds:
+  - 42
   - 100
   - 777
   - 1337
-  - 12239
-  - 34596
-  - 36655
-  - 39395
-  - 44793
-  - 50830
-  - 58373
-  - 61865
-  - 70519
-  - 74734
-  - 83925
+  - 2024
+  - 2025
+  - 2026
+  - 888
+  - 999
+  - 1111
+  - 2222
+  - 3333
+  - 4444
+  - 5555
+  - 6666
+  - 7777
+  - 8888
+  - 9999
+  - 12345
+  - 54321
   circuit_breaker:
     enabled: true
     min_seeds_adverse: 4
@@ -700,3 +712,4 @@ shap_audit:
   - gain
 tbm:
   use_confidence_scaler: false
+
