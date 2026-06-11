@@ -24,7 +24,20 @@ import pandas as pd, numpy as np
 from pathlib import Path
 from scipy import stats
 
-DATA  = Path(r'g:\Mi unidad\ia\luna_v2\data\predictions')
+# [FIX-CVD-PATH-01 2026-06-11] Ruta dinamica: funciona en G: (produccion) y C: (local dev)
+_THIS_DIR  = Path(__file__).resolve().parent
+_ROOT_AUTO = _THIS_DIR.parent.parent  # tools/diagnostics -> tools -> root
+_FALLBACK_G = Path(r'g:\Mi unidad\ia\luna_v2\data\predictions')
+_DATA_AUTO  = _ROOT_AUTO / 'data' / 'predictions'
+if _DATA_AUTO.exists() and len(list(_DATA_AUTO.glob('oos_trades_seed*.parquet'))) > 0:
+    DATA = _DATA_AUTO
+    print(f"[FIX-CVD-PATH-01] Ruta local auto-detectada: {DATA}")
+elif _FALLBACK_G.exists() and len(list(_FALLBACK_G.glob('oos_trades_seed*.parquet'))) > 0:
+    DATA = _FALLBACK_G
+    print(f"[FIX-CVD-PATH-01] Ruta G: produccion: {DATA}")
+else:
+    DATA = Path('data') / 'predictions'
+    print(f"[FIX-CVD-PATH-01] WARN: fallback ruta relativa CWD: {DATA.resolve()}")
 SEP   = "=" * 72
 DASH  = "-" * 72
 
@@ -208,21 +221,41 @@ if 'hmm_regime' in df.columns:
     print(f"\n  Rango WR global entre regimenes: {wr_range:.1f}pp -> {verdict}")
     results['HMM_Regime'] = wr_range
 
-# ─── 4. OOD GUARD ─────────────────────────────────────────────────────────
+# ─── 4. OOD GUARD ─────────────────────────────────────────────────────────────────────────────
 print()
 print(SEP)
 print("COMPONENTE 4: OOD Guard (ood_kl_distance)")
-print("Hipotesis: mayor KL -> mas OOD -> peor resultado")
+print("[FIX-CVD-OOD-01 2026-06-11] Hipotesis diseño: KL alto=normal -> gana mas (Delta Q4-Q1 deberia ser negativo)")
+print("  Si Delta < -5pp: hipotesis CORRECTA | Si Delta > +5pp: HIPOTESIS INVERTIDA (covariate shift)")
 print(SEP)
 if 'ood_kl_distance' in df.columns:
     nv = df['ood_kl_distance'].notna().sum()
     print(f"  Valores: {nv} | Range [{df['ood_kl_distance'].min():.4f},{df['ood_kl_distance'].max():.4f}]")
+    print(f"  Media: {df['ood_kl_distance'].mean():.4f} | Std: {df['ood_kl_distance'].std():.4f}")
+    _n_kl_neg = (df['ood_kl_distance'] < 0).sum()
+    print(f"  Trades con KL<0 (Kelly penalty activo): {_n_kl_neg} ({_n_kl_neg/max(1,nv)*100:.1f}%) - penalizacion casi inactiva si <2%")
     print(spearman_global(df['ood_kl_distance'], df['is_win'].astype(float), "Spearman global (KL vs is_win)"))
     print(spearman_per_seed('ood_kl_distance', 'is_win', "Spearman honesto"))
-    # Invertido: Q1 bajo KL = mas in-distribution
-    df['_ood_inv'] = -df['ood_kl_distance']
     print()
-    d1 = quartile_by_window('_ood_inv', "OOD Guard [in-dist arriba, OOD abajo]")
+    # [FIX-CVD-OOD-01 2026-06-11] Usar ood_kl_distance DIRECTAMENTE sin inversion artificial.
+    # Bug anterior: df['_ood_inv'] = -df['ood_kl_distance'] causaba que Delta positivo
+    # (anomalos ganan mas) se interpretara como 'OOD Guard aporta edge', ocultando
+    # el covariate shift temporal del IsolationForest (entrenado 2022-2024, OOS 2025-2026).
+    # Q4 = KL alto = barras 'normales' segun IsolationForest
+    # Q1 = KL bajo = barras 'anomalas' segun IsolationForest
+    # Delta = WR(Q4_normal) - WR(Q1_anomalo) -> negativo si hipotesis correcta
+    print("[FIX-CVD-OOD-01] Analizando ood_kl_distance DIRECTO (Q4=KL_alto=normal, Q1=KL_bajo=anomalo):")
+    d1 = quartile_by_window('ood_kl_distance', "OOD Guard [Q4=normal/KLalto, Q1=anomalo/KLbajo]")
+    if d1 is not None:
+        if d1 < -5:
+            print(f"  [FIX-CVD-OOD-01] DIAGNOSTICO OOD: Delta={d1:+.1f}pp -> HIPOTESIS CORRECTA (normales ganan mas).")
+        elif d1 > 5:
+            print(f"  [FIX-CVD-OOD-01] DIAGNOSTICO OOD: Delta={d1:+.1f}pp -> HIPOTESIS INVERTIDA.")
+            print(f"  Las barras ANOMALAS (KL bajo) ganan MAS que las normales (KL alto).")
+            print(f"  Causa probable: covariate shift IsolationForest 2022-2024 -> OOS 2025-2026.")
+            print(f"  El IsolationForest llama 'anomalas' a las mejores oportunidades del periodo OOS.")
+        else:
+            print(f"  [FIX-CVD-OOD-01] DIAGNOSTICO OOD: Delta={d1:+.1f}pp -> SIN DISCRIMINACION CLARA.")
     results['OOD_Guard'] = d1
 
 # ─── 5. ALPHA TRIGGER ─────────────────────────────────────────────────────
@@ -289,9 +322,22 @@ print("""
 print(f"  {'Componente':<30} {'Delta_WR_avg':>13} {'Status'}")
 print("  " + DASH)
 
+# [FIX-CVD-OOD-01] OOD_Guard necesita interpretacion inversa:
+# Delta positivo = anomalos ganan mas = hipotesis INVERTIDA (covariate shift)
+# Delta negativo = normales ganan mas = hipotesis CORRECTA
+_OOD_INVERTED_COMPONENTS = {'OOD_Guard'}  # componentes donde + = problema
+
 def fmt_result(name, val):
     if val is None:
         print(f"  {name:<30} {'N/A':>13}  ❓ SIN DATOS")
+    elif name in _OOD_INVERTED_COMPONENTS:
+        # [FIX-CVD-OOD-01] Interpretacion especial para OOD Guard
+        if val < -5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ✅ HIPOTESIS CORRECTA (normales ganan mas)")
+        elif val > 5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ⚠️  HIPOTESIS INVERTIDA — covariate shift (anomalos ganan)")
+        else:
+            print(f"  {name:<30} {val:>+13.1f}pp  ~ SIN DISCRIMINACION CLARA")
     elif val > 5:
         print(f"  {name:<30} {val:>+13.1f}pp  ✅ APORTA EDGE")
     elif val < -5:
