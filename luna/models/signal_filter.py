@@ -1927,7 +1927,8 @@ class SignalFilter:
         # Campos que se acumulan por suma entre ventanas
         _ACCUM_KEYS = [
             "raw_oos_bars", "after_xgb", "after_lgbm", "after_ood", "after_cvd",
-            "after_hmm", "after_meta", "after_cash_shield", "after_momentum", "after_embargo"
+            "after_hmm", "after_session_gate", "after_macro_gate", "after_meta", 
+            "after_cash_shield", "after_momentum", "after_embargo"
         ]
 
         # Leer acumulado existente si pertenece al mismo run

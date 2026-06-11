@@ -1,3 +1,710 @@
+_roadmap:
+  gauntlet:
+    live_initial_capital_pct: 0.25
+    paper_min_trades: 30
+    shadow_min_sharpe: 0.8
+    shadow_min_trades: 20
+    shadow_min_wr: 0.55
+  hmm:
+    gmm_fallback: true
+    n_states_candidates:
+    - 4
+    - 5
+  metalabeler:
+    nas_hidden_candidates:
+    - 16
+    - 32
+    - 64
+    nas_optuna_trials: 100
+    nas_seq_len_candidates:
+    - 24
+    - 48
+    - 72
+    - 96
+    - 144
+    - 192
+    tft_fallback_wr_threshold: 0.58
+  xgboost:
+    stacking_fallback_dsr_threshold: 0.4
+ai_mining:
+  advanced:
+    granger_maxlag: 13
+    isolation_contamination: 0.05
+    n_structural_breaks: 5
+    shap_n_estimators: 200
+    spectral_nperseg: 168
+    te_bins: 8
+  deep_discovery:
+    dtw_n_analogues: 5
+    dtw_window_hours: 72
+    genetic_crossover_rate: 0.7
+    genetic_mutation_rate: 0.1
+    genetic_n_generations: 20
+    genetic_population: 60
+    genetic_max_coverage: 0.2
+    genetic_min_hits: 500
+    rfe_variance_threshold: 0.9
+  lstm:
+    batch_size: 64
+    dropout: 0.3
+    epochs_per_fold: 30
+    hidden_size: 128
+    horizon_hours: 24
+    learning_rate: 0.001
+    max_features: 20
+    num_layers: 2
+    patience: 7
+    sequence_len: 168
+    wf_step_weeks: 4
+    wf_train_months: 18
+api_keys:
+  coinglass_api_key: ${COINGLASS_API_KEY}
+  fred_api_key: ${FRED_API_KEY}
+  okx_api_key: ${OKX_API_KEY}
+  okx_api_secret: ${OKX_API_SECRET}
+  telegram_bot_token: ${TELEGRAM_BOT_TOKEN}
+  telegram_chat_id: ${TELEGRAM_CHAT_ID}
+costs:
+  round_trip_pct: 0.25
+  slippage_pct: 0.025
+  taker_fee_pct: 0.05
+cpcv:
+  k_test_blocks: 2
+  n_blocks: 8
+data:
+  binance_symbol: BTCUSDT
+  trading_symbol: BTC/USDT
+  cpi_lag_days: 14
+  defi_lag_hours: 24
+  eth_lag_days: 0
+  fedfunds_lag_days: 14
+  m2_lag_days: 42
+  max_macro_staleness_days: 14
+  ohlcv_interval: 1h
+  ohlcv_interval_15m: 15m
+  onchain_lag_hours: 24
+  orderbook_depth: 20
+  unemploy_lag_days: 14
+  fetcher_hard_timeout_s: 30
+  macro_cache_ttl_hours: 6
+debug:
+  corr_leakage_threshold: 0.95
+  log_timing: true
+  nan_threshold_pct: 5.0
+  outlier_sigma: 6.0
+  verbose: true
+deployment:
+  cgroup_ram_mb: 4096
+  hetzner_host: ${HETZNER_HOST}
+  hetzner_user: ubuntu
+  service_name: mamba_luna
+  wal_backup_target: ${WAL_BACKUP_PATH}
+session_gate:
+  enabled: false
+  allowed_hours_utc:
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  monday_regime_veto: true
+  monday_veto_regimes:
+  - 1_BULL_TREND_WEAK
+  - 3_BEAR_CRASH
+  - 3_BEAR_CRASH_B
+  - 3_BEAR_CRASH_C
+  - 3_BEAR_CRASH_D
+  log_blocked: true
+fase2:
+  direction_mode: long
+  hmm_predictive: true
+  lgbm_signal_min_prob: 0.0
+  regime_mapping:
+    bear:
+    - 3_BEAR_CRASH
+    - 3_BEAR_CRASH_B
+    - 3_BEAR_CRASH_C
+    - 3_BEAR_CRASH_D
+    - 4_BEAR_FORCED
+    - 3_CALM_BEAR
+    - 3_CALM_BEAR_B
+    - 3_CALM_BEAR_C
+    - 3_CALM_BEAR_D
+    bull:
+    - 1_BULL_TREND
+    - 1_BULL_TREND_B
+    - 1_BULL_TREND_C
+    - 1_BULL_TREND_D
+    - 1_BULL_GRIND
+    - 1_VOLATILE_BULL
+    - 1_VOLATILE_BULL_B
+    - 1_VOLATILE_BULL_C
+    - 1_VOLATILE_BULL_D
+    range:
+    - 1_BULL_TREND_WEAK
+    - 2_VOLATILE_RANGE
+    - 2_VOLATILE_RANGE_B
+    - 2_VOLATILE_RANGE_C
+    - 2_VOLATILE_RANGE_D
+    - 2_CALM_RANGE
+  use_lgbm_ensemble: false
+  use_dtw_signal: false
+  use_monetary_loss: false
+  use_ofi_features: true
+  use_regime_agents: true
+features:
+  correlation_threshold: 0.7
+  dsr_scan_features:
+  - FundingRate_Pct90d
+  - genetic_rule_4
+  - alpha_genetic_score
+  - CPI_YoY
+  - TGA_Raw_Corr
+  - Fed_Net_Liq_90d_Std
+  - Transactions
+  - hashrate_chg_30d
+  - btc_drawdown_from_ath
+  - Puell_Multiple
+  forward_max_features: 25
+  fracdiff_d_range:
+  - 0.1
+  - 1.0
+  fracdiff_n_steps: 20
+  fracdiff_window_days: 365
+  max_lag_hours: 1080
+  mt_alignment_sma_fast: 12
+  mt_alignment_sma_slow: 36
+  rolling_zscore_window: 90
+  sfi_dsr_scan_top_n: 5
+  sfi_holdout_max_nan_pct: 0.1
+  sfi_max_depth: 4
+  sfi_max_nan_pct: 0.85
+  sfi_min_sharpe: 0.05
+  sfi_n_clusters: 15
+  sfi_n_clusters_max: 30
+  sfi_n_clusters_min: 8
+  sfi_n_estimators: 200
+  sfi_n_groups: 6
+  sfi_n_reps_per_cluster: 2
+  sfi_top_n: 13
+  stability_min_dsr: 0.0
+  stability_min_positive: 3
+  stability_penalty_weight: 0.5
+  stability_selection_weight: 0.6
+  stability_half_life_years: 2.0
+  stability_recent_window_years: 2
+  stability_trend_window_years: 4
+  stability_trend_threshold: 0.1
+  stability_variance_threshold: 1.0e-06
+  stability_min_real_years: 2
+  stability_maturity_min_years: 3
+  stability_dead_threshold_years: 2
+  stability_gap_penalty: -0.5
+  sfi_macro_stable_boost: 0.25
+  sfi_macro_features:
+  - M2_MoM_Chg
+  - M2_YoY_Chg
+  - Global_M2_Index
+  - M2_Global_YoY
+  - Fed_Net_Liquidity
+  - Fed_Net_Liq_90d_Std
+  - G3_Net_Liquidity_ZScore_90d
+  - YieldCurve_10Y3M
+  - T10Y2Y
+  - yield_curve_pct_1y
+  - RealYield_10Y
+  - FedFundsRate
+  - CreditSpread_HY_IG
+  - CreditSpread_HY_IG_z90d
+  - CreditSpread_HY_z90d
+  - CPI_YoY
+  - fear_greed_normalized
+  - MOVE
+  - DVOL
+  - DXY_HMM_cond
+  - DXY_HMM_bull_neg
+  - DXY_HMM_interact
+  sfi_macro_min_slots: 0
+  sfi_onchain_features:
+  - MVRV_Proxy
+  - SSR_ZScore
+  - SSR
+  - Stablecoins_Delta_30d_milag12h
+  - Stablecoin_Cap_Delta
+  - Puell_Multiple
+  - puell_multiple_proxy
+  - oc_puell_multiple_proxy
+  - Hash_Rate
+  - FundingRate
+  - dv_funding_rate
+  - Exchange_NetFlow
+  - Exchange_NetFlow_7dEMA
+  - Exchange_NetFlow_z30d
+  - Exchange_NetFlow_Accum30d
+  - Exchange_Outflow_Signal
+  - NonEx_Supply
+  - Exchange_Supply_Pct
+  - LTH_Supply_Change_30d
+  - LTH_Accum_Signal
+  - NonEx_Supply_z90d
+  - DVOL
+  - mt_vol_realized_4bar
+  sfi_onchain_min_slots: 4
+  sfi_calendar_features:
+  - cal_halving_cycle_sin
+  - cal_halving_cycle_cos
+  - cal_days_to_next_halving
+  - cal_days_since_halving
+  - cal_halving_cycle_pct
+  sfi_calendar_min_slots: 1
+  sfi_macro_stable_features:
+  - M2_MoM_Chg
+  - M2_YoY_Chg
+  - Global_M2_Index
+  - M2_Global_YoY
+  - Fed_Net_Liquidity
+  - Fed_Net_Liq_90d_Std
+  - G3_Net_Liquidity_ZScore_90d
+  - YieldCurve_10Y3M
+  - T10Y2Y
+  - yield_curve_pct_1y
+  - RealYield_10Y
+  - FedFundsRate
+  - CreditSpread_HY_IG
+  - CreditSpread_HY_IG_z90d
+  - CreditSpread_HY_z90d
+  - CPI_YoY
+  - fear_greed_normalized
+  - MOVE
+  - DVOL
+  - MVRV_Proxy
+  - SSR_ZScore
+  - SSR
+  - Stablecoins_Delta_30d_milag12h
+  - Stablecoin_Cap_Delta
+  - Puell_Multiple
+  - puell_multiple_proxy
+  - oc_puell_multiple_proxy
+  - Hash_Rate
+  - FundingRate
+  - dv_funding_rate
+  - cal_halving_cycle_sin
+  - cal_halving_cycle_cos
+  - cal_days_to_next_halving
+  - cal_days_since_halving
+  - cal_halving_cycle_pct
+  - DXY_HMM_cond
+  - DXY_HMM_bull_neg
+  - DXY_HMM_interact
+  - Exchange_NetFlow_z30d
+  - Exchange_NetFlow_Accum30d
+  - Exchange_Outflow_Signal
+  - LTH_Supply_Change_30d
+  - LTH_Accum_Signal
+  - NonEx_Supply_z90d
+  - Exchange_Supply_Pct
+  timing_features_bypass_sfi: false
+fiscal:
+  exchange_regulated: OKX (MiCA Malta) / OKX (MiCA Malta)
+  irpf_rates:
+  - 0.19
+  - 0.21
+  - 0.23
+  - 0.28
+  irpf_tramos:
+  - 6000
+  - 50000
+  - 200000
+  method: FIFO
+  modelo_721_threshold_eur: 50000
+  tax_country: ES
+gauntlet:
+  max_ece: 0.1
+  max_pbo: 0.45
+  max_trades_per_year: 300
+  min_dsr: 0.75
+  min_trades_per_year: 40
+  monte_carlo_min_pct_profitable: 0.6
+  ood_max_false_positive_rate: 0.02
+  whites_pvalue_max: 0.05
+hmm:
+  deadband_pct: 2.0
+  drift_alert_jsd: 0.15
+  hmm_extend_to_holdout: false
+  min_mi: 0.005
+  mi_horizon_hours: 720
+  min_state_duration_hours: 120
+  n_init: 10
+  n_iter: 200
+  n_states: 5
+  oos_window_hours: 960
+  retraining_days: 30
+  tol: 0.001
+  post_ath_dd_threshold: -0.3
+  post_ath_mom_threshold: -0.05
+  post_ath_ath_window_h: 720
+  post_ath_ath_min_periods: 360
+  post_ath_confirm_h: 48
+  candidate_features:
+  - mt_vol_realized_4bar
+  - dv_dvol_raw
+  - frac_diff_close
+  - btc_drawdown_from_ath
+  min_feature_mi: 0.0001
+  min_features_required: 2
+kelly_sizer:
+  enabled: true
+  kelly_fraction: 0.5
+  max_position: 20.0
+  target_sl_pct: 0.05
+  pt_ratio: 1.2
+  sl_ratio: 1.0
+  probability_cap: 0.62
+lightgbm:
+  optuna_metric: dsr
+  optuna_search_space:
+    bagging_fraction_max: 1.0
+    bagging_fraction_min: 0.6
+    feature_fraction_max: 1.0
+    feature_fraction_min: 0.4
+    learning_rate_max: 0.05
+    learning_rate_min: 0.005
+    min_data_in_leaf_max: 200
+    min_data_in_leaf_min: 50
+    n_estimators_max: 800
+    n_estimators_min: 100
+    num_leaves_max: 120
+    num_leaves_min: 20
+    reg_alpha_max: 10.0
+    reg_alpha_min: 0.01
+    reg_lambda_max: 10.0
+    reg_lambda_min: 0.01
+    scale_pos_weight_max: 2.0
+    scale_pos_weight_min: 0.43
+  optuna_trials: 100
+metalabeler:
+  gradient_clip: 1.0
+  hmm_allowed_regimes:
+  - 1_BULL_TREND
+  - 1_BULL_TREND_B
+  - 1_BULL_TREND_WEAK
+  - 1_BULL_GRIND
+  - 2_CALM_RANGE
+  - 2_CALM_RANGE_B
+  - 2_VOLATILE_RANGE
+  - 2_VOLATILE_RANGE_B
+  include_hmm_context: true
+  lstm_hidden: 32
+  lstm_lr: 0.0003
+  max_epochs: 100
+  meta_filter_threshold: 0.45
+  meta_filter_threshold_bull: null
+  meta_min_trades: 20
+  meta_sweep_max: 0.65
+  meta_sweep_min: 0.4
+  meta_sweep_step: 0.005
+  meta_v2_dynamic_edge_pct: 0.05
+  meta_v2_min_prob: 0.38
+  meta_v2_min_prob_bull_long: 0.38
+  meta_v2_threshold_mode: dynamic_is
+  meta_v2_thresh_bull_strong: 0.38
+  meta_v2_thresh_bull_unstable: 0.45
+  meta_v2_rolling_percentile_bull: 0.7
+  meta_v2_rolling_percentile_bear: 0.9
+  meta_v2_rolling_percentile: 0.85
+  meta_v2_rolling_min_n: 100
+  momentum_filter_threshold: -30.0
+  momentum_filter_threshold_upper: -30.0
+  momentum_speed_window: 120
+  momentum_crash_speed_threshold: -5.0
+  momentum_ordered_correction_threshold: -25.0
+  n_cpcv_groups: 8
+  patience: 15
+  rf_max_depth: 6
+  rf_max_samples: 0.6
+  rf_min_samples_leaf: 10
+  rf_n_estimators: 200
+  seq_len: 48
+  simulate_online_recalibration: false
+  skip_metalabeler: false
+  weight_decay_alpha: 0.5
+  guardian_max_overfit_gap: 0.25
+ood_guard:
+  block_on_low_unique: true
+  contamination: 0.005
+  max_constant_pct: 0.95
+  min_std_ratio: 0.05
+  min_unique_in_train: 5
+  min_unique_values: 3
+  n_estimators: 200
+  random_state: 42
+  structural_features:
+  - HMM_Regime
+  - HMM_Semantic
+position_sizer:
+  base_capital: 100000.0
+  base_risk_fraction: 0.2
+  dd_half_size: 0.1
+  dd_kill_switch: 0.15
+  dd_three_quarter: 0.05
+  ewma_lambda: 0.94
+  kelly_fraction: 0.25
+  max_dd_stop_pct: 50.0
+  max_orderbook_pct: 0.05
+  target_vol_annual: 0.25
+  spot_dust_threshold: 20.0
+  roll_sr_gate_enabled: false
+  roll_sr_window: 10
+  roll_sr_threshold: 0.0
+project:
+  description: Unified AI trading system merging Correlaciones + Luna v2
+  name: Luna V1
+  version: 1.0.0
+sop:
+  annual_factor: 93.6
+  cost_pct: 0.0025
+  cpcv_groups: 10
+  embargo_hours: 0
+  purge_hours: 96
+stat:
+  alpha_binomial: 0.2
+  max_drawdown: 0.6
+  max_pbo: 0.45
+  max_por_x10: 10.0
+  mc_block_size_hours: 96
+  mc_simulations: 10000
+  min_dsr: 0.75
+  min_trades: 30
+  n_trials_total: 100
+  # [ENSEMBLE-GAUNTLET-01 2026-06-10] Relajar pbo_n_blocks para permitir ensamble con 31 trades (requiere 28 mínimos)
+  pbo_n_blocks: 7
+  total_return_cap: 1000000.0
+  wfv_max_std_dsr: 0.3
+  wfv_min_window_dsr: 0.1
+  wfv_n_windows: 4
+  cusum_threshold: 4.5
+  xgb_auc_hard_stop: 0.51
+  xgb_auc_warn: 0.53
+  xgb_brier_hard_stop: 0.285
+  xgb_brier_warn: 0.27
+  xgb_brier_degraded_max_agents: 1
+  xgb_proba_std_min: 0.01
+  lgbm_proba_std_min: 0.01
+  hmm_min_active_states: 2
+  sfi_min_features: 5
+  data_min_rows: 1000
+  data_max_gap_h: 48
+  signal_min_count_warn: 5
+  max_latency_seconds: 120
+  brier_margin_range: 0.03
+  brier_margin_default: 0.025
+temporal_splits:
+  embargo_hours: 0
+  hmm_train_end: 2024-12-31
+  hmm_train_start: '2020-01-01'
+  holdout_end: 2025-03-31
+  holdout_start: 2025-01-01
+  train_end: 2024-10-31
+  train_start: '2017-08-17'
+  validation_end: 2024-12-31
+  validation_start: 2024-11-01
+wfb:
+  ensemble_consensus_threshold: 4
+  consensus_bucket_hours: 2
+  max_seeds_to_explore: 20
+  min_seeds_to_approve: 10
+  prune_threshold: 0.8
+  soft_embargo_enabled: true
+  soft_embargo_hours: 6.0
+  active_seeds:
+  - 42
+  - 100
+  - 777
+  - 1337
+  - 2024
+  - 2025
+  - 2026
+  - 888
+  - 999
+  - 1111
+  - 2222
+  - 3333
+  - 4444
+  - 5555
+  - 6666
+  - 7777
+  - 8888
+  - 9999
+  - 12345
+  - 54321
+  circuit_breaker:
+    enabled: true
+    min_seeds_adverse: 4
+    wr_threshold: 0.38
+    rolling_days: 30
+  psi_alert_threshold: 0.25
+  psi_cooldown_hours: 336
+  psi_ewma_span: 168
+  psi_halt_threshold: 0.5
+  rolling_window_years: 5
+  training_mode: rolling
+  val_min_samples_per_regime: 50
+  val_samples_per_regime: 300
+  validation_mode: regime_stratified
+  windows:
+  - holdout_end: '2025-03-31'
+    holdout_start: '2025-01-01'
+    id: W1
+    train_end: '2024-10-31'
+    val_end: '2024-12-31'
+    val_start: '2024-11-01'
+  - holdout_end: '2025-06-30'
+    holdout_start: '2025-04-01'
+    id: W2
+    train_end: '2025-01-31'
+    val_end: '2025-03-31'
+    val_start: '2025-02-01'
+  - holdout_end: '2025-09-30'
+    holdout_start: '2025-07-01'
+    id: W3
+    train_end: '2025-04-30'
+    val_end: '2025-06-30'
+    val_start: '2025-05-01'
+  - holdout_end: '2025-12-31'
+    holdout_start: '2025-10-01'
+    id: W4
+    train_end: '2025-07-31'
+    val_end: '2025-09-30'
+    val_start: '2025-08-01'
+  - holdout_end: '2026-03-31'
+    holdout_start: '2026-01-01'
+    id: W5
+    train_end: '2025-10-31'
+    val_end: '2025-12-31'
+    val_start: '2025-11-01'
+xgboost:
+  ev_tolerance_pct: 0.01
+  optuna_trials: 100
+  calibration_min_samples_isotonic: 50000
+  calibration_fallback_method: sigmoid
+  embargo_dynamic_decay: true
+  embargo_decay_atr_lookback: 24
+  embargo_low_density_threshold: 20
+  embargo_hours: 0
+  embargo_min_hours: 0.0
+  dynamic_barrier: true
+  dynamic_horizon_min_h: 48
+  event_sampling_hours: 12
+  focal_loss_gamma: 2.0
+  hmm_velocity_ewm_span: 24
+  holdout_calib_months: 0
+  linear_decay_pt: false
+  n_estimators_min_floor: 5
+  min_viable_train_samples: 200
+  bull_gate_min_dsr: 0.0
+  n_purged_splits: 8
+  optuna_metric: brier
+  vertical_barrier_hours: 48
+  dynamic_horizon_max_h: 168
+  optuna_search_space:
+    colsample_bytree_max: 0.85
+    colsample_bytree_min: 0.4
+    focal_loss_gamma_max: 4.0
+    focal_loss_gamma_min: 0.5
+    gamma_max: 1.0
+    gamma_min: 0.0
+    learning_rate_max: 0.05
+    learning_rate_min: 0.01
+    max_depth_max: 4
+    max_depth_min: 2
+    min_child_weight_max: 20
+    min_child_weight_min: 5
+    n_estimators_max: 800
+    n_estimators_min: 100
+    reg_alpha_max: 10.0
+    reg_alpha_min: 0.001
+    reg_lambda_max: 10.0
+    reg_lambda_min: 0.01
+    subsample_max: 0.85
+    subsample_min: 0.5
+  dynamic_regime_regularization:
+    bear:
+      max_depth_cap: 2
+      gamma_floor: 0.5
+    range:
+      max_depth_cap: 3
+      gamma_floor: 0.2
+    bull:
+      max_depth_cap: 4
+      gamma_floor: 0.0
+  optuna_seed: 42
+  pt_decay_fraction: 0.75
+  pt_mult_max: 2.2
+  pt_mult_min: 1.8
+  regime_tbm_profiles:
+    bear:
+      pt_mult_min: 1.0
+      sl_mult_min: 1.5
+    bull:
+      pt_mult_min: 1.3
+      sl_mult_min: 1.5
+    range:
+      pt_mult_min: 1.0
+      sl_mult_min: 1.0
+  signal_prob_max: 1.0
+  sl_mult_max: 1.5
+  sl_mult_min: 1.5
+  target_recall: 0.7
+  tbm_min_return: 0.005
+  threshold_min_density_pct: 0.15
+  threshold_min_trades: 5
+  threshold_sweep_max: 0.72
+  threshold_sweep_min: 0.45
+  threshold_sweep_step: 0.005
+  use_focal_loss: false
+  use_regime_agents: true
+  weight_decay_alpha: 0.5
+  xgb_min_signals_count: 0
+  xgb_min_signals_threshold: 0.45
+  xgb_signal_threshold: 0.48
+  guardian_shap_max_monopoly: 0.5
+  guardian_ood_kl_threshold: 2.0
+  guardian_ood_max_failures: 2
+  guardian_tbm_min_class_pct: 0.05
+  guardian_min_p_iqr: 0.02
+  guardian_hmm_min_mi: 0.001
+dashboard_healthcheck:
+  enabled: true
+  base_url: http://localhost:5050
+  max_response_time_sec: 15
+  max_data_age_hours: 3
+  telegram_alert_on_failure: true
+  post_cycle_enabled: true
+  endpoints:
+  - path: /api/status
+    description: Dashboard status principal
+    required_fields:
+    - status
+    allow_standby: true
+  - path: /api/live-state
+    description: Estado del sistema live (portfolio, drawdown)
+    required_fields:
+    - status
+    allow_standby: true
+  - path: /api/hour-decision
+    description: Decision horaria actual (XGB, Meta, Consenso)
+    required_fields:
+    - status
+    allow_standby: true
+shap_audit:
+  enabled: true
+  min_importance_threshold: 0.02
+  consecutive_windows_alert: 3
+  consecutive_windows_remove: 5
+  importance_types:
+  - gain
 
 # [CONF-SCALER-01 2026-06-10] Flag para desactivar ampliacion dinamica TP/SL
 tbm:

@@ -478,7 +478,6 @@ stat:
   min_dsr: 0.75
   min_trades: 30
   n_trials_total: 100
-  # [ENSEMBLE-GAUNTLET-01 2026-06-10] Relajar pbo_n_blocks para permitir ensamble con 31 trades (requiere 28 mínimos)
   pbo_n_blocks: 7
   total_return_cap: 1000000.0
   wfv_max_std_dsr: 0.3
@@ -519,26 +518,20 @@ wfb:
   soft_embargo_enabled: true
   soft_embargo_hours: 6.0
   active_seeds:
-  - 42
   - 100
   - 777
   - 1337
-  - 2024
-  - 2025
-  - 2026
-  - 888
-  - 999
-  - 1111
-  - 2222
-  - 3333
-  - 4444
-  - 5555
-  - 6666
-  - 7777
-  - 8888
-  - 9999
-  - 12345
-  - 54321
+  - 12239
+  - 34596
+  - 36655
+  - 39395
+  - 44793
+  - 50830
+  - 58373
+  - 61865
+  - 70519
+  - 74734
+  - 83925
   circuit_breaker:
     enabled: true
     min_seeds_adverse: 4
@@ -639,7 +632,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 51103
+  optuna_seed: 72186
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -705,7 +698,5 @@ shap_audit:
   consecutive_windows_remove: 5
   importance_types:
   - gain
-
-# [CONF-SCALER-01 2026-06-10] Flag para desactivar ampliacion dinamica TP/SL
 tbm:
   use_confidence_scaler: false

@@ -21,19 +21,18 @@ if sys.platform == 'win32':
 _ROOT = Path(__file__).resolve().parent.parent
 
 def _restore_master_settings():
+    import shutil
     _settings_path = _ROOT / "config" / "settings.yaml"
     _master_backup_path = _ROOT / "config" / "master_settings_backup_wfb.yaml"
     if _master_backup_path.exists():
         if _settings_path.exists() and _settings_path.stat().st_mtime > _master_backup_path.stat().st_mtime:
             try:
-                import shutil
                 shutil.copy2(_settings_path, _master_backup_path)
                 print("\n[FIX-GLOBAL-RESTORE] settings.yaml editado por el usuario. Conservando cambios y actualizando backup maestro.")
             except Exception as e:
                 print(f"\n[FIX-GLOBAL-RESTORE] ERROR actualizando backup maestro: {e}")
         else:
             try:
-                import shutil
                 shutil.copy2(_master_backup_path, _settings_path)
                 _master_backup_path.unlink(missing_ok=True)
                 print("\n[FIX-GLOBAL-RESTORE] settings.yaml restaurado exitosamente desde el backup maestro.")

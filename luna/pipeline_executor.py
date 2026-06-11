@@ -138,6 +138,16 @@ def hydrate_window_state(window_id: str, seed_id=None):
             logger.info(f"[CACHE-HYGIENE-01] data/models/ limpiado (sin caché disponible, primera seed)")
             print(f"[CACHE-HYGIENE-01] data/models/ limpiado (sin caché disponible, primera seed)")
 
+        # [FIX-P3-SHARED-MODELS-NOCACHE] Hidratar modelos compartidos incluso si la seed no tiene caché
+        if seed_id is not None:
+            shared_models_cache = _ROOT / "data" / "wfb_cache" / window_id / "models"
+            if shared_models_cache.exists():
+                target_models.mkdir(parents=True, exist_ok=True)
+                for f in shared_models_cache.glob("*"):
+                    if f.is_file():
+                        shutil.copy2(f, target_models / f.name)
+                logger.info(f"[HYDRATE-SHARED-FALLBACK] Modelos compartidos restaurados desde {shared_models_cache.relative_to(_ROOT)}")
+
         # [FALLA 7] Validar PKL HMM post-hydrate
         _validate_hmm_pkl(target_models, window_id)
 

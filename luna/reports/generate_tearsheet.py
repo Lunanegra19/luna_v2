@@ -28,7 +28,7 @@ Artefactos:
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import os
 import shutil
 from datetime import datetime
@@ -48,8 +48,7 @@ import pandas as pd
 import seaborn as sns
 from scipy.stats import binom
 
-logger = logging.getLogger(__name__)
-
+# logger already imported from loguru
 # ── Paleta Luna dark ──────────────────────────────────────────────────────────
 _BG     = "#0d1117"
 _PANEL  = "#161b22"
@@ -455,7 +454,7 @@ class LunaTearSheet:
             n_losses = n_total - n_wins
             wr       = n_wins / n_total if n_total > 0 else 0.0
             # Cobertura temporal: qué % del OOS estuvo en este régimen
-            cov = (hmm == reg).mean() if n_total > 0 else 0.0
+            cov = (hmm == reg).mean() if n_total > 0 and hmm is not None else 0.0
             rows.append({
                 "reg": reg,
                 "label": short_map.get(str(reg), str(reg)),
