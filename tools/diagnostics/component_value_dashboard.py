@@ -153,20 +153,49 @@ def group_by_window(groupby_col, label):
         print(row_str)
     return wr_range
 
+# [CVD-MEJORA-01 2026-06-11] Helper de metricas financieras completas
+# Integra la logica de sim_skip_metalabeler.py para mostrar Sharpe/MaxDD/Calmar
+# en vez de solo Delta WR (que no captura el riesgo real del escenario)
+def metricas_fin(subset: pd.DataFrame, label: str = "") -> dict:
+    """Calcula WR, Ret total, Sharpe, MaxDD y Calmar sobre un subconjunto de trades."""
+    n = len(subset)
+    if n < 5:
+        return {"n": n, "wr": np.nan, "ret": np.nan, "sharpe": np.nan, "maxdd": np.nan, "calmar": np.nan}
+    wr  = subset["is_win"].mean() * 100
+    ret = subset["ret100"].sum()
+    rets = subset["ret100"].values
+    mean_r, std_r = np.mean(rets), np.std(rets)
+    # Sharpe anualizado conservador (52 trades/año = ~1/semana)
+    sharpe = (mean_r / std_r) * np.sqrt(52) if std_r > 1e-10 else 0.0
+    # MaxDD acumulado sobre secuencia de trades
+    cumret = (1 + subset["return_raw"].values).cumprod()
+    running_max = np.maximum.accumulate(cumret)
+    dd = (cumret - running_max) / np.maximum(running_max, 1e-10)
+    maxdd = abs(dd.min()) * 100
+    calmar = (ret / maxdd) if maxdd > 0.01 else 0.0
+    if label:
+        print(f"  [CVD-MEJORA-01] {label}: N={n} WR={wr:.1f}% Ret={ret:+.1f}pp Sharpe={sharpe:.2f} MaxDD={maxdd:.1f}%")
+    return {"n": n, "wr": wr, "ret": ret, "sharpe": sharpe, "maxdd": maxdd, "calmar": calmar}
+
+
 results = {}
+results_fin = {}  # [CVD-MEJORA-01] metricas financieras por componente
 
 # ─── BASELINE ─────────────────────────────────────────────────────────────
 print(SEP)
 print("BASELINE — Performance por ventana")
 print(SEP)
-for win in ['W1','W2','W3','W4','W5','GLOBAL']:
-    dw = df if win=='GLOBAL' else df[df['_window']==win]
-    if len(dw)==0: continue
-    wr = dw['is_win'].mean()*100
+# [CVD-MEJORA-01] Ahora incluye Sharpe y MaxDD por ventana ademas de WR/Ret
+print(f"  {'Ventana':>6} {'N':>4}  {'WR':>7}  {'RetMed':>8}  {'RetTot':>8}  {'Sharpe':>7}  {'MaxDD':>7}")
+print("  " + DASH)
+for win in ['W1', 'W2', 'W3', 'W4', 'W5', 'GLOBAL']:
+    dw = df if win == 'GLOBAL' else df[df['_window'] == win]
+    if len(dw) == 0:
+        continue
+    m = metricas_fin(dw)
     rm = dw['ret100'].mean()
-    rt = dw['ret100'].sum()
-    n  = len(dw)
-    print(f"  {win:6}: N={n:>4} WR={wr:.1f}% RetMed={rm:+.4f}% RetTot={rt:+.3f}%")
+    print(f"  {win:>6} {m['n']:>4}  {m['wr']:>7.1f}%  {rm:>+8.4f}%  {m['ret']:>+8.1f}pp  {m['sharpe']:>7.2f}  {m['maxdd']:>6.1f}%")
+print(f"[CVD-MEJORA-01] Baseline con metricas financieras completas cargado.")
 
 # ─── 1. XGBOOST PROB_CAL ──────────────────────────────────────────────────
 print()
@@ -195,20 +224,41 @@ if 'meta_v2_prob' in df.columns:
     print()
     d1 = quartile_by_window('meta_v2_prob', "MetaLabeler V2 prob")
     print()
-    # Simulacion de umbral con control de ventana
-    print("  Simulacion de activar MetaLabeler como gate (umbral >= X):")
-    print(f"  {'Umbral':>8} {'N_pass':>8} {'%pass':>6} {'WR_pass':>9} {'WR_bloq':>9} {'Delta':>7} {'Veredicto'}")
+    # [CVD-MEJORA-02 2026-06-11] Simulacion con metricas financieras completas
+    # Integra sim_skip_metalabeler.py: Ret_total + Sharpe + MaxDD por umbral
+    # ANTES: solo Delta WR -> no capturaba el impacto real en el capital
+    _m_base = metricas_fin(df)
+    print("  [CVD-MEJORA-02] Simulacion MetaLabeler como gate — metricas financieras completas:")
+    print(f"  {'Umbral':>8} {'N_pass':>7} {'%pass':>6}  {'WR':>7}  {'Ret_tot':>8}  {'Sharpe':>7}  {'MaxDD':>7}  {'Veredicto'}")
     print("  " + DASH)
-    for thr in [0.58, 0.62, 0.65, 0.68, 0.70]:
+    print(f"  {'SKIP':>8} {_m_base['n']:>7} {'100%':>6}  {_m_base['wr']:>7.1f}%  {_m_base['ret']:>+8.1f}pp  {_m_base['sharpe']:>7.2f}  {_m_base['maxdd']:>6.1f}%  <- BASELINE ACTUAL")
+    for thr in [0.58, 0.62, 0.65, 0.68, 0.70, 0.72]:
         p = df[df['meta_v2_prob'] >= thr]
-        b = df[df['meta_v2_prob'] < thr]
-        if len(p) < 5 or len(b) < 5: continue
-        wr_p = p['is_win'].mean()*100; wr_b = b['is_win'].mean()*100
-        delta = wr_p - wr_b
-        pct   = len(p)/len(df)*100
-        v = "✅ ACTIVA" if delta > 3 else ("❌ PERJUDICA" if delta < -3 else "~neutral")
-        print(f"  {thr:>8.2f} {len(p):>8} {pct:>6.0f}% {wr_p:>9.1f}% {wr_b:>9.1f}% {delta:>+7.1f}pp {v}")
+        if len(p) < 5: continue
+        mp = metricas_fin(p)
+        pct = len(p) / len(df) * 100
+        delta_ret = mp['ret'] - _m_base['ret']
+        v = "MEJORA" if delta_ret > 50 else ("PERJUDICA" if delta_ret < -50 else "~neutral")
+        print(f"  {thr:>8.2f} {mp['n']:>7} {pct:>5.0f}%  {mp['wr']:>7.1f}%  {mp['ret']:>+8.1f}pp  {mp['sharpe']:>7.2f}  {mp['maxdd']:>6.1f}%  {v} (dRet={delta_ret:+.0f}pp)")
+    print()
+    # [CVD-MEJORA-02] Impacto por ventana con gate
+    _GATE_THR = 0.65
+    print(f"  [CVD-MEJORA-02] Impacto por ventana con gate >= {_GATE_THR} vs baseline:")
+    print(f"  {'Vent':>5}  {'N_base':>6}  {'WR_base':>8}  {'N_gate':>6}  {'WR_gate':>8}  {'DeltaWR':>8}  {'DeltaRet':>9}  {'Veredicto'}")
+    print("  " + DASH)
+    for win in sorted(df['_window'].unique()):
+        dw = df[df['_window'] == win]
+        dw_g = dw[dw['meta_v2_prob'] >= _GATE_THR]
+        if len(dw) < 5: continue
+        mw = metricas_fin(dw)
+        mg = metricas_fin(dw_g) if len(dw_g) >= 5 else {"n": 0, "wr": 0, "ret": 0}
+        dwr = mg['wr'] - mw['wr']
+        drt = mg['ret'] - mw['ret']
+        vv = "MEJORA" if drt > 20 else ("PERJUDICA" if drt < -20 else "~neutro")
+        print(f"  {win:>5}  {mw['n']:>6}  {mw['wr']:>8.1f}%  {mg['n']:>6}  {mg['wr']:>8.1f}%  {dwr:>+8.1f}pp  {drt:>+9.1f}pp  {vv}")
+    print(f"[CVD-MEJORA-02] MetaLabeler sim integrada (fuente: sim_skip_metalabeler.py).")
     results['MetaLabeler_V2'] = d1
+    results_fin['MetaLabeler_V2'] = _m_base
 
 # ─── 3. HMM REGIME ────────────────────────────────────────────────────────
 print()
@@ -309,7 +359,64 @@ if 'kelly_fraction_used' in df.columns:
     print()
     quartile_by_window('kelly_fraction_used', "Kelly Fraction")
 
-# ─── RESUMEN EJECUTIVO ────────────────────────────────────────────────────
+# ─── 9. COMBINACION XGBOOST + OOD_KL (NUEVO) ──────────────────────────────
+# [CVD-MEJORA-03 2026-06-11] Combinacion optima hallada en investigacion H3
+# Fuente: audit_ood_guard_pkl.py + sim_skip_metalabeler.py
+# El KL score (ood_kl_distance) es un predictor INVERSO: KL bajo -> mejor trade
+# Combinar XGBoost alto + KL bajo produce la mejor relacion Sharpe/MaxDD
+print()
+print(SEP)
+print("COMPONENTE 9: Combinacion XGBoost + OOD_KL Score [CVD-MEJORA-03]")
+print("Hipotesis H3: KL bajo (anomalo para IF) + XGBoost alto = mejor combinacion")
+print("Fuente: investigacion hipotesis OOD 2026-06-11 sobre 7.718 trades reales")
+print(SEP)
+if 'xgb_prob_cal' in df.columns and 'ood_kl_distance' in df.columns:
+    _xq50 = df['xgb_prob_cal'].quantile(0.50)
+    _xq75 = df['xgb_prob_cal'].quantile(0.75)
+    _xq85 = df['xgb_prob_cal'].quantile(0.85)
+    _kq25 = df['ood_kl_distance'].quantile(0.25)
+    _kq50 = df['ood_kl_distance'].quantile(0.50)
+    _kq75 = df['ood_kl_distance'].quantile(0.75)
+    print(f"  XGBoost cuantiles: Q50={_xq50:.4f} Q75={_xq75:.4f} Q85={_xq85:.4f}")
+    print(f"  KL cuantiles     : Q25={_kq25:.4f} Q50={_kq50:.4f} Q75={_kq75:.4f}")
+    print(f"  KL<0 (anomalias genuinas): {(df['ood_kl_distance']<0).sum()} trades ({(df['ood_kl_distance']<0).mean()*100:.1f}%)")
+    print()
+    _scenarios = [
+        ("BASELINE (todos)",              df),
+        (f"Solo XGBoost>=Q50 ({_xq50:.3f})",    df[df['xgb_prob_cal'] >= _xq50]),
+        (f"Solo XGBoost>=Q75 ({_xq75:.3f})",    df[df['xgb_prob_cal'] >= _xq75]),
+        (f"Solo XGBoost>=Q85 ({_xq85:.3f})",    df[df['xgb_prob_cal'] >= _xq85]),
+        (f"Solo KL<=Q25 (anomalos)",             df[df['ood_kl_distance'] <= _kq25]),
+        (f"Solo KL<=Q50 (mitad anomala)",        df[df['ood_kl_distance'] <= _kq50]),
+        (f"XGBoost>=Q75 + KL<=Q50",              df[(df['xgb_prob_cal'] >= _xq75) & (df['ood_kl_distance'] <= _kq50)]),
+        (f"XGBoost>=Q75 + KL<=Q25 OPTIMO",       df[(df['xgb_prob_cal'] >= _xq75) & (df['ood_kl_distance'] <= _kq25)]),
+        (f"XGBoost>=Q50 + KL<=Q25 SNIPER",       df[(df['xgb_prob_cal'] >= _xq50) & (df['ood_kl_distance'] <= _kq25)]),
+    ]
+    print(f"  [CVD-MEJORA-03] Escenarios XGBoost+KL — metricas financieras completas:")
+    print(f"  {'Escenario':<38} {'N':>5}  {'WR':>7}  {'Ret_tot':>8}  {'Sharpe':>7}  {'MaxDD':>7}  {'Calmar':>7}")
+    print("  " + DASH)
+    _best_sharpe = -999
+    _best_label  = ""
+    for label, sub in _scenarios:
+        m = metricas_fin(sub)
+        if m['n'] < 10:
+            print(f"  {label:<38} {'N<10':>5}")
+            continue
+        flag = ""
+        if m['sharpe'] > _best_sharpe and label != "BASELINE (todos)":
+            _best_sharpe = m['sharpe']
+            _best_label  = label
+            flag = " <- MEJOR SHARPE"
+        print(f"  {label:<38} {m['n']:>5}  {m['wr']:>7.1f}%  {m['ret']:>+8.1f}pp  {m['sharpe']:>7.2f}  {m['maxdd']:>6.1f}%  {m['calmar']:>7.2f}{flag}")
+    print()
+    print(f"  [CVD-MEJORA-03] Mejor combinacion hallada: '{_best_label}' (Sharpe={_best_sharpe:.2f})")
+    print(f"  ADVERTENCIA: resultado retroactivo sobre datos observados.")
+    print(f"  Necesita validacion causal (PurgedKFold OOS) antes de implementar en produccion.")
+    print(f"[CVD-MEJORA-03] Combinacion XGBoost+KL integrada. Fuente: audit_ood_guard_pkl.py.")
+else:
+    print("  xgb_prob_cal u ood_kl_distance no disponibles en parquets.")
+
+
 print()
 print(SEP)
 print("RESUMEN EJECUTIVO")
@@ -319,6 +426,10 @@ print("""
   El Spearman 'global' esta inflado por pseudo-replicacion (78 seeds, mismos datos).
   El analisis por ventana evita el confounding window->componente.
 """)
+# [CVD-MEJORA-01] Baseline financiero global para referencia rapida
+_mb = metricas_fin(df)
+print(f"  BASELINE GLOBAL: N={_mb['n']} WR={_mb['wr']:.1f}% Ret={_mb['ret']:+.1f}pp Sharpe={_mb['sharpe']:.2f} MaxDD={_mb['maxdd']:.1f}%")
+print()
 print(f"  {'Componente':<30} {'Delta_WR_avg':>13} {'Status'}")
 print("  " + DASH)
 
@@ -347,3 +458,10 @@ def fmt_result(name, val):
 
 for comp, val in results.items():
     fmt_result(comp, val)
+
+print()
+print("  MEJORAS INTEGRADAS EN ESTE REPORTE [CVD-MEJORA 2026-06-11]:")
+print("  [CVD-MEJORA-01] metricas_fin(): Sharpe/MaxDD/Calmar disponibles en BASELINE y secciones")
+print("  [CVD-MEJORA-02] MetaLabeler sim con Ret_total + Sharpe + impacto por ventana")
+print("  [CVD-MEJORA-03] Componente 9: combinacion XGBoost+KL Score (Hipotesis H3)")
+print("[CVD-MEJORA] Dashboard CVD-01 completado. Mejoras: MEJORA-01 MEJORA-02 MEJORA-03")
