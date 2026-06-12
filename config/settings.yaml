@@ -26,6 +26,17 @@ _roadmap:
     tft_fallback_wr_threshold: 0.58
   xgboost:
     stacking_fallback_dsr_threshold: 0.4
+execution:
+  # [P3-FUTURES-2026-06-12] Migracion de Spot a Futuros Perpetuos OKX (USDT-margined)
+  # Para volver a Spot: symbol = BTC/USDT, instrument_type = spot
+  # Para Futuros Perps: symbol = BTC/USDT:USDT, instrument_type = swap
+  symbol: BTC/USDT:USDT            # Instrumento activo de trading (Futuros Perpetuos USDT-margined)
+  instrument_type: swap             # [spot|swap] — determina la ruta de fees y de posicion
+  use_hybrid_execution: true        # [P2] Activar Limit Maker con Order Chasing + Fallback Market
+  hybrid_order_timeout_s: 30        # Timeout en segundos antes de caer a Market
+  funding_drag_enabled: true        # [SOP-R14] Descontar Funding Rate del P&L en posicion abierta
+  funding_rate_8h: 0.0001           # Tasa base de funding cada 8H (0.01%) — 0.03% por trade 24H hold
+
 ai_mining:
   advanced:
     granger_maxlag: 13

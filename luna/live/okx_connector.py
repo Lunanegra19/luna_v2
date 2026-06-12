@@ -21,6 +21,8 @@ sys.path.append(str(PROJECT_ROOT))
 
 from luna.database.db_manager import DatabaseManager
 from luna.live.position_sizer import PositionSizer
+# [P3-FUTURES-2026-06-12] Leer configuracion de ejecucion desde settings.yaml (No-Fallback)
+from config.settings import cfg as _global_cfg
 
 class OKXBrokerConnector:
     """
@@ -31,7 +33,26 @@ class OKXBrokerConnector:
     def __init__(self, demo_mode: bool = True):
         self.demo_mode = demo_mode
         self.db = DatabaseManager()
-        
+
+        # [P3-FUTURES-2026-06-12] Cargar configuracion de ejecucion desde settings.yaml (politica No-Fallback)
+        try:
+            self.trading_symbol = str(_global_cfg.execution.symbol)
+            self.instrument_type = str(_global_cfg.execution.instrument_type)
+            self.use_hybrid_execution = bool(_global_cfg.execution.use_hybrid_execution)
+            self.hybrid_timeout_s = int(_global_cfg.execution.hybrid_order_timeout_s)
+            self.funding_drag_enabled = bool(_global_cfg.execution.funding_drag_enabled)
+            self.funding_rate_8h = float(_global_cfg.execution.funding_rate_8h)
+        except AttributeError as e:
+            raise KeyError(
+                f"[OKX_BOOT/CRITICAL] Falta parametro en settings.yaml seccion 'execution': {e}. "
+                "Revisa config/settings.yaml — politica No-Fallback activa."
+            ) from e
+
+        print(f"[P3-FUTURES] Instrumento cargado desde settings.yaml: symbol={self.trading_symbol} | "
+              f"instrument_type={self.instrument_type} | hybrid_exec={self.use_hybrid_execution} | "
+              f"funding_drag={self.funding_drag_enabled} (rate_8h={self.funding_rate_8h:.4%})")
+        logger.info(f"[P3-FUTURES] symbol={self.trading_symbol} instrument_type={self.instrument_type}")
+
         # Load API keys and regional/network configurations from environment variables
         self.api_key = os.getenv("OKX_API_KEY")
         self.secret_key = os.getenv("OKX_SECRET_KEY")
@@ -52,8 +73,8 @@ class OKXBrokerConnector:
                 print(f"[OKX_BOOT/WARN] No se pudo establecer la monkey-patch de socket IPv4: {e}")
         
         # Log loading status safely (without printing sensitive credentials)
-        print(f"[OKX_BOOT] Inicializando conector OKX. API Key detectada: {'SÍ' if self.api_key else 'NO'} | "
-              f"Secret detectado: {'SÍ' if self.secret_key else 'NO'} | Passphrase detectada: {'SÍ' if self.passphrase else 'NO'} | "
+        print(f"[OKX_BOOT] Inicializando conector OKX. API Key detectada: {'SI' if self.api_key else 'NO'} | "
+              f"Secret detectado: {'SI' if self.secret_key else 'NO'} | Passphrase detectada: {'SI' if self.passphrase else 'NO'} | "
               f"Host de region: {self.hostname} | Forzar IPv4: {self.force_ipv4}")
         
         # CCXT config
@@ -74,8 +95,8 @@ class OKXBrokerConnector:
             logger.info("[OKX_BOOT] Modo DEMO TRADING (Sandbox) ACTIVADO. No se enviaran ordenes reales a produccion.")
             print("[OKX_BOOT] Modo DEMO TRADING (Sandbox) ACTIVADO. Las ordenes iran a la cuenta Demo de OKX.")
         else:
-            logger.warning("[OKX_BOOT] ¡¡MODO PRODUCCIÓN REAL ACTIVADO!! CUIDADO: Dinero real en riesgo.")
-            print("[OKX_BOOT] ¡¡MODO PRODUCCIÓN REAL ACTIVADO!! Operando en mercado real.")
+            logger.warning("[OKX_BOOT] MODO PRODUCCION REAL ACTIVADO. CUIDADO: Dinero real en riesgo.")
+            print("[OKX_BOOT] MODO PRODUCCION REAL ACTIVADO. Operando en mercado real.")
             
         try:
             self.exchange.load_markets()
@@ -84,12 +105,51 @@ class OKXBrokerConnector:
             logger.error(f"[OKX_BOOT] Error al precargar mercados de OKX: {e}")
             print(f"[OKX_BOOT/ERROR] No se pudieron cargar los mercados de OKX: {e}")
 
+    def get_trading_symbol(self) -> str:
+        """
+        [P3-FUTURES-2026-06-12] Retorna el simbolo de trading activo cargado desde settings.yaml.
+        Punto unico de verdad — evita simbolos hardcodeados dispersos en el codigo.
+        """
+        return self.trading_symbol
+
+    def execute_order(self, side: str, contracts: float, params: dict = None) -> dict:
+        """
+        [P2+P3-2026-06-12] Punto de entrada UNIFICADO para la ejecucion de ordenes.
+        Selecciona automaticamente la estrategia de ejecucion segun settings.yaml:
+          - use_hybrid_execution=True  -> Limit Maker con Order Chasing (execute_hybrid_order)
+          - use_hybrid_execution=False -> Market directo (execute_market_order)
+        El simbolo se lee de self.trading_symbol (configurado en settings.yaml).
+        """
+        symbol = self.trading_symbol
+        print(f"[P2+P3-EXEC] Enviando orden via execute_order(): symbol={symbol} side={side.upper()} "
+              f"contracts={contracts:.6f} | hybrid={self.use_hybrid_execution}")
+        logger.info(f"[P2+P3-EXEC] execute_order: symbol={symbol} side={side} contracts={contracts} hybrid={self.use_hybrid_execution}")
+
+        if self.use_hybrid_execution:
+            print(f"[P2-MAKER] Usando execute_hybrid_order (Limit Maker + Fallback Market, timeout={self.hybrid_timeout_s}s)")
+            return self.execute_hybrid_order(
+                symbol=symbol,
+                side=side,
+                contracts=contracts,
+                timeout_seconds=self.hybrid_timeout_s,
+                params=params
+            )
+        else:
+            print(f"[P2-MARKET] Usando execute_market_order (Market directo)")
+            return self.execute_market_order(
+                symbol=symbol,
+                side=side,
+                contracts=contracts,
+                params=params
+            )
+
     def fetch_equity(self) -> float:
         """
         Obtiene la equidad (Equity) neta de la cuenta de OKX.
         Utiliza el endpoint de balance unificado de OKX. Mapea fallbacks si no hay saldo en USDT.
         """
         try:
+
             balance = self.exchange.fetch_balance()
             
             # 1. En la cuenta unificada de OKX, la equidad total esta en info -> data -> eqUsd

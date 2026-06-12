@@ -10,95 +10,126 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-# Carga The Entorno
+# Carga entorno
 env_path = PROJECT_ROOT / ".env.sandbox"
 if env_path.exists():
     load_dotenv(env_path)
 else:
     load_dotenv(PROJECT_ROOT / ".env")
 
-# Organos the Luna V1 Live
+# Modulos de Luna V2 Live
 from luna.database.db_manager import DatabaseManager
 from luna.live.telegram_alerts import TelegramAlerts
 from luna.live.risk_monitor import RiskMonitor
 from luna.live.position_sizer import PositionSizer
 from luna.live.reconciliation import BalanceReconciler
 from luna.live.live_inference import LunaLiveInference
+# [P3+P2-2026-06-12] Conector OKX real con soporte Futuros Perpetuos y ejecucion hibrida Maker
+from luna.live.okx_connector import OKXBrokerConnector
 
-# [CLEANUP-OKX-02] Clase renombrada LunaLiveDaemon → LunaLive (broker: OKX)
-print("[CLEANUP-OKX-02] run_luna_live.py cargado — broker: OKX, clase: LunaLive")
+print("[P3+P2-BOOT] run_luna_live.py cargado — OKXBrokerConnector activo (Futuros Perps + Hybrid Maker)")
 
 class LunaLive:
     """
-    Orquestador de Produccion V10 - Fase F — Luna Live.
+    Orquestador de Produccion V10 - Fase F -- Luna Live.
     Ensambla el Ciclo de Vida del Sistema Autonomo conectado a OKX.
     Se ejecuta como un servicio PM2 en el VPS.
     """
     
-    SLEEP_SECONDS = 3600 # 1 Hora por ciclo regular The trading (TimeFrame)
+    SLEEP_SECONDS = 3600  # 1 Hora por ciclo regular de trading (TimeFrame)
 
     def __init__(self):
-         print("🌙 [BOOT] Iniciando Luna Live (OKX)...")
-         
-         # 1. Base de Datos (Context Managers A.C.I.D.)
-         self.db = DatabaseManager()
-         
-         # 2. Telemetria (Asincrona)
-         self.telegram = TelegramAlerts()
-         self._register_telegram_commands()
-         self.telegram.start_command_listener()
-         
-         # 3. Exchange — OKX (broker institucional activo)
-         self.exchange = self._init_exchange()
-         
-         # 4. Defensas Hibridas
-         self.risk_monitor = RiskMonitor(telegram_bot=self.telegram)
-         self.sizer = PositionSizer()
-         self.reconciler = BalanceReconciler(self.exchange, telegram_bot=self.telegram)
-         
-         # 5. Cerebro
-         self.brain = LunaLiveInference()
-         
-         self.telegram.send_alert("🚀 *Luna Live Iniciado* en VPS. OKX conectado. Monitoreando mercado.", priority="info")
-         print("[CLEANUP-OKX-02] Luna Live inicializado correctamente — OKX exchange activo.")
+        print("[BOOT] Iniciando Luna Live (OKX Futuros Perpetuos + Hybrid Maker)...")
+
+        # 1. Base de Datos (Context Managers A.C.I.D.)
+        self.db = DatabaseManager()
+
+        # 2. Telemetria (Asincrona)
+        self.telegram = TelegramAlerts()
+        self._register_telegram_commands()
+        self.telegram.start_command_listener()
+
+        # 3. [P3+P2-2026-06-12] Conector OKX REAL — Futuros Perpetuos + Hybrid Maker
+        #    OKXBrokerConnector carga symbol e instrument_type desde settings.yaml (No-Fallback)
+        self.connector = OKXBrokerConnector(demo_mode=True)
+        self.trading_symbol = self.connector.get_trading_symbol()
+        print(f"[P3+P2-BOOT] Conector activo. Simbolo: {self.trading_symbol}")
+
+        # 4. Defensas Hibridas
+        self.risk_monitor = RiskMonitor(telegram_bot=self.telegram)
+        self.sizer = PositionSizer()
+        self.reconciler = BalanceReconciler(self.connector.exchange, telegram_bot=self.telegram)
+
+        # 5. Cerebro
+        self.brain = LunaLiveInference()
+
+        self.telegram.send_alert(
+            f"[BOOT] Luna Live activo. OKX Futuros ({self.trading_symbol}). Hybrid Maker ON.",
+            priority="info"
+        )
+        print("[P3+P2-BOOT] Luna Live inicializado correctamente.")
 
     def _register_telegram_commands(self):
-         self.telegram.register_command("/status", lambda: "🟢 Luna Live Online. Heartbeat Emitiendo.")
-         self.telegram.register_command("/kill", self._emergency_kill)
+        self.telegram.register_command("/status", lambda: "Luna Live Online. Heartbeat Emitiendo.")
+        self.telegram.register_command("/kill", self._emergency_kill)
 
     def _emergency_kill(self):
-         self.telegram.send_alert("🛑 RECIBIDO COMANDO /KILL MANUAL. Cancelando y cerrando...", priority="critical")
-         # Logic for manual cancel_all_orders() goes here...
-         # Forzamos la expulsion Thel daemon
-         sys.exit(1)
+        self.telegram.send_alert("[KILL] RECIBIDO COMANDO /KILL MANUAL. Cancelando y cerrando...", priority="critical")
+        sys.exit(1)
 
-    def _init_exchange(self):
-         # [CLEANUP-OKX-02] Conectando a OKX (broker institucional activo)
-         print("  -> [CLEANUP-OKX-02] Conectando a OKX (Demo/Sandbox Mode)...")
-         try:
-             ex = ccxt.okx({
-                 'apiKey': os.getenv('OKX_API_KEY', 'dummy'),
-                 'secret': os.getenv('OKX_SECRET_KEY', 'dummy'),  # [AUDIT-FIX] OKX_SECRET_KEY (no OKX_API_SECRET) — alineado con .env y okx_connector.py
-                 'password': os.getenv('OKX_PASSPHRASE', 'dummy'),
-                 'enableRateLimit': True,
-             })
-             # OKX demo trading (sandbox)
-             ex.set_sandbox_mode(True)
-             print("  -> [CLEANUP-OKX-02] OKX conectado en modo Sandbox/Demo.")
-             return ex
-         except Exception as e:
-             self.telegram.send_alert(f"⚠️ OKX API Falló en Boot: {e}", priority="critical")
-             print(f"[CLEANUP-OKX-02] ERROR conectando OKX: {e}")
-             raise e
+    def _execute_order(self, action: str, size_usd: float) -> dict:
+        """
+        [P3+P2-2026-06-12] Ejecuta una orden REAL en OKX usando OKXBrokerConnector.
+        - Instrumento: leido de settings.yaml (Futuros Perpetuos BTC/USDT:USDT)
+        - Ejecucion: Hybrid Maker (Limit con Order Chasing + Fallback Market)
+        - Gestion de posicion: cierra posicion inversa antes de abrir
+        action: 'LONG' | 'CLOSE' | 'HOLD'
+        size_usd: capital en USD a asignar a la posicion
+        """
+        symbol = self.trading_symbol
+        print(f"[P3+P2-EXEC] _execute_order llamado: action={action} size_usd={size_usd:.2f} symbol={symbol}")
 
-    def _execute_order(self, symbol, action, size_usd):
-        # Aqui ira la logica final de ruteo de ordenes hacia OKX
-        print(f"     [EXCHANGE] -> Transmitiendo {action} The ${size_usd:,.2f} a {symbol}...")
+        # Obtener precio actual para convertir USD a contratos
         try:
-             # Simulacion The Dry Run 
-             pass
+            ticker = self.connector.exchange.fetch_ticker(symbol)
+            price = float(ticker.get('last', ticker.get('close', 0.0)) or 0.0)
+            if price <= 0:
+                raise RuntimeError(f"Precio invalido recibido para {symbol}: {price}")
         except Exception as e:
-             print(f"     [!] Falla the red the ejecutar theden: {e}")
+            print(f"[P3+P2-EXEC/ERROR] No se pudo obtener precio de {symbol}: {e}")
+            return {}
+
+        if action == "LONG":
+            # Verificar posicion actual y cerrar si es necesario
+            current_pos = self.connector.get_position(symbol)
+            if current_pos["side"] == "SHORT":
+                print(f"[P3+P2-EXEC] Posicion SHORT detectada. Cerrando antes de abrir LONG...")
+                self.connector.close_position(symbol)
+
+            # Calcular contratos a partir de size_usd
+            contracts = round(size_usd / price, 6)
+            if contracts <= 0:
+                print(f"[P3+P2-EXEC/WARN] Contratos calculados invalidos ({contracts}). Abortando.")
+                return {}
+
+            close_params = {'reduceOnly': False}  # Futuros: nueva posicion long
+            print(f"[P3+P2-EXEC/LONG] Abriendo LONG: {contracts:.6f} contratos @ ~${price:,.2f} (${size_usd:,.2f} USD)")
+            order = self.connector.execute_order(side="buy", contracts=contracts, params=close_params)
+
+        elif action in ("CLOSE", "HOLD"):
+            current_pos = self.connector.get_position(symbol)
+            if current_pos["side"] != "HOLD":
+                print(f"[P3+P2-EXEC/CLOSE] Cerrando posicion {current_pos['side']} en {symbol}...")
+                order = self.connector.close_position(symbol)
+            else:
+                print(f"[P3+P2-EXEC/HOLD] Sin posicion abierta. Nada que cerrar.")
+                return {}
+        else:
+            print(f"[P3+P2-EXEC/WARN] Accion desconocida: {action}. Ignorando.")
+            return {}
+
+        return order if order else {}
+
 
     def run(self):
          """Bucle Inmortal (Heartbeat -> Reconcile -> Risk -> Inferencia -> Ejecucion) — OKX."""
@@ -142,12 +173,12 @@ class LunaLive:
                  if action == "HOLD":
                       print(f"  [4] Decision: {action}. Motivo: {decision.get('reason')}")
                       self.db.log_audit(
-                          timestamp=datetime.utcnow(), price=decision.get("price", 0.0), 
-                          action=action, confidence=confidence, xgb_prob=decision.get("xgb_prob", 0.0), 
+                          timestamp=datetime.utcnow(), price=decision.get("price", 0.0),
+                          action=action, confidence=confidence, xgb_prob=decision.get("xgb_prob", 0.0),
                           hmm_regime=0, reason=f"[HMM-REGIME: {decision.get('regime', 'UNKNOWN')}] {decision.get('reason', '')}"
                       )
                  else:
-                      # 5. POSITION SIZER (Si the cerebro autoriza disparo)
+                      # 5. POSITION SIZER (Si el cerebro autoriza disparo)
                       dd_actual = float(db_state['drawdown'])
                       sizing = self.sizer.calculate_position_size(
                            action=action,
@@ -157,27 +188,28 @@ class LunaLive:
                            current_volatility=decision.get("current_vol", 0.001),
                            historical_volatility=decision.get("historical_vol", 0.001)
                       )
-                      
+
                       sz_usd = sizing["size_usd"]
                       if sz_usd > 0:
-                           # 6. EJECUCION
-                           print(f"  [5] Position Sizer Activo: Asignando ${sz_usd:,.2f}")
-                           self._execute_order("BTC/USD:BTC", action, sz_usd)
-                           
-                           # Loggear Auditoria Con Transaccion theita
+                           # 6. [P3+P2-2026-06-12] EJECUCION REAL via OKXBrokerConnector
+                           print(f"  [5] Position Sizer Activo: Asignando ${sz_usd:,.2f} | symbol={self.trading_symbol}")
+                           order = self._execute_order(action=action, size_usd=sz_usd)
+
+                           # Loggear Auditoria
+                           executed_price = float(order.get('avg_price', order.get('price', decision.get('price', 0.0)))) if order else decision.get('price', 0.0)
                            self.db.log_audit(
-                              timestamp=datetime.utcnow(), price=decision.get("price", 0.0), 
-                              action=action, confidence=confidence, xgb_prob=decision.get("xgb_prob", 0.0), 
-                              hmm_regime=0, reason=f"[HMM-REGIME: {decision.get('regime', 'UNKNOWN')}] {sizing.get('multiplier_breakdown', '')}", 
-                              contracts=sizing.get("contracts", 0), executed_price=decision.get("price", 0.0)
+                              timestamp=datetime.utcnow(), price=decision.get("price", 0.0),
+                              action=action, confidence=confidence, xgb_prob=decision.get("xgb_prob", 0.0),
+                              hmm_regime=0, reason=f"[HMM-REGIME: {decision.get('regime', 'UNKNOWN')}] [P3+P2] {sizing.get('multiplier_breakdown', '')}",
+                              contracts=sizing.get("contracts", 0), executed_price=executed_price
                            )
-                           
+
                            self.telegram.send_alert(
-                               f"🎯 *TRADE EJECUTADO*\nAccion: {action}\nConfianza: {confidence:.2%}\nTamaño: ${sz_usd:,.2f}",
+                               f"[TRADE] {action} | {self.trading_symbol} | Confianza: {confidence:.2%} | Tamano: ${sz_usd:,.2f} | Precio: ${executed_price:,.2f}",
                                priority="info"
                            )
                       else:
-                           print(f"  [5] Position Sizer Mudo: Se cancelo la emision theden. Motivo: {sizing.get('reason')}")
+                           print(f"  [5] Position Sizer Mudo: Emision cancelada. Motivo: {sizing.get('reason')}")
                            
              except Exception as e:
                  err_tb = traceback.format_exc()
