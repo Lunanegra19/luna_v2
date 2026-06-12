@@ -510,6 +510,8 @@ temporal_splits:
   validation_end: 2025-12-31
   validation_start: 2025-11-01
 wfb:
+  ensemble_voting_method: soft  # [hard|soft]
+  soft_voting_threshold: 0.55
   ensemble_consensus_threshold: 4
   consensus_bucket_hours: 2
   max_seeds_to_explore: 20

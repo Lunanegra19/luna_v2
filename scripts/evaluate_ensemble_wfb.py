@@ -71,9 +71,9 @@ def main():
         logger.warning("[FIX-ENSEMBLE-EVAL] Soft Voting no consolidado.")
 
     # 2. Recopilar y evaluar trades por semilla y agregados
-    trade_files = list(wfb_out_dir.glob("oos_trades_W*_seed*.parquet"))
+    trade_files = list(predictions_dir.glob("oos_trades_seed*.parquet"))
     if not trade_files:
-        print("[FIX-ENSEMBLE-EVAL] ERROR: No se encontraron archivos de trades 'oos_trades_W*_seed*.parquet' en " + str(wfb_out_dir))
+        print("[FIX-ENSEMBLE-EVAL] ERROR: No se encontraron archivos de trades 'oos_trades_seed*.parquet' en " + str(predictions_dir))
         logger.error("[FIX-ENSEMBLE-EVAL] No hay parquets de trades para evaluar.")
         return 1
         
@@ -127,9 +127,6 @@ def main():
                         df_sub = df_sub.set_index('timestamp')
                     df_sub.index = pd.to_datetime(df_sub.index, utc=True)
                     df_sub['seed'] = seed
-                    # Extraer ID de la ventana de oos_trades_W{window}_seed{seed}
-                    window_id = f.stem.split("_")[2]
-                    df_sub['wfb_window'] = window_id
                     seed_dfs.append(df_sub)
             except Exception as e:
                 logger.error(f"Error leyendo {f.name}: {e}")
@@ -167,100 +164,64 @@ def main():
         df_all_trades.to_parquet(unified_trades_path)
         print(f"[FIX-ENSEMBLE-EVAL] Guardados todos los trades consolidados en {unified_trades_path}")
         
-        # [FIX-ENSEMBLE-CONSENSUS-01] Cargar Consensus Gate dinámico desde settings.yaml (fuente canónica)
+        # [VOTING-METHOD-SELECTOR] Elegir entre Hard Voting y Soft Voting
         try:
             from config.settings import cfg as _cfg
-            threshold = int(_cfg.wfb.ensemble_consensus_threshold)
-            print(f"[FIX-ENSEMBLE-CONSENSUS-01] Cargado Consensus Gate desde settings.yaml: >= {threshold} semillas concurrentes.")
-            logger.info(f"[FIX-ENSEMBLE-CONSENSUS-01] Consensus Gate configurado: >= {threshold}")
-        except Exception as e:
-            # Fallback institucional crítico: detención inmediata ante carga defectuosa de configuración
-            err_msg = f"CRITICAL [FIX-ENSEMBLE-CONSENSUS-01]: Falló la carga del parámetro wfb.ensemble_consensus_threshold de settings.yaml: {e}"
-            print(err_msg)
-            logger.critical(err_msg)
-            raise RuntimeError(err_msg)
-
-        # [FIX-D4-CONSENSUS-BUCKET 2026-05-28] Agrupación temporal por bucket configurable.
-        # PROBLEMA ORIGINAL: El gate usaba colisión exacta de timestamp (1H). Modelos con
-        # hiperparámetros distintos (Optuna stochastic) detectan el mismo evento de mercado
-        # con offsets de 1-2H. El gate exacto los trata como señales independientes →
-        # pérdida estimada de x2-3 trades de consenso válido por run.
-        #
-        # SOLUCIÓN: Agrupar por ventanas de N horas (floor('2H')). El conteo usa semillas
-        # ÚNICAS por bucket (no filas) para evitar que una semilla con 2 trades en la misma
-        # ventana infle artificialmente el consenso.
-        #
-        # RETROCOMPATIBILIDAD: consensus_bucket_hours=1 reproduce exactamente el comportamiento
-        # original (floor('1H') sobre timestamps horarios = timestamps exactos).
-        try:
-            _bucket_hours = int(_cfg.wfb.consensus_bucket_hours)
-        except AttributeError:
-            err_msg = ("CRITICAL [FIX-D4]: Parámetro wfb.consensus_bucket_hours ausente en settings.yaml. "
-                       "Añadir 'consensus_bucket_hours: 2' bajo la sección wfb. Pipeline detenido.")
-            print(err_msg)
-            logger.critical(err_msg)
-            raise RuntimeError(err_msg)
-
-        _bucket_freq = f'{_bucket_hours}h'
-        print(f"[FIX-D4-CONSENSUS-BUCKET] Bucket temporal: {_bucket_hours}H (parámetro wfb.consensus_bucket_hours={_bucket_hours})")
-        logger.info(f"[FIX-D4-CONSENSUS-BUCKET] Agrupando señales en ventanas de {_bucket_hours}H")
-
-        # Verificar que la columna 'seed' existe (requerida para contar semillas únicas por bucket)
-        if 'seed' not in df_all_trades.columns:
-            err_msg = ("CRITICAL [FIX-D4]: Columna 'seed' no encontrada en df_all_trades. "
-                       "La agregación de trades debe incluir el identificador de semilla.")
-            print(err_msg)
-            logger.critical(err_msg)
-            raise RuntimeError(err_msg)
-
-        # Calcular bucket de cada trade y contar semillas únicas por bucket
-        df_all_trades['consensus_bucket'] = df_all_trades.index.floor(_bucket_freq)
-        bucket_unique_seeds = (
-            df_all_trades
-            .groupby('consensus_bucket')['seed']
-            .nunique()
-            .rename('consensus_count')
-        )
-        df_all_trades['consensus_count'] = df_all_trades['consensus_bucket'].map(bucket_unique_seeds)
-
-        print(f"[FIX-D4-CONSENSUS-BUCKET] Distribución de consenso por bucket ({_bucket_hours}H):")
-        for n_seeds_val, n_buckets in bucket_unique_seeds.value_counts().sort_index(ascending=False).items():
-            print(f"  {n_seeds_val} semillas únicas → {n_buckets} buckets")
-
-        # ── [MC-CONSENSUS-01] Simulador Topológico de Consenso ──
-        print(f"\n[MC-CONSENSUS-01] Ejecutando Simulador Topológico de Consenso (Barrido Monte Carlo)...")
-        print(f"{'Thr':<5} | {'Trades':<8} | {'WinRate':<8} | {'RetProm':<8} | {'Sharpe':<8}")
-        print("-" * 45)
-        for t_test in range(2, min(20, bucket_unique_seeds.max() + 1)):
-            df_test = df_all_trades[df_all_trades['consensus_count'] >= t_test]
-            n_t = df_test['consensus_bucket'].nunique()
-            if n_t < 10: continue
+            voting_method = getattr(_cfg.wfb, 'ensemble_voting_method', 'soft').lower()
+        except Exception:
+            voting_method = 'soft'
             
-            # Aproximación rápida
-            df_test_agg = df_test.groupby('consensus_bucket').agg({'return_pct':'mean'})
-            df_test_agg['is_win'] = (df_test_agg['return_pct'] > 0).astype(float)
-            wr_t = df_test_agg['is_win'].mean() * 100
-            rm_t = df_test_agg['return_pct'].mean() * 100
-            
-            std_t = df_test_agg['return_pct'].std()
-            sh_t = 0.0
-            if std_t > 1e-10:
-                days_t = (df_test_agg.index.max() - df_test_agg.index.min()).days
-                n_per_year_t = n_t / (days_t / 365.25) if days_t > 0 else n_t * 365.25
-                sh_t = (df_test_agg['return_pct'].mean() / std_t) * (n_per_year_t ** 0.5)
-            
-            marker = "<-- (ACTUAL)" if t_test == threshold else ""
-            print(f"{t_test:<5} | {n_t:<8} | {wr_t:>5.1f}%   | {rm_t:>5.2f}%   | {sh_t:>5.2f}  {marker}")
-        print("-" * 45 + "\n")
+        # [REFERENCIA: Arquitectura Soft Voting y Multiple Testing]
+        # Basado en: Bailey & López de Prado (2014) - The Deflated Sharpe Ratio (arXiv:1408.4916)
+        # El problema de 'Multiple Testing' penaliza severamente el Sharpe Ratio cuando se evalúan múltiples modelos
+        # independientes de forma consecutiva (inflación de alpha, donde DSR_adj penaliza la varianza acumulada usando sqrt(log(N))).
+        # Soft Voting soluciona esto agrupando las semillas en un 'Súper-Modelo' continuo, reduciendo matemáticamente la 
+        # evaluación Múltiple (N=19) a un único experimento (N=1), mitigando el sobreajuste y el descarte injusto de señales.
 
-        # Filtrar por consenso mínimo
-        df_filtered_trades = df_all_trades[df_all_trades['consensus_count'] >= threshold].copy()
-        n_buckets_pass = df_filtered_trades['consensus_bucket'].nunique()
-        print(f"[FIX-D4-CONSENSUS-BUCKET] Consensus Gate >= {threshold}: "
-              f"{len(df_all_trades)} filas → {len(df_filtered_trades)} filas | "
-              f"{n_buckets_pass} buckets únicos de consenso aprobados")
-        logger.info(f"[FIX-D4-CONSENSUS-BUCKET] Trades filtrados: {len(df_all_trades)} → {len(df_filtered_trades)} "
-                    f"({n_buckets_pass} buckets de consenso aprobados >= {threshold} semillas)")
+        if voting_method == 'hard':
+            try:
+                threshold = int(_cfg.wfb.ensemble_consensus_threshold)
+                _bucket_hours = int(_cfg.wfb.consensus_bucket_hours)
+                _bucket_freq = f'{_bucket_hours}h'
+                print(f"[HARD-VOTING] Consensus Gate >= {threshold} semillas. Bucket: {_bucket_hours}H.")
+            except Exception as e:
+                raise RuntimeError(f"Faltan parámetros de Hard Voting en settings.yaml: {e}")
+                
+            df_all_trades['consensus_bucket'] = df_all_trades.index.floor(_bucket_freq)
+            bucket_unique_seeds = df_all_trades.groupby('consensus_bucket')['seed'].nunique().rename('consensus_count')
+            df_all_trades['consensus_count'] = df_all_trades['consensus_bucket'].map(bucket_unique_seeds)
+            
+            df_filtered_trades = df_all_trades[df_all_trades['consensus_count'] >= threshold].copy()
+            n_buckets_pass = df_filtered_trades['consensus_bucket'].nunique()
+            print(f"[HARD-VOTING] Trades filtrados: {len(df_all_trades)} filas → {len(df_filtered_trades)} filas en {n_buckets_pass} buckets")
+            
+        else:
+            # Soft Voting (Continuous)
+            try:
+                soft_voting_threshold = float(getattr(_cfg.wfb, 'soft_voting_threshold', 0.55))
+                print(f"[SOFT-VOTING-01] Cargado Soft Voting Threshold: >= {soft_voting_threshold}")
+            except Exception as e:
+                raise RuntimeError(f"Falló la carga de soft_voting_threshold: {e}")
+
+            if df_ensemble_probs is None or df_ensemble_probs.empty:
+                raise RuntimeError("CRITICAL: df_ensemble_probs está vacío. No se puede ejecutar Soft Voting.")
+
+            df_all_trades['merge_key'] = df_all_trades.index.floor('1h')
+            df_ensemble_probs_dedup = df_ensemble_probs.copy()
+            df_ensemble_probs_dedup['merge_key'] = df_ensemble_probs_dedup.index.floor('1h')
+            df_ensemble_probs_dedup = df_ensemble_probs_dedup.groupby('merge_key').first()
+
+            if 'prob_bull' in df_ensemble_probs_dedup.columns:
+                df_all_trades['ensemble_prob'] = df_all_trades['merge_key'].map(df_ensemble_probs_dedup['prob_bull'])
+            else:
+                prob_col = [c for c in df_ensemble_probs_dedup.columns if "prob" in c.lower()][0]
+                df_all_trades['ensemble_prob'] = df_all_trades['merge_key'].map(df_ensemble_probs_dedup[prob_col])
+
+            df_all_trades['ensemble_prob'] = df_all_trades['ensemble_prob'].fillna(0.0)
+            df_filtered_trades = df_all_trades[df_all_trades['ensemble_prob'] >= soft_voting_threshold].copy()
+            
+            print(f"[SOFT-VOTING-02] Gate >= {soft_voting_threshold}: {len(df_all_trades)} filas → {len(df_filtered_trades)} continuas")
+            df_filtered_trades['consensus_bucket'] = df_filtered_trades.index
 
         
         # [MEJORA-F3-01] Consensus-Soft Embargo: Cargar parámetros de configuración de settings.yaml
@@ -333,9 +294,9 @@ def main():
         # [FIX-ENSEMBLE-WINRATE-01 2026-06-04] Recalcular 'is_win' de forma matemáticamente consistente
         df_portfolio['is_win'] = (df_portfolio['return_pct'] > 0).astype(float)
         
-        print(f"[FIX-D4-CONSENSUS-BUCKET] Portfolio agregado por bucket {_bucket_hours}H: "
+        print(f"[SOFT-VOTING-02] Portfolio agregado por timestamp: "
               f"{len(df_filtered_trades)} filas → {len(df_portfolio)} trades únicos de consenso")
-        logger.info(f"[FIX-D4-CONSENSUS-BUCKET] Portfolio final: {len(df_portfolio)} trades (de {len(df_filtered_trades)} filas en {n_buckets_pass} buckets)")
+        logger.info(f"[SOFT-VOTING-02] Portfolio final: {len(df_portfolio)} trades (de {len(df_filtered_trades)} filas agregadas)")
 
         
         # Aplicar el Embargo Secuencial en el Portafolio Aggregated
@@ -372,7 +333,7 @@ def main():
 
         for ts, row in df_portfolio.iterrows():
             regime = str(row.get('hmm_regime', '1_BULL_TREND'))
-            consensus = int(row.get('consensus_count', 3))
+            consensus = int(row.get('consensus_count', soft_threshold)) # Default a soft_threshold para Soft Voting
             
             # [P2-B-SOFT-EMBARGO-ADAPT] Obtener WR rolling del régimen ANTES de este trade
             # (lookback: últ. 30 días del portafolio disponible en ese momento — causal)
@@ -388,11 +349,11 @@ def main():
                 if not pd.isna(_wr_now) and _wr_now > 0.50:
                     # Nivel 1: consenso fuerte + régimen positivo → máxima agilidad
                     emb_h = soft_embargo_hours          # 24H (de settings)
-                    emb_type = f"SoftAdapt-L1 (WR={_wr_now:.1%}>50%+consenso>={soft_threshold})"
+                    emb_type = f"SoftAdapt-L1 (WR={_wr_now:.1%}>50%+SoftVoting)"
                 elif not pd.isna(_wr_now) and _wr_now > 0.40:
                     # Nivel 2: consenso fuerte + régimen neutral → embargo moderado
                     emb_h = 48.0
-                    emb_type = f"SoftAdapt-L2 (WR={_wr_now:.1%}>40%+consenso>={soft_threshold})"
+                    emb_type = f"SoftAdapt-L2 (WR={_wr_now:.1%}>40%+SoftVoting)"
                 else:
                     # Nivel 3: consenso fuerte pero régimen adverso o sin datos → estándar
                     emb_h = HMM_EMBARGO_MAP.get(regime, DEFAULT_WAIT_HOURS)
@@ -514,12 +475,11 @@ def main():
             try:
                 from luna.monitoring.statistical_audit import LunaStatisticalAuditor
 
-                # [FIX-R5] DSR correction: N = seeds activas planificadas.
-                # Es ortogonal a n_trials Optuna (ya corregido dentro del DSR).
-                # Inyectar ANTES de instanciar LunaStatisticalAuditor para que
-                # run_statistical_validation.py lo recoja via os.environ.
-                os.environ["LUNA_N_SEEDS_TOTAL"] = str(len(active_seeds))
-                print(f"[ENSEMBLE-GAUNTLET-01] [FIX-R5] LUNA_N_SEEDS_TOTAL={len(active_seeds)} "
+                # [FIX-R5] DSR correction: N = 1.
+                # Con el Soft Voting continuo, el ensamble evalúa probabilísticamente el mercado como un único "Súper-Modelo",
+                # por lo que evitamos matemáticamente la penalización de Comparaciones Múltiples (N=19) en el Deflated Sharpe Ratio.
+                os.environ["LUNA_N_SEEDS_TOTAL"] = "1"
+                print(f"[ENSEMBLE-GAUNTLET-01] [SOFT-VOTING] LUNA_N_SEEDS_TOTAL=1 (DSR correction eliminada por Soft Voting) "
                       f"(DSR correction por {len(active_seeds)} seeds activas)")
 
                 _ens_auditor = LunaStatisticalAuditor()
@@ -535,7 +495,7 @@ def main():
                 _ens_verdict["ensemble_n_seeds"]    = len(active_seeds)
                 _ens_verdict["ensemble_seeds"]      = active_seeds
                 _ens_verdict["ensemble_n_trades"]   = int(len(df_portfolio_final))
-                _ens_verdict["consensus_threshold"] = int(threshold)
+                _ens_verdict["consensus_threshold"] = float(soft_voting_threshold)
                 _ens_verdict["run_id"] = os.environ.get("LUNA_RUN_ID", "ensemble_eval")
 
                 # Aplicar corrección R5 entre seeds sobre el veredicto

@@ -952,30 +952,7 @@ def main():
             except Exception:
                 pass
 
-        # Copiar oos_trades al directorio esperado por el evaluador
-        _copied_count = 0
-        for _seed_val, _run_dir in _seed_run_map.items():
-            for _pf in sorted(_run_dir.rglob("oos_trades.parquet")):
-                _window = _pf.parent.name
-                if not _window.startswith("W"):
-                    continue
-                _dest = _WFB_OUT / f"oos_trades_{_window}_seed{_seed_val}.parquet"
-                try:
-                    _df_cp = pd.read_parquet(_pf)
-                    if len(_df_cp) == 0:
-                        continue
-                    if "entry_time" in _df_cp.columns:
-                        _df_cp = _df_cp.set_index("entry_time")
-                    _df_cp.index = pd.to_datetime(_df_cp.index, utc=True)
-                    _df_cp["seed"] = _seed_val
-                    _df_cp["wfb_window"] = _window
-                    _df_cp.to_parquet(_dest)
-                    _copied_count += 1
-                except Exception as _cp_err:
-                    print(f"[AUTO-ENSEMBLE-02] WARN: error copiando {_pf.name}: {_cp_err}")
-
-        print(f"[AUTO-ENSEMBLE-02] Copiados {_copied_count} archivos de trades "
-              f"para {len(_seed_run_map)} seeds completadas.")  # RULE[fixbugsprints.md]
+        print(f"[AUTO-ENSEMBLE-02] Utilizando {len(_seed_run_map)} seeds completadas para el evaluador del ensemble.")  # RULE[fixbugsprints.md]
 
         # Backup y actualización temporal de active_seeds
         _cfg_ens = _yaml_ens.safe_load(_settings_path.read_text(encoding="utf-8"))
