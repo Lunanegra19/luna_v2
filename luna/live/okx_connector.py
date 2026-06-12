@@ -42,9 +42,14 @@ class OKXBrokerConnector:
             self.hybrid_timeout_s = int(_global_cfg.execution.hybrid_order_timeout_s)
             self.funding_drag_enabled = bool(_global_cfg.execution.funding_drag_enabled)
             self.funding_rate_8h = float(_global_cfg.execution.funding_rate_8h)
+
+            # Fees de produccion
+            self.cost_spot_taker_rt = float(_global_cfg.sop.cost_spot_taker_rt)
+            self.cost_perp_taker_rt = float(_global_cfg.sop.cost_perp_taker_rt)
+            self.cost_perp_maker_rt = float(_global_cfg.sop.cost_perp_maker_rt)
         except AttributeError as e:
             raise KeyError(
-                f"[OKX_BOOT/CRITICAL] Falta parametro en settings.yaml seccion 'execution': {e}. "
+                f"[OKX_BOOT/CRITICAL] Falta parametro en settings.yaml seccion 'execution' o 'sop': {e}. "
                 "Revisa config/settings.yaml — politica No-Fallback activa."
             ) from e
 
@@ -111,6 +116,18 @@ class OKXBrokerConnector:
         Punto unico de verdad — evita simbolos hardcodeados dispersos en el codigo.
         """
         return self.trading_symbol
+
+    def get_production_cost_rt(self) -> float:
+        """
+        [P3-FEES-2026-06-12] Retorna el coste real de la operacion de produccion configurado en settings.yaml.
+        """
+        if self.instrument_type == 'swap':
+            if self.use_hybrid_execution:
+                return self.cost_perp_maker_rt
+            else:
+                return self.cost_perp_taker_rt
+        else:
+            return self.cost_spot_taker_rt
 
     def execute_order(self, side: str, contracts: float, params: dict = None) -> dict:
         """

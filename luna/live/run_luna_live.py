@@ -107,13 +107,16 @@ class LunaLive:
                 self.connector.close_position(symbol)
 
             # Calcular contratos a partir de size_usd
-            contracts = round(size_usd / price, 6)
-            if contracts <= 0:
-                print(f"[P3+P2-EXEC/WARN] Contratos calculados invalidos ({contracts}). Abortando.")
+            # [P3-MIN-CONTRACT] OKX requiere minimo 0.01 contratos y step size 0.0001
+            contracts = round(size_usd / price, 4)  # Step size 0.0001
+            
+            if contracts < 0.01:
+                print(f"[P3+P2-EXEC/WARN] Contratos calculados ({contracts}) menores al minimo de 0.01. "
+                      f"Se requieren al menos ~${0.01 * price:,.2f} USD. Abortando orden.")
                 return {}
 
             close_params = {'reduceOnly': False}  # Futuros: nueva posicion long
-            print(f"[P3+P2-EXEC/LONG] Abriendo LONG: {contracts:.6f} contratos @ ~${price:,.2f} (${size_usd:,.2f} USD)")
+            print(f"[P3+P2-EXEC/LONG] Abriendo LONG: {contracts:.4f} contratos @ ~${price:,.2f} (${size_usd:,.2f} USD)")
             order = self.connector.execute_order(side="buy", contracts=contracts, params=close_params)
 
         elif action in ("CLOSE", "HOLD"):
@@ -192,7 +195,8 @@ class LunaLive:
                       sz_usd = sizing["size_usd"]
                       if sz_usd > 0:
                            # 6. [P3+P2-2026-06-12] EJECUCION REAL via OKXBrokerConnector
-                           print(f"  [5] Position Sizer Activo: Asignando ${sz_usd:,.2f} | symbol={self.trading_symbol}")
+                           prod_cost_rt = self.connector.get_production_cost_rt()
+                           print(f"  [5] Position Sizer Activo: Asignando ${sz_usd:,.2f} | symbol={self.trading_symbol} | cost_rt={prod_cost_rt:.4f}")
                            order = self._execute_order(action=action, size_usd=sz_usd)
 
                            # Loggear Auditoria
@@ -200,12 +204,12 @@ class LunaLive:
                            self.db.log_audit(
                               timestamp=datetime.utcnow(), price=decision.get("price", 0.0),
                               action=action, confidence=confidence, xgb_prob=decision.get("xgb_prob", 0.0),
-                              hmm_regime=0, reason=f"[HMM-REGIME: {decision.get('regime', 'UNKNOWN')}] [P3+P2] {sizing.get('multiplier_breakdown', '')}",
+                              hmm_regime=0, reason=f"[HMM-REGIME: {decision.get('regime', 'UNKNOWN')}] [P3+P2] cost_rt={prod_cost_rt:.4f} {sizing.get('multiplier_breakdown', '')}",
                               contracts=sizing.get("contracts", 0), executed_price=executed_price
                            )
 
                            self.telegram.send_alert(
-                               f"[TRADE] {action} | {self.trading_symbol} | Confianza: {confidence:.2%} | Tamano: ${sz_usd:,.2f} | Precio: ${executed_price:,.2f}",
+                               f"[TRADE] {action} | {self.trading_symbol} | Confianza: {confidence:.2%} | Tamano: ${sz_usd:,.2f} | Precio: ${executed_price:,.2f} | Fee: {prod_cost_rt:.4f}",
                                priority="info"
                            )
                       else:

@@ -475,7 +475,14 @@ project:
   version: 1.0.0
 sop:
   annual_factor: 93.6
-  cost_pct: 0.0025
+  cost_pct: 0.0025             # TRAINING: Spot Taker conservador — NO tocar sin re-train
+
+  # [P3-FEES-2026-06-12] Fees de produccion (solo MFT y simulaciones OOS)
+  cost_spot_taker_rt: 0.0020   # OKX Spot Taker (0.10% * 2)
+  cost_perp_taker_rt: 0.0010   # OKX Futuros Taker (0.05% * 2)
+  cost_perp_maker_rt: 0.0004   # OKX Futuros Maker (0.02% * 2) — ACTIVO EN PRODUCCION
+  funding_rate_24h: 0.0003     # Funding 24H hold (3 pagos de 8H a 0.01%)
+
   cpcv_groups: 10
   embargo_hours: 0
   purge_hours: 96
