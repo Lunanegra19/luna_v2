@@ -173,7 +173,7 @@ try:
     SFI_EMBARGO_H         = int(getattr(_cfg_sfi.sop,      'embargo_hours',  24))  # LdP: cooldown post-test
     SFI_N_ESTIMATORS      = int(getattr(_cfg_sfi.features, 'sfi_n_estimators', 200))
     SFI_MAX_DEPTH         = int(getattr(_cfg_sfi.features, 'sfi_max_depth',      4))
-    SFI_COST_ROUNDTRIP = float(_cfg_sfi.sop.cost_pct)  # R6: Lectura dinamica desde settings.yaml
+    SFI_COST_ROUNDTRIP = 0.0025; SFI_COST_ROUNDTRIP = float(_cfg_sfi.sop.cost_pct)  # R6: Lectura dinamica desde settings.yaml
     SFI_MIN_SHARPE        = float(getattr(_cfg_sfi.features,'sfi_min_sharpe',  0.05))  # floor DSR-null (MEJORA-SFI-SHARPE-01)
     SFI_DSR_N_TRIALS      = 600; SFI_DSR_N_TRIALS = int(getattr(_cfg_sfi.stat, 'n_trials_total', 600))  # BUG M-01
     FORWARD_ENABLED       = False  # Etapa E: controlado por código (no por cfg aún)

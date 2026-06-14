@@ -105,6 +105,10 @@ class LunaLive:
             if current_pos["side"] == "SHORT":
                 print(f"[P3+P2-EXEC] Posicion SHORT detectada. Cerrando antes de abrir LONG...")
                 self.connector.close_position(symbol)
+            elif current_pos["side"] == "LONG":
+                # [P1-DYNAMIC-HOLD] Bloqueo de Pyramiding/Compounding infinito
+                print(f"[P1-DYNAMIC-HOLD] Posicion LONG ya existe. Ignorando senal de re-compra para evitar compounding infinito y proteger margen.")
+                return {}
 
             # Calcular contratos a partir de size_usd
             # [P3-MIN-CONTRACT] OKX requiere minimo 0.01 contratos y step size 0.0001
@@ -119,13 +123,60 @@ class LunaLive:
             print(f"[P3+P2-EXEC/LONG] Abriendo LONG: {contracts:.4f} contratos @ ~${price:,.2f} (${size_usd:,.2f} USD)")
             order = self.connector.execute_order(side="buy", contracts=contracts, params=close_params)
 
-        elif action in ("CLOSE", "HOLD"):
+        elif action == "SHORT":
+            current_pos = self.connector.get_position(symbol)
+            if current_pos["side"] == "LONG":
+                print(f"[P3+P2-EXEC] Posicion LONG detectada. Cerrando antes de abrir SHORT...")
+                self.connector.close_position(symbol)
+            elif current_pos["side"] == "SHORT":
+                print(f"[P1-DYNAMIC-HOLD] Posicion SHORT ya existe. Ignorando re-venta.")
+                return {}
+            # Como fallback por si se activa short
+            print(f"[P3+P2-EXEC/WARN] Accion SHORT ignorada temporalmente en entorno Only-Long.")
+            return {}
+
+        elif action == "CLOSE":
             current_pos = self.connector.get_position(symbol)
             if current_pos["side"] != "HOLD":
-                print(f"[P3+P2-EXEC/CLOSE] Cerrando posicion {current_pos['side']} en {symbol}...")
+                print(f"[P3+P2-EXEC/CLOSE] Forzando cierre de posicion {current_pos['side']} en {symbol}...")
                 order = self.connector.close_position(symbol)
             else:
-                print(f"[P3+P2-EXEC/HOLD] Sin posicion abierta. Nada que cerrar.")
+                print(f"[P3+P2-EXEC/CLOSE] Sin posicion abierta. Nada que cerrar.")
+                return {}
+                
+        elif action == "HOLD":
+            current_pos = self.connector.get_position(symbol)
+            if current_pos["side"] == "LONG":
+                # [P1-DYNAMIC-HOLD] Histéresis de salida: dejar correr la ganancia si xgb_prob sigue siendo alcista
+                try:
+                    from config.settings import cfg as _cfg
+                    exit_prob = float(getattr(_cfg.metalabeler, "dynamic_hold_exit_prob", 0.48))
+                except Exception:
+                    exit_prob = 0.48
+                    
+                xgb_prob = float(decision.get("xgb_prob", 0.5))
+                if xgb_prob >= exit_prob:
+                    print(f"[P1-DYNAMIC-HOLD/HOLD] Manteniendo ganancia de LONG activa. (xgb_prob {xgb_prob:.4f} >= {exit_prob}).")
+                    return {}
+                else:
+                    print(f"[P1-DYNAMIC-HOLD/EXIT] Probabilidad alcista deteriorada (xgb_prob {xgb_prob:.4f} < {exit_prob}). Liquidando LONG para asegurar.")
+                    order = self.connector.close_position(symbol)
+                    
+            elif current_pos["side"] == "SHORT":
+                try:
+                    from config.settings import cfg as _cfg
+                    exit_prob = float(getattr(_cfg.metalabeler, "dynamic_hold_exit_prob", 0.48))
+                except Exception:
+                    exit_prob = 0.48
+                xgb_prob = float(decision.get("xgb_prob", 0.5))
+                if xgb_prob <= (1.0 - exit_prob):
+                    print(f"[P1-DYNAMIC-HOLD/HOLD] Manteniendo ganancia de SHORT activa. (xgb_prob {xgb_prob:.4f} <= {(1.0 - exit_prob):.2f}).")
+                    return {}
+                else:
+                    print(f"[P1-DYNAMIC-HOLD/EXIT] Probabilidad bajista deteriorada. Liquidando SHORT.")
+                    order = self.connector.close_position(symbol)
+            else:
+                print(f"[P3+P2-EXEC/HOLD] Sin posicion abierta. Quedando plano.")
                 return {}
         else:
             print(f"[P3+P2-EXEC/WARN] Accion desconocida: {action}. Ignorando.")

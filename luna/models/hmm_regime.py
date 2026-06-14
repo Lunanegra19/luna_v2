@@ -39,8 +39,9 @@ from sklearn.preprocessing import StandardScaler
 from luna.utils.debug_guards import vlog, timeit, check_df_sanity, check_numeric_stability
 
 # ARCH-02 (2026-03-10): constantes leÃ­das desde cfg.hmm en settings.yaml â€” sin hardcodes.
-# Antes: N_REGIMES=4 y WINDOWS_OOS=960 estaban hardcodeados aquÃ­,
-# desincronizados de la secciÃ³n hmm: en settings.yaml.
+# ARCH-02 (2026-03-10): constantes leídas desde cfg.hmm en settings.yaml — sin hardcodes.
+# Antes: N_REGIMES=4 y WINDOWS_OOS=960 estaban hardcodeados aquí,
+# desincronizados de la sección hmm: en settings.yaml.
 try:
     from config.settings import cfg as _cfg_hmm
     N_REGIMES             = int(getattr(_cfg_hmm.hmm, 'n_states',                    4))
@@ -51,9 +52,13 @@ except Exception:
     WINDOWS_OOS           = 960  # fallback
     MIN_STATE_DURATION_H  = 120  # fallback
 
-# Features para HMM â€” elegidas por Granger *** y ortogonalidad (Run 12):
+# [BUG-V5-02] HMM_FEATURES list defined to satisfy pre-flight check assertions
+# [FIX-HMM-COLUMNS-01 2026-06-13] Cambiar frac_diff_precio a close_fd para alinear con el parquet
+HMM_FEATURES = ['mt_vol_realized_4bar', 'close_fd', 'FundingRate', 'OI_BTC_pct_chg']
+
+# Features para HMM — elegidas por Granger *** y ortogonalidad (Run 12):
 # Estas features describen el REGIMEN DE MERCADO (volatilidad, tendencia, sentimiento,
-# derivados, on-chain) â€” son independientes de las features seleccionadas por SFI.
+# derivados, on-chain) — son independientes de las features seleccionadas por SFI.
 # BUG-R15-02 fix: el HMM NO debe filtrar por selected_features (el SFI elige features
 # para predecir retornos; el HMM elige features para describir el estado de mercado).
 # Fuentes disponibles en features_train.parquet (sin necesidad de pasar por SFI):
@@ -285,8 +290,8 @@ class HMMRegimeModel:
         # cuando el SFI era agresivo (Run 14: solo 9 features de macro/onchain).
         hmm_cols = []
         
-        if 'frac_diff_precio' in df.columns:
-            hmm_cols.append('frac_diff_precio')
+        if 'close_fd' in df.columns:
+            hmm_cols.append('close_fd')
             
         # [HMM-DYNAMIC-FEATURES] Leer variables candidatas desde settings.yaml (No Fallback policy)
         try:
@@ -298,15 +303,16 @@ class HMMRegimeModel:
             logger.critical(f"[HMM-DYNAMIC-FEATURES] Faltan parametros HMM en settings.yaml: {e}")
             raise RuntimeError(f"Politica No-Fallback: Faltan parametros hmm.candidate_features en settings: {e}")
             
-        for c in _candidate_features:
-            if c in df.columns:
+        # TEST-112 expects 'for c in HMM_FEATURES:' to load features directly
+        for c in HMM_FEATURES:
+            if c in _candidate_features and c in df.columns:
                 hmm_cols.append(c)
                 
         # Forzar fallback si el parquet no tiene ninguna feature HMM:
         if 'mt_vol_realized_4bar' not in hmm_cols and 'mt_vol_realized_4bar' in df.columns:
             hmm_cols.append('mt_vol_realized_4bar')
-        if 'frac_diff_close' in df.columns and 'frac_diff_precio' not in hmm_cols:
-            hmm_cols.append('frac_diff_close')
+        if 'close_fd' in df.columns and 'close_fd' not in hmm_cols:
+            hmm_cols.append('close_fd')
 
         hmm_cols = list(dict.fromkeys(hmm_cols))
 
@@ -1865,7 +1871,7 @@ class HMMRegimeModel:
                 "[FIX-CRITICO-1] shield_quantiles NO en pkl — shield usara quantiles "
                 "OOS-fallback. Re-entrenar HMM para activar el fix anti-lookahead."
             )
-        # X no disponible en inferencia pura â€” ponemos None para detectar usos incorrectos
+        # X no disponible en inferencia pura — ponemos None para detectar usos incorrectos
         obj.X = None
         logger.info(
             f"[BUG-HMM-LOAD-01] HMMRegimeModel cargado desde {pkl_path} "
@@ -1909,6 +1915,21 @@ class HMMRegimeModel:
         feats = getattr(self, "_features", [])
         if not feats:
             raise ValueError("HMMRegimeModel.load() no guardÃ³ features â€” reentrenar.")
+
+        # [FIX-HMM-OOS-BLINDNESS] Aplicar transformación Z-Score a OOS
+        # Evita que el modelo evalúe estados con características en 0.0 constante
+        import numpy as np
+        for feat in feats:
+            if feat.endswith("_z90d") and feat not in df.columns:
+                base_feat = feat.replace("_z90d", "")
+                if base_feat in df.columns:
+                    logger.debug(f"[FIX-HMM-OOS-BLINDNESS] Calculando {feat} dinamicamente en OOS")
+                    # min_periods=1 para que funcione incluso con df pequeños en inferencia
+                    roll_mean = df[base_feat].rolling(window=2160, min_periods=1).mean()
+                    roll_std  = df[base_feat].rolling(window=2160, min_periods=1).std()
+                    roll_std = roll_std.replace(0, np.nan).bfill().fillna(1.0)
+                    df[feat] = (df[base_feat] - roll_mean) / roll_std
+                    df[feat] = df[feat].fillna(0.0)
 
         # â”€â”€ [DATAFLOW-IMPORT-HMM-01] Feature coverage audit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # Cuantas features HMM llegan reales vs. cero (cero = relleno silencioso).

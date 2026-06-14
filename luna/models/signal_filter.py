@@ -1029,6 +1029,36 @@ class SignalFilter:
                             _eff_thresh = (_eff_thresh * _dimmer_multiplier).clip(upper=0.99)
                             logger.info(f"  [VOL-DIMMER] Umbrales MetaLabeler ajustados dinámicamente por volatilidad (VIX max: {_vix_slope.max():.2f}, Multiplier cap: 1.15x)")
                                     
+                        # [BUG-4 FIX] Dynamic Threshold Fallback (Opción C)
+                        # Si la probabilidad máxima del batch OOS es inferior al threshold efectivo,
+                        # el umbral es inalcanzable por covariate shift de varianza en el calibrador.
+                        # Bajamos el threshold al P90 dinámico del batch para recuperar el 10% más fuerte.
+                        _max_prob = meta_v2_prob_series.fillna(0.0).max()
+                        _global_min_thresh = _eff_thresh.min()
+                        if _max_prob > 0.0 and _max_prob < _global_min_thresh:
+                            _fallback_thresh = meta_v2_prob_series.fillna(0.0).quantile(0.90)
+                            # Actualizar _eff_thresh sin bajar por debajo del 0.40 como safety duro
+                            _fallback_thresh = max(_fallback_thresh, 0.40)
+                            _eff_thresh = pd.Series(_fallback_thresh, index=df_oos.index)
+                            print(f"[BUG-4 FIX] Threshold inalcanzable (Max={_max_prob:.4f} < Thresh={_global_min_thresh:.4f}). "
+                                  f"Fallback dinámico al P90 OOS -> Nuevo Threshold={_fallback_thresh:.4f}")
+                            logger.warning(f"[BUG-4 FIX] Threshold inalcanzable. Fallback dinámico al P90={_fallback_thresh:.4f}")
+
+                        # [FIX-SNIPER-W4 2026-06-14] Bloqueo Duro de Regímenes (Hard Exclusion)
+                        try:
+                            from config.settings import cfg as _cfg_excl
+                            _excl_param = getattr(getattr(_cfg_excl, 'metalabeler', None), 'hmm_volatile_bull_exclude', [])
+                            if _excl_param:
+                                _h1_excluded_list = [str(x).upper() for x in _excl_param]
+                                _hmm_col_f = "HMM_Semantic" if "HMM_Semantic" in df_oos.columns else ("HMM_Regime" if "HMM_Regime" in df_oos.columns else None)
+                                if _hmm_col_f:
+                                    _mask_banned = df_oos[_hmm_col_f].astype(str).str.upper().isin(_h1_excluded_list)
+                                    if _mask_banned.sum() > 0:
+                                        meta_v2_prob_series.loc[_mask_banned] = 0.0
+                                        logger.info(f"  [FIX-SNIPER-W4] Hard Exclusion OOS: {_mask_banned.sum()} señales bloqueadas en regímenes prohibidos {_h1_excluded_list}")
+                        except Exception as _e_excl:
+                            pass
+
                         meta_v2_mask = meta_v2_prob_series.fillna(0.0) >= _eff_thresh
                         n_meta = int(meta_v2_mask.sum())
                         
@@ -1120,6 +1150,210 @@ class SignalFilter:
                     pass
             else:
                 _hmm_allowed_labels = [str(x) for x in _hmm_allowed]
+
+            # [FIX-DYN-HMM-ALLOWED 2026-06-13] Auto-selección y auto-desbloqueo dinámico in-sample (Validation):
+            # En lugar de usar una lista estática en settings.yaml, evalúa el rendimiento del clasificador (Profit Factor)
+            # de cada régimen in-sample (en la ventana de validación) si la caché está disponible.
+            _dyn_success = False
+            try:
+                import os as _os_dyn
+                _ROOT_DYN = Path(__file__).resolve().parent.parent.parent
+                _window_id_s = _os_dyn.environ.get("LUNA_WINDOW_ID", None)
+                if not _window_id_s:
+                    _parent_name = self.models_dir.parent.name
+                    if _parent_name.startswith("W"):
+                        _window_id_s = _parent_name
+                
+                if _window_id_s:
+                    _val_path = _ROOT_DYN / "data" / "wfb_cache" / _window_id_s / "features" / f"features_validation_{_window_id_s}.parquet"
+                    if not _val_path.exists():
+                        _val_path = _ROOT_DYN / "data" / "wfb_cache" / _window_id_s / "features" / "features_validation.parquet"
+                    
+                    if _val_path.exists():
+                        from luna.models.hmm_regime import HMMRegimeModel
+                        from luna.models.regime_router import RegimeRouter
+                        from luna.features.tbm import apply_triple_barrier
+                        from luna.models.predict_oos import get_hmm_tbm_params, get_hmm_horizon
+
+                        _df_val = pd.read_parquet(_val_path)
+                        _hmm_model = HMMRegimeModel.load(self.models_dir)
+                        _hmm_val = _hmm_model.predict_regime_series(_df_val)
+                        _df_val["HMM_Semantic"] = _hmm_val["HMM_Semantic"]
+                        
+                        # [BUG-9 FIX] Extraer predicciones de transición para el HMM-Predictive Gate
+                        _bull_mean_is = 0.0
+                        _bear_mean_is = 0.0
+                        if "hmm_bull_transition_prob" in _hmm_val.columns and "hmm_bear_transition_prob" in _hmm_val.columns:
+                            # Promediar sobre el último 25% de la ventana de validación (zona de transición)
+                            _n_tail = max(len(_hmm_val) // 4, 1)
+                            _bull_mean_is = _hmm_val["hmm_bull_transition_prob"].tail(_n_tail).mean()
+                            _bear_mean_is = _hmm_val["hmm_bear_transition_prob"].tail(_n_tail).mean()
+                            print(f"[BUG-9 FIX] HMM-Predictive Gate: bull_mean_is={_bull_mean_is:.3f} | bear_mean_is={_bear_mean_is:.3f} (sobre las últimas {_n_tail} barras)")
+
+                        _router = RegimeRouter(self.models_dir, agent_type="xgboost", direction=direction)
+                        _xgb_val = _router.route_and_predict(_df_val)
+                        _df_val["xgb_prob_cal"] = _xgb_val["calibrated"]
+
+                        # Criterio de umbral (0.48 o de configuración)
+                        _xgb_thresh = 0.48
+                        try:
+                            from config.settings import cfg as _cfg_xgb
+                            _xgb_thresh = float(_cfg_xgb.metalabeler.xgb_signal_threshold)
+                        except Exception:
+                            pass
+
+                        _val_candidates = _df_val["xgb_prob_cal"] >= _xgb_thresh
+                        _val_signal_times = _df_val.index[_val_candidates]
+
+                        _allowed_regimes_dynamic = []
+
+                        if len(_val_signal_times) > 0:
+                            _pt = _df_val["HMM_Semantic"].map(lambda r: get_hmm_tbm_params(r)["tp"])
+                            _sl = _df_val["HMM_Semantic"].map(lambda r: get_hmm_tbm_params(r)["sl"])
+                            _prob_series = _df_val["xgb_prob_cal"].fillna(0.5).clip(0.5, 1.0)
+                            _conf_scaler = 0.7 + ((_prob_series - 0.5) / 0.5) * (1.3 - 0.7)
+                            _pt = _pt * _conf_scaler
+                            _sl = _sl * _conf_scaler
+
+                            _mode_series = _df_val["HMM_Semantic"].dropna().map(lambda r: get_hmm_horizon(r))
+                            _dyn_max = int(_mode_series.mode().iloc[0] if not _mode_series.empty else 168)
+
+                            _tbm_val = apply_triple_barrier(
+                                price_series=_df_val["close"],
+                                event_times=_val_signal_times,
+                                sides=pd.Series(1, index=_val_signal_times),
+                                pt_sl_multiplier=[_pt, _sl],
+                                vertical_barrier_hours=72,
+                                min_return=0.005,
+                                dynamic_barrier=True,
+                                dynamic_horizon_min_h=24,
+                                dynamic_horizon_max_h=_dyn_max,
+                                linear_decay_pt=True,
+                                pt_decay_fraction=0.75,
+                                funding_series=_df_val.get("FundingRate"),
+                            )
+
+                            _df_val_signals = pd.DataFrame(index=_val_signal_times)
+                            _df_val_signals["ret_net"] = _tbm_val["ret"] - 0.0015
+                            _df_val_signals["HMM_Semantic"] = _df_val.loc[_val_signal_times, "HMM_Semantic"]
+
+                            # [H1-VOLATILE-BULL-FIX 2026-06-14] Leer lista de regimenes excluidos y PF minimo desde settings
+                            # Evidencia OOS: 1_VOLATILE_BULL=26.7% WR, 1_VOLATILE_BULL_C=18.7% WR (137 trades historicos)
+                            _h1_excluded_list = []
+                            _h1_min_pf_low_n = 1.0  # default: exige PF>1.0 en regimenes con n<3
+                            try:
+                                from config.settings import cfg as _cfg_h1
+                                _mlab_cfg_h1 = getattr(_cfg_h1, 'metalabeler', None)
+                                _excl_param = getattr(_mlab_cfg_h1, 'hmm_volatile_bull_exclude', None)
+                                if _excl_param:
+                                    _h1_excluded_list = [str(x) for x in _excl_param]
+                                _h1_min_pf_low_n = float(getattr(_mlab_cfg_h1, 'hmm_dyn_min_pf_bull_low_n', 1.0))
+                                print(f"[H1-VOLATILE-BULL-FIX] Config cargada: excluir={_h1_excluded_list} | min_pf_low_n={_h1_min_pf_low_n:.2f}")
+                                logger.info(f"[H1-VOLATILE-BULL-FIX] Exclusion de regimenes destructores activa: {_h1_excluded_list}")
+                            except Exception as _e_h1:
+                                print(f"[H1-VOLATILE-BULL-FIX] WARN: No se pudo leer parametros de exclusion: {_e_h1}")
+
+                            import re as _re_h1
+
+                            for _regime in _df_val["HMM_Semantic"].unique():
+                                _reg_signals = _df_val_signals[_df_val_signals["HMM_Semantic"] == _regime]
+                                _n_signals = len(_reg_signals)
+                                _regime_str = str(_regime)
+
+                                # [H1-VOLATILE-BULL-FIX] Verificar exclusion explicita: match exacto case-insensitive
+                                # NOTA: Usar exact match para no excluir variantes no-destructoras como 1_VOLATILE_BULL_B (WR=46.2%)
+                                _is_explicitly_excluded = _regime_str.upper() in [_ex.upper() for _ex in _h1_excluded_list]
+                                if _is_explicitly_excluded:
+                                    print(f"[H1-VOLATILE-BULL-FIX] EXCLUIDO regimen destructor: '{_regime_str}' "
+                                          f"(en hmm_volatile_bull_exclude) | n_signals_IS={_n_signals}")
+                                    logger.info(f"[H1-VOLATILE-BULL-FIX] Regimen excluido explicitamente: '{_regime_str}' "
+                                                f"| evidencia WR<30% en OOS historico")
+                                    continue  # No anadir a _allowed_regimes_dynamic
+
+                                if _n_signals > 0:
+                                    _wins = _reg_signals.loc[_reg_signals["ret_net"] > 0, "ret_net"].sum()
+                                    _losses = _reg_signals.loc[_reg_signals["ret_net"] < 0, "ret_net"].sum()
+                                    _pf = _wins / abs(_losses) if _losses != 0 else float('inf')
+                                    _total_ret = _reg_signals["ret_net"].sum()
+                                    _is_bull_semantic = "BULL" in _regime_str.upper() or "RANGE" in _regime_str.upper()
+
+                                    _decision = False
+                                    if _n_signals >= 3:
+                                        if _pf > 1.05 and _total_ret > 0:
+                                            _decision = True
+                                        elif _is_bull_semantic and _pf > 0.95:
+                                            _decision = True
+                                    else:
+                                        # [H1-VOLATILE-BULL-FIX] Con n<3, exigir PF > hmm_dyn_min_pf_bull_low_n
+                                        # para evitar inclusion automatica de regimenes sin evidencia solida
+                                        if _is_bull_semantic and _pf > _h1_min_pf_low_n:
+                                            _decision = True
+                                            print(f"[H1-VOLATILE-BULL-FIX] Regimen '{_regime_str}' INCLUIDO: "
+                                                  f"n={_n_signals}<3 pero PF={_pf:.3f}>{_h1_min_pf_low_n:.2f}")
+                                        elif _is_bull_semantic:
+                                            print(f"[H1-VOLATILE-BULL-FIX] Regimen '{_regime_str}' EXCLUIDO: "
+                                                  f"n={_n_signals}<3 y PF={_pf:.3f}<={_h1_min_pf_low_n:.2f} (insuficiente evidencia)")
+
+                                    # [BUG-9 FIX] HMM-Predictive Gate (Desbloqueo predictivo)
+                                    # Si el IS fue BEAR (provocando exclusión de BULL por bajo PF), pero
+                                    # el HMM Forward Algorithm detecta que vamos hacia BULL, forzamos inclusión.
+                                    if _is_bull_semantic and not _decision and _n_signals >= 3:
+                                        _predictive_margin = 0.05
+                                        if _bull_mean_is > (_bear_mean_is + _predictive_margin):
+                                            _decision = True
+                                            print(f"[BUG-9 FIX] 🔓 DESBLOQUEO PREDICTIVO para '{_regime_str}': "
+                                                  f"bull_mean({_bull_mean_is:.3f}) > bear_mean({_bear_mean_is:.3f}) + margin")
+
+                                    if _decision:
+                                        _allowed_regimes_dynamic.append(_regime_str)
+                                else:
+                                    # Con 0 senales IS: anadir solo si no esta excluido y es BULL/RANGE
+                                    _is_bull_semantic = "BULL" in _regime_str.upper() or "RANGE" in _regime_str.upper()
+                                    if _is_bull_semantic:
+                                        _allowed_regimes_dynamic.append(_regime_str)
+                                        print(f"[H1-VOLATILE-BULL-FIX] Regimen BULL con 0 senales IS anadido por defecto: '{_regime_str}'")
+                        else:
+                            # Si no hay señales en validación, habilitar regímenes BULL/RANGE por defecto
+                            for _regime in _df_val["HMM_Semantic"].unique():
+                                _is_bull_semantic = "BULL" in str(_regime).upper() or "RANGE" in str(_regime).upper()
+                                if _is_bull_semantic:
+                                    _allowed_regimes_dynamic.append(str(_regime))
+
+                        _hmm_allowed_labels = _allowed_regimes_dynamic
+                        _dyn_success = True
+                        print(f"[FIX-DYN-HMM-ALLOWED] Selección Dinámica in-sample ejecutada con éxito. Regímenes permitidos: {_hmm_allowed_labels}")
+                        logger.info(f"[FIX-DYN-HMM-ALLOWED] Selección Dinámica in-sample ejecutada con éxito. Regímenes permitidos: {_hmm_allowed_labels}")
+            except Exception as _e_dyn:
+                print(f"[FIX-DYN-HMM-ALLOWED] Error al ejecutar selección dinámica in-sample (usando fallback simple): {_e_dyn}")
+                logger.warning(f"[FIX-DYN-HMM-ALLOWED] Error al ejecutar selección dinámica in-sample: {_e_dyn}")
+
+            if not _dyn_success:
+                # Fallback simple: auto-desbloqueo semántico dinámico para BULL y RANGE
+                # [H1-VOLATILE-BULL-FIX] Respetar lista de exclusion tambien en el fallback
+                _h1_excluded_fallback = []
+                try:
+                    from config.settings import cfg as _cfg_h1_fb
+                    _mlab_h1_fb = getattr(_cfg_h1_fb, 'metalabeler', None)
+                    _excl_fb = getattr(_mlab_h1_fb, 'hmm_volatile_bull_exclude', None)
+                    if _excl_fb:
+                        _h1_excluded_fallback = [str(x).upper() for x in _excl_fb]
+                except Exception:
+                    pass
+                import re as _re_h1_fb
+                if _pkl_all_labels:
+                    for _lbl in _pkl_all_labels:
+                        _lbl_str = str(_lbl).upper()
+                        # [H1-VOLATILE-BULL-FIX] Verificar exclusion: match exacto case-insensitive
+                        _is_fb_excluded = _lbl_str in _h1_excluded_fallback
+                        if _is_fb_excluded:
+                            print(f"[H1-VOLATILE-BULL-FIX][FALLBACK] Regimen EXCLUIDO (destructor): {_lbl}")
+                            logger.info(f"[H1-VOLATILE-BULL-FIX][FALLBACK] Regimen excluido en fallback: {_lbl}")
+                            continue
+                        if ("BULL" in _lbl_str or "RANGE" in _lbl_str) and "BEAR" not in _lbl_str:
+                            if str(_lbl) not in _hmm_allowed_labels:
+                                _hmm_allowed_labels.append(str(_lbl))
+                                print(f"[FIX-DYN-HMM-ALLOWED][FALLBACK] Auto-desbloqueado régimen semántico HMM: {_lbl}")
+                                logger.info(f"[FIX-DYN-HMM-ALLOWED][FALLBACK] Auto-desbloqueado régimen semántico HMM: {_lbl}")
 
             # [FIX-BUG-HMM-BEAR-LONG-01] Permitir que el agente BEAR opere en posiciones LONG durante mercados bajistas cuando use_regime_agents=True.
             try:

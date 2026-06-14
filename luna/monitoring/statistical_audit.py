@@ -83,8 +83,9 @@ class LunaStatisticalAuditor:
             _s = _cfg.get("stat", {})
 
             # Parámetros obligatorios — se verifica que existen en settings.yaml
+            # [FIX-DSR-TRANS-STD 2026-06-13] Cargar dsr_transversal_std obligatoriamente
             _REQUIRED = ["min_dsr", "max_pbo", "min_trades", "alpha_binomial",
-                         "max_drawdown", "pbo_n_blocks"]
+                         "max_drawdown", "pbo_n_blocks", "dsr_transversal_std"]
             _missing = [k for k in _REQUIRED if k not in _s]
             if _missing:
                 raise KeyError(
@@ -98,14 +99,15 @@ class LunaStatisticalAuditor:
             self.MIN_TRADES      = int(_s["min_trades"])
             self.ALPHA_BINOMIAL  = float(_s["alpha_binomial"])
             self.MAX_DRAWDOWN    = float(_s["max_drawdown"])
+            self.DSR_TRANSVERSAL_STD = float(_s["dsr_transversal_std"])
             # MAX_DRAWDOWN = 0.60 (Compatibilidad con el auditor pre-flight)
             self.TOTAL_RETURN_CAP = float(_s.get("total_return_cap", 1e6))  # opcional: no es gate
             self.PBO_N_BLOCKS    = int(_s["pbo_n_blocks"])
 
             print(
                 f"[StatAudit] Gates cargados OK: MIN_DSR={self.MIN_DSR} | MAX_PBO={self.MAX_PBO} | "
-                f"MIN_TRADES={self.MIN_TRADES} | PBO_N_BLOCKS={self.PBO_N_BLOCKS} "
-                f"(min_trades_cscv={self.PBO_N_BLOCKS*4}) | MAX_DRAWDOWN={self.MAX_DRAWDOWN}"
+                f"MIN_TRADES={self.MIN_TRADES} | PBO_N_BLOCKS={self.PBO_N_BLOCKS} | "
+                f"DSR_TRANSVERSAL_STD={self.DSR_TRANSVERSAL_STD} | MAX_DRAWDOWN={self.MAX_DRAWDOWN}"
             )
             logger.debug("[StatAudit] Gates cargados desde cfg.stat (settings.yaml)")
 
@@ -158,11 +160,11 @@ class LunaStatisticalAuditor:
         z_1 = stats.norm.ppf(1.0 - prob_term)
         z_2 = stats.norm.ppf(1.0 - prob_term * np.exp(-1.0))
 
-        # [FIX-DSR-CROSS-VAR-01 2026-06-04] Bailey & Lopez de Prado (2014) exige varianza TRANSVERSAL.
+        # [FIX-DSR-TRANS-STD 2026-06-13] Bailey & Lopez de Prado (2014) exige varianza TRANSVERSAL.
         # std_sr es el Standard Error temporal de la estrategia ganadora. 
         # sr_star (Expected Maximum Sharpe) DEBE calcularse con la desviación estándar
-        # TRANSVERSAL de los n_trials. Asignamos 1.0 como barrera conservadora y teórica.
-        sr_std_cross = 1.0
+        # TRANSVERSAL de los n_trials. Leemos dsr_transversal_std desde settings.yaml.
+        sr_std_cross = self.DSR_TRANSVERSAL_STD
         sr_star = sr_std_cross * ((1.0 - gamma) * z_1 + gamma * z_2)
 
         # Guard: evitar división por 0 si std_sr → 0
@@ -263,8 +265,16 @@ class LunaStatisticalAuditor:
         """
         logger.info("🛡️ Iniciando LunaV1 Statistical Audit (The Gauntlet)...")
 
+        # [GAUNTLET-FILTER-SILENCED 2026-06-13] Silenciar trades con kelly_fraction_used == 0
+        if "kelly_fraction_used" in trades_df.columns:
+            _initial_count = len(trades_df)
+            trades_df = trades_df[trades_df["kelly_fraction_used"] > 0.0].copy()
+            _filtered_count = len(trades_df)
+            print(f"[GAUNTLET-FILTER-SILENCED 2026-06-13] Silenciados {(_initial_count - _filtered_count)} trades con kelly_fraction_used == 0. Quedan {_filtered_count} trades activos.")
+            logger.info(f"[GAUNTLET-FILTER-SILENCED] Silenciados {(_initial_count - _filtered_count)} trades. Quedan: {_filtered_count}")
+
         if len(trades_df) == 0:
-            return {"deploy_approved": False, "reason": "No trades generated."}
+            return {"deploy_approved": False, "reason": "No active trades generated."}
 
         # ── Métricas base ────────────────────────────────────────────────────
         total_trades = len(trades_df)
@@ -293,6 +303,7 @@ class LunaStatisticalAuditor:
             years_in_oos = max((ts.max() - ts.min()).total_seconds() / (365.25 * 24 * 3600), 1e-5)
             trades_per_year = total_trades / years_in_oos
         else:
+            years_in_oos = 1.0
             trades_per_year = total_trades  # Fallback a 1 año
 
         mean_ret = float(np.mean(returns))
@@ -301,8 +312,13 @@ class LunaStatisticalAuditor:
         sharpe_crudo = (mean_ret / std_ret) * annual_factor_trades if std_ret > 1e-10 else 0.0
 
         # Calmar Ratio
-        # [FIX-CALMAR-01] Calcular con total_return (CAGR pct) / max_dd pct
-        calmar = float(total_ret_pct_raw) / (max_dd * 100.0) if max_dd > 1e-10 else float('inf')
+        # [FIX-CALMAR-01 2026-06-13] Calcular retorno anualizado CAGR para un Calmar comparable
+        if 1.0 + total_ret > 0.0:
+            total_ret_annualized = ((1.0 + total_ret) ** (1.0 / years_in_oos) - 1.0) * 100.0
+        else:
+            total_ret_annualized = -99.9  # límite inferior lógico
+            
+        calmar = float(total_ret_annualized) / (max_dd * 100.0) if max_dd > 1e-10 else float('inf')
 
         # Momentos de distribución (para DSR)
         skewness = float(stats.skew(returns))  if len(returns) > 2 else 0.0

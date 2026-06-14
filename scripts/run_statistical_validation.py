@@ -344,6 +344,14 @@ def main() -> int:
     if _n_seeds_total_r5 > 1:
         _r5_factor = _math_r5.sqrt(_math_r5.log(_n_seeds_total_r5))
 
+        # [FIX-DSR-TRANS-STD 2026-06-13] Cargar dsr_transversal_std desde settings.yaml (No-Fallback)
+        try:
+            from config.settings import cfg as _cfg_dsr
+            _dsr_trans_std = float(_cfg_dsr.stat.dsr_transversal_std)
+        except Exception as _e_dsr:
+            logger.critical("[FIX-DSR-TRANS-STD] No se pudo leer dsr_transversal_std de settings.yaml: {}", _e_dsr)
+            raise RuntimeError(f"Politica No-Fallback: Faltan dsr_transversal_std en settings: {_e_dsr}")
+
         # Recalcular SR* ajustado en espacio del Sharpe (no en espacio del DSR capeado):
         # std_SR es función de n_obs y momentos de distribución
         _var_sr   = (1.0 - (_skew * _sr_crudo) + ((_kurt - 1.0) / 4.0) * (_sr_crudo ** 2)) / max(_n_obs, 2)
@@ -353,7 +361,8 @@ def main() -> int:
         _prob     = 1.0 / max(_n_trials, 2)
         _z1 = _stats_r5.norm.ppf(1.0 - _prob)
         _z2 = _stats_r5.norm.ppf(1.0 - _prob * _math_r5.exp(-1.0))
-        _sr_star_base = _std_sr * ((1.0 - _gamma) * _z1 + _gamma * _z2)
+        # [FIX-DSR-TRANS-STD 2026-06-13] Usar la varianza transversal en lugar del error estándar temporal
+        _sr_star_base = _dsr_trans_std * ((1.0 - _gamma) * _z1 + _gamma * _z2)
         # SR* ajustado por N_seeds: el benchmark del azar sube proporcionalmente
         _sr_star_adj  = _sr_star_base * _r5_factor
         # DSR ajustado = Phi((SR_crudo - SR*_adj) / std_SR)

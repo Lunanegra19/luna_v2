@@ -949,6 +949,7 @@ class OOSTradesGenerator:
 
         for _direct in directions_to_run:
             df_oos = df_oos_base.copy()
+            _pred_drift_penalty = 1.0
 
             # [DEGRADED-MODE] Leer agentes deshabilitados por Gate-G2 (si aplica)
             _g2_disabled_path = self.models_dir / "gate_g2_disabled_agents.json"
@@ -1025,6 +1026,60 @@ class OOSTradesGenerator:
                 xgb_probs_df = router_xgb.route_and_predict(df_oos)
                 df_oos["xgb_prob"] = xgb_probs_df["raw"]
                 df_oos["xgb_prob_cal"] = xgb_probs_df["calibrated"]
+
+                # [FIX-PRED-DRIFT-SENTINEL 2026-06-13] Prediction Drift Sentinel (OOD Circuit Breaker)
+                # Compara las predicciones calibradas de Holdout contra las de Validación.
+                try:
+                    import os as _os_sentinel
+                    _window_id_s = _os_sentinel.environ.get("LUNA_WINDOW_ID", "UNK")
+                    # Rutas para buscar la validación in-sample
+                    _val_feat_path = self.root / "data" / "wfb_cache" / _window_id_s / "features" / f"features_validation_{_window_id_s}.parquet"
+                    if not _val_feat_path.exists():
+                        _val_feat_path = self.root / "data" / "wfb_cache" / _window_id_s / "features" / "features_validation.parquet"
+                    
+                    if _val_feat_path.exists():
+                        _df_val_s = pd.read_parquet(_val_feat_path)
+                        # Predecir con el mismo router para validación in-sample
+                        _xgb_val_s = router_xgb.route_and_predict(_df_val_s)
+                        _val_cal = _xgb_val_s["calibrated"].fillna(0.5).values
+                        _hold_cal = df_oos["xgb_prob_cal"].fillna(0.5).values
+                        
+                        if len(_val_cal) > 0 and len(_hold_cal) > 0:
+                            _num_buckets = 10
+                            # [FIX-PRED-DRIFT-SENTINEL-FIX-PSI 2026-06-13] Usar binning uniforme de ancho fijo entre [0.0, 1.0]
+                            # Previene el colapso del PSI causado por percentiles repetidos de IsotonicRegression
+                            _buckets = np.linspace(0.0, 1.0, _num_buckets + 1)
+                            if len(_buckets) >= 2:
+                                _buckets[0] = -np.inf
+                                _buckets[-1] = np.inf
+                                _val_counts = np.histogram(_val_cal, bins=_buckets)[0]
+                                _hold_counts = np.histogram(_hold_cal, bins=_buckets)[0]
+                                _val_pct = _val_counts / len(_val_cal)
+                                _hold_pct = _hold_counts / len(_hold_cal)
+                                _val_pct = np.where(_val_pct == 0, 1e-4, _val_pct)
+                                _hold_pct = np.where(_hold_pct == 0, 1e-4, _hold_pct)
+                                _pred_psi = np.sum((_hold_pct - _val_pct) * np.log(_hold_pct / _val_pct))
+                                
+                                # [FIX-PRED-DRIFT-SENTINEL 2026-06-13] Carga dinámica de parámetros desde settings.yaml (No-Fallback)
+                                _pred_min_psi = 0.08
+                                _pred_max_psi = 0.20
+                                if _cfg_xgb is not None:
+                                    try:
+                                        _pred_min_psi = float(getattr(_cfg_xgb.wfb, "pred_drift_min_psi", 0.08))
+                                        _pred_max_psi = float(getattr(_cfg_xgb.wfb, "pred_drift_max_psi", 0.20))
+                                    except Exception as _e_cfg:
+                                        pass
+                                
+                                if _pred_psi >= _pred_max_psi:
+                                    _pred_drift_penalty = 0.0
+                                elif _pred_psi >= _pred_min_psi:
+                                    _pred_drift_penalty = (_pred_max_psi - _pred_psi) / (_pred_max_psi - _pred_min_psi)
+                                    
+                                print(f"[FIX-PRED-DRIFT-SENTINEL] Window {_window_id_s} | Dirección {_direct} | Preds PSI = {_pred_psi:.4f} | Penalty = {_pred_drift_penalty:.1%} | Bounds=[{_pred_min_psi:.2f}, {_pred_max_psi:.2f}]")
+                                logger.info(f"[FIX-PRED-DRIFT-SENTINEL] Window {_window_id_s} | Dirección {_direct} | Preds PSI = {_pred_psi:.4f} | Penalty = {_pred_drift_penalty:.1%} | Bounds=[{_pred_min_psi:.2f}, {_pred_max_psi:.2f}]")
+                except Exception as _e_sent:
+                    print(f"[FIX-PRED-DRIFT-SENTINEL] Error en Sentinel (no critico): {_e_sent}")
+                    logger.debug(f"[FIX-PRED-DRIFT-SENTINEL] Error en Sentinel: {_e_sent}")
 
                 # [FIX-CALIB-BINARY-01 DETECTION-3] Guard post-asignacion en predict_oos.
                 # Verifica que xgb_prob_cal difiere de xgb_prob_raw antes de continuar.
@@ -1357,6 +1412,19 @@ class OOSTradesGenerator:
                 _pt = tbm_p["tp"]
                 _sl = tbm_p["sl"]
                 logger.info(f"  [DIAG] OOS TBM (Estático): PT={_pt}x SL={_sl}x VB={_vb_h}h min_ret={_min_ret:.4f} dyn={_dynamic_barrier} [{_dyn_min}h,{_dyn_max}h]")
+
+            # [FIX-HOLDING-CAP 2026-06-14] Cargar cap de simulacion/ejecucion si existe
+            try:
+                from config.settings import cfg as _cfg_exec
+                _exec_cap = int(getattr(_cfg_exec.execution, 'execution_holding_cap_h', 0))
+            except Exception:
+                _exec_cap = 0
+
+            if _exec_cap > 0:
+                _vb_h = min(_vb_h, _exec_cap)
+                _dyn_max = min(_dyn_max, _exec_cap)
+                print(f"[FIX-HOLDING-CAP 2026-06-14] Truncando horizonte maximo de la simulacion a {_exec_cap}H (TBM original: {_cfg_tbm.xgboost.vertical_barrier_hours}H)")
+                logger.info(f"  [EXECUTION-CAP] Truncando horizonte máximo de la simulación a {_exec_cap}H (TBM original: {_cfg_tbm.xgboost.vertical_barrier_hours}H)")
             tbm_result = apply_triple_barrier(
                 price_series=df_oos["close"],
                 event_times=signal_times,
@@ -1432,11 +1500,47 @@ class OOSTradesGenerator:
             except Exception as _e_cost:
                 raise RuntimeError(f"CRITICAL: Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback: {_e_cost}")
 
+            # [FIX-CONCURRENCY-CAP 2026-06-13] Cargar limites de concurrencia de settings
+            try:
+                from config.settings import cfg as _cfg_concur
+                _c_base = int(_cfg_concur.position_sizer.max_concurrent_trades)
+                _dynamic_concurrency = bool(_cfg_concur.position_sizer.dynamic_concurrency_enabled)
+                print(f"[FIX-CONCURRENCY-CAP 2026-06-13] Cargado: base={_c_base} | dynamic={_dynamic_concurrency}")
+                logger.info(f"[FIX-CONCURRENCY-CAP] Concurrencia base: {_c_base} | Dinamico: {_dynamic_concurrency}")
+            except Exception as _e_concur:
+                _err_msg = f"CRITICAL: Falta max_concurrent_trades o dynamic_concurrency_enabled en settings.yaml. Politica No-Fallback: {_e_concur}"
+                print(_err_msg)
+                logger.critical(_err_msg)
+                raise RuntimeError(_err_msg) from _e_concur
+
+            active_exits = []
+
             for t in signal_times:
                 if t not in tbm_result.index:
                     continue
                 row = tbm_result.loc[t]
                 if pd.isna(row.get("ret", np.nan)):
+                    continue
+
+                # [FIX-CONCURRENCY-CAP 2026-06-13] Clean up expired exits
+                active_exits = [ex for ex in active_exits if ex > t]
+
+                # Determine HMM semantic label and regime-based concurrency cap
+                _hmm_sem_t = str(df_oos.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t in df_oos.index else ""
+                
+                if _dynamic_concurrency:
+                    # round(C_base * 1.5) for strong trends, max(1, round(C_base * 0.5)) for volatile/range/bear
+                    _is_strong_trend = any(x in _hmm_sem_t for x in ["BULL_TREND", "BULL_GRIND", "1_BULL"])
+                    if _is_strong_trend:
+                        _max_concur = int(round(_c_base * 1.5))
+                    else:
+                        _max_concur = max(1, int(round(_c_base * 0.5)))
+                else:
+                    _max_concur = _c_base
+
+                if len(active_exits) >= _max_concur:
+                    print(f"[FIX-CONCURRENCY-CAP 2026-06-13] SKIP en {t} | Concurrencia actual={len(active_exits)} >= cap={_max_concur} (regime={_hmm_sem_t})")
+                    logger.info(f"[FIX-CONCURRENCY-CAP] Skipped trade in {t} due to concurrency cap: {len(active_exits)} >= {_max_concur} (regime={_hmm_sem_t})")
                     continue
 
                 # P3: drawdown stop — usando capital multiplicativo (BUG-4 fix M-14)
@@ -1464,9 +1568,9 @@ class OOSTradesGenerator:
                     _row_df["hmm_regime"] = float(df_oos.loc[t, "HMM_Regime"]) if "HMM_Regime" in df_oos.columns and t in df_oos.index else np.nan
                     
                     _fractions = _kelly_sizer_instance.size_signals_dynamic(_row_df, prob_col="xgb_prob")
-                    _eff_mult = float(_fractions.iloc[0]) * _psi_kelly_penalty
+                    _eff_mult = float(_fractions.iloc[0]) * _psi_kelly_penalty * _pred_drift_penalty
                 else:
-                    _eff_mult = _psi_kelly_penalty # Fallback de emergencia
+                    _eff_mult = _psi_kelly_penalty * _pred_drift_penalty # Fallback de emergencia
 
                 # [H5-ROLL-SR-GATE 2026-06-03] Gate: Kelly=0 si Rolling Sharpe < umbral
                 # El rolling Sharpe se calcula sobre los retornos BRUTOS de los últimos N trades
@@ -1594,6 +1698,12 @@ class OOSTradesGenerator:
                     "shap_drivers": top_shap_features,
                     "alpha_trigger": ",".join([c for c in ["alpha_golden_score", "alpha_genetic_score", "alpha_dtw_signal"] if c in df_oos.columns and t in df_oos.index and float(df_oos.loc[t, c]) > 0]),
                 })
+                # [FIX-CONCURRENCY-CAP 2026-06-13] Registrar la salida del trade activo
+                _exit_t = row.get("first_touch", pd.NaT) if hasattr(row, "get") else getattr(row, "first_touch", pd.NaT)
+                if pd.isnull(_exit_t):
+                    _exit_t = t + pd.Timedelta(hours=int(_vb_h))
+                active_exits.append(_exit_t)
+
                 # BUG-4: compounding multiplicativo
                 capital      = capital * (1.0 + ret_kelly)
                 peak_capital = max(peak_capital, capital)

@@ -294,6 +294,9 @@ def main():
         print(">>>>>  Se utilizaran pocos datos y 1 epoch/trial para todas las semillas <<<<<")
 
     # [FIX-GLOBAL-RESTORE] Self-healing and master backup initialization
+    # [FAIL-FAST-BACKUP SOP-R16 2026-06-13] Si el backup no puede crearse o actualizarse,
+    # la run se aborta inmediatamente (RuntimeError). Un backup corrupto/desactualizado puede
+    # destruir semillas y parametros al finalizar la run. No-Fallback obligatorio.
     _settings_path = _ROOT / "config" / "settings.yaml"
     _master_backup_path = _ROOT / "config" / "master_settings_backup_wfb.yaml"
 
@@ -303,8 +306,18 @@ def main():
             print("[FIX-GLOBAL-RESTORE] Conservando los cambios del usuario y actualizando el backup maestro...")
             try:
                 shutil.copy2(_settings_path, _master_backup_path)
+                print("[FIX-GLOBAL-RESTORE] ✅ Backup maestro actualizado correctamente.")
             except Exception as e:
-                print(f"[FIX-GLOBAL-RESTORE] Error actualizando backup maestro: {e}")
+                # [FAIL-FAST-BACKUP SOP-R16] Abortar — backup desactualizado = riesgo de perder settings al finalizar
+                _err_msg = (
+                    f"[CRITICAL][FAIL-FAST-BACKUP] No se pudo actualizar el backup maestro de settings.yaml: {e}\n"
+                    f"  Ruta backup: {_master_backup_path}\n"
+                    f"  El backup tiene la version ANTERIOR de settings.yaml (semillas/params incorrectos).\n"
+                    f"  Si la run continua y termina, se restauraria una configuracion desactualizada.\n"
+                    f"  ACCION: verificar permisos de escritura en config/ y relanzar la run."
+                )
+                print(_err_msg)
+                raise RuntimeError(_err_msg) from e
         else:
             print("\n[FIX-GLOBAL-RESTORE] ALERTA: Se detectó un backup maestro huérfano (posible hard-crash anterior).")
             print("[FIX-GLOBAL-RESTORE] Curando corrupción temporal: restaurando settings.yaml original...")
@@ -313,15 +326,33 @@ def main():
                 _master_backup_path.unlink(missing_ok=True)
                 print("[FIX-GLOBAL-RESTORE] Self-healing completado.")
             except Exception as e:
-                print(f"[FIX-GLOBAL-RESTORE] Error en self-healing: {e}")
+                # [FAIL-FAST-BACKUP SOP-R16] Self-healing fallido = settings.yaml en estado indeterminado
+                _err_msg = (
+                    f"[CRITICAL][FAIL-FAST-BACKUP] Self-healing de settings.yaml FALLIDO: {e}\n"
+                    f"  Backup huerfano en: {_master_backup_path}\n"
+                    f"  settings.yaml puede estar en estado inconsistente.\n"
+                    f"  ACCION: copiar manualmente {_master_backup_path.name} a settings.yaml y relanzar."
+                )
+                print(_err_msg)
+                raise RuntimeError(_err_msg) from e
 
     if _settings_path.exists() and not _master_backup_path.exists():
         try:
             shutil.copy2(_settings_path, _master_backup_path)
             atexit.register(_restore_master_settings)
-            print("[FIX-GLOBAL-RESTORE] Backup maestro creado. settings.yaml blindado contra hard-crashes.\n")
+            print("[FIX-GLOBAL-RESTORE] ✅ Backup maestro creado. settings.yaml blindado contra hard-crashes.\n")
         except Exception as e:
-            print(f"[FIX-GLOBAL-RESTORE] Error creando backup maestro: {e}")
+            # [FAIL-FAST-BACKUP SOP-R16] Sin backup = sin proteccion contra crashes = abortar
+            _err_msg = (
+                f"[CRITICAL][FAIL-FAST-BACKUP] No se pudo crear el backup maestro de settings.yaml: {e}\n"
+                f"  Ruta intentada: {_master_backup_path}\n"
+                f"  Sin backup, un crash durante la run dejaria settings.yaml sin restaurar.\n"
+                f"  ACCION: verificar permisos de escritura en config/ y relanzar la run."
+            )
+            print(_err_msg)
+            raise RuntimeError(_err_msg) from e
+
+
 
     # ── GATE: Validación estática de código (AST, sin ejecución, ~200ms) ──────
     # Detecta bugs de lógica (KeyError, variables no definidas, etc.) ANTES de
@@ -407,7 +438,7 @@ def main():
 
     if args.nocache:
         print("[!] --nocache detectado. Limpiando WFB cache...")
-        import shutil
+        # shutil ya importado a nivel de módulo (línea 14) — no reimportar localmente (causaba UnboundLocalError)
         cache_dir = Path(__file__).parent.parent / "data" / "wfb_cache"
         if cache_dir.exists():
             shutil.rmtree(cache_dir, ignore_errors=True)
@@ -772,8 +803,12 @@ def main():
                         pruned_seeds.append(seed)
                         break  # salir del loop de intentos para esta seed
     
-                if process.returncode == 0:
-                    print(f"[SUCCESS] WFB Seed {seed} finalizado correctamente.")
+                # [FIX-GAUNTLET-EXIT-02 2026-06-13] Aceptar returncode 1 (Gauntlet rechazado limpio) como ejecución exitosa
+                if process.returncode in [0, 1]:
+                    if process.returncode == 1:
+                        print(f"[FIX-GAUNTLET-EXIT-02] WFB Seed {seed} completado de forma normal con rechazo de Gauntlet (exit=1).")
+                    else:
+                        print(f"[SUCCESS] WFB Seed {seed} finalizado correctamente (exit=0).")
                     success = True
                     complete_seeds.append(seed)
 

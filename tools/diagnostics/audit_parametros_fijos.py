@@ -14,7 +14,8 @@ import os
 import sys
 from collections import defaultdict
 
-ROOT = r'G:\Mi unidad\ia\luna_v2'
+from pathlib import Path
+ROOT = str(Path(__file__).resolve().parent.parent.parent)
 
 # Directorios a excluir
 EXCLUDE = ['__pycache__', '.git', r'data\\', r'logs\\', r'\\.venv', 'node_modules']

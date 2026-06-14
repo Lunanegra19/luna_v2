@@ -433,6 +433,12 @@ class MetaLabelerV2:
                     f"{ ' + hmm=' + str(hmm_regime_filtered.shape[1]) if hmm_regime_filtered is not None else ''})") 
 
         # 3. Calcular sample_weight por decaimiento temporal REAL (MEJORA-WEIGHT-01)
+        try:
+            from config.settings import cfg as _cfg_ml_sw
+            _ml_floor = float(getattr(_cfg_ml_sw.metalabeler, 'weight_decay_floor', 0.3))
+        except Exception:
+            _ml_floor = 0.3
+
         if timestamps_filtered is not None:
             t_max = timestamps_filtered.max()
             days_from_end = (t_max - timestamps_filtered).days.values
@@ -440,6 +446,9 @@ class MetaLabelerV2:
         else:
             _positions = np.linspace(0.0, 1.0, _n_filtered)
             _sw = np.exp(-WEIGHT_DECAY_ALPHA * (1.0 - _positions))
+            
+        # [FIX-HMM-AMNESIA 2026-06-14] Floor para prevenir amnesia total en regímenes antiguos
+        _sw = np.clip(_sw, _ml_floor, 1.0)
             
         # [FIX-CAPA2-ASYM] Asimetria Dinamica por Regimen
         # Evita la dilucion de regimenes minoritarios y muy hostiles (ej. Bear Crash).

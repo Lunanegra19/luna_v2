@@ -76,7 +76,7 @@ _WINDOWS_FALLBACK = [
     {"id": "W2", "train_end": "2025-01-31", "val_start": "2025-02-01", "val_end": "2025-03-31", "holdout_start": "2025-04-01", "holdout_end": "2025-06-30"},
     {"id": "W3", "train_end": "2025-04-30", "val_start": "2025-05-01", "val_end": "2025-06-30", "holdout_start": "2025-07-01", "holdout_end": "2025-09-30"},
     {"id": "W4", "train_end": "2025-07-31", "val_start": "2025-08-01", "val_end": "2025-09-30", "holdout_start": "2025-10-01", "holdout_end": "2025-12-31"},
-    {"id": "W5", "train_end": "2025-10-31", "val_start": "2025-11-01", "val_end": "2025-12-31", "holdout_start": "2026-01-01", "holdout_end": "2026-03-31"},
+    {"id": "W5", "train_end": "2025-11-15", "val_start": "2025-11-16", "val_end": "2025-12-31", "holdout_start": "2026-01-01", "holdout_end": "2026-03-31"},
     {"id": "W6", "train_end": "2026-01-31", "val_start": "2026-02-01", "val_end": "2026-03-31", "holdout_start": "2026-04-01", "holdout_end": "2026-06-30"},
 ]
 

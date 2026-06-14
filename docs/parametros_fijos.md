@@ -645,15 +645,15 @@ Este par√°metro afecta directamente el entrenamiento del modelo. No hay fallback
 
 ### SOP-COST-SPOT
 - **cost_pct**:  .0025 (0.25%)
-- **JustificaciÛn**: Representa el peor caso absoluto operando en mercado Spot: Taker (0.10%) + Taker (0.10%) + Slippage conservador (0.05%). Fuerza a los agentes a encontrar estructuras macro tolerantes a alta fricciÛn y elimina el sesgo optimista de la ejecuciÛn Maker en derivados.
+- **Justificacin**: Representa el peor caso absoluto operando en mercado Spot: Taker (0.10%) + Taker (0.10%) + Slippage conservador (0.05%). Fuerza a los agentes a encontrar estructuras macro tolerantes a alta friccin y elimina el sesgo optimista de la ejecucin Maker en derivados.
 
-## ?? 4. Consenso Institucional: MÈtrica de OptimizaciÛn (Optuna)
+## ?? 4. Consenso Institucional: Mtrica de Optimizacin (Optuna)
 
-Para evitar colapsos matem·ticos (ej. underfitting por asfixia) y over-fitting (ej. hojas de un solo trade) durante la b˙squeda de hiperpar·metros con XGBoost o LightGBM, la mÈtrica canÛnica del orquestador es obligatoriamente:
+Para evitar colapsos matemticos (ej. underfitting por asfixia) y over-fitting (ej. hojas de un solo trade) durante la bsqueda de hiperparmetros con XGBoost o LightGBM, la mtrica cannica del orquestador es obligatoriamente:
 
 - **optuna_metric: 'brier'** (Strictly Proper Scoring Rule)
 
-El uso de dsr (Deflated Sharpe Ratio) como mÈtrica de pÈrdida interna para construir el ·rbol OOS est· **estrictamente prohibido**, dado que crea funciones de optimizaciÛn tipo escalÛn que asfixian al modelo y degeneran en DSR=0.0000 si los umbrales de particiÛn fallan al no converger. Brier asegura que el modelo calibre probabilidades puras que luego el *MetaLabeler* y el *RegimeRouter* transformar·n en *Sharpe Ratio*.
+El uso de dsr (Deflated Sharpe Ratio) como mtrica de prdida interna para construir el rbol OOS est **estrictamente prohibido**, dado que crea funciones de optimizacin tipo escaln que asfixian al modelo y degeneran en DSR=0.0000 si los umbrales de particin fallan al no converger. Brier asegura que el modelo calibre probabilidades puras que luego el *MetaLabeler* y el *RegimeRouter* transformarn en *Sharpe Ratio*.
 
 ### [HMM-DYNAMIC-FEATURES 2026-06-07] Desacoplamiento de Variables HMM y Alpha Decay
 - **hmm.candidate_features**: Lista de las variables que pueden usarse como pilares para el modelo HMM. (Sustituye a la lista hardcodeada anterior).
@@ -669,5 +669,30 @@ El uso de dsr (Deflated Sharpe Ratio) como mÈtrica de pÈrdida interna para const
 
 ## [TBM-HORIZON-FIX 2026-06-09] Desacople de Horizonte TBM
 - **xgboost.vertical_barrier_hours**: 96. Horizonte base para generar los targets.
-- **xgboost.dynamic_horizon_min_h**: 48. Minimo permitido para el horizonte din·mico de TBM.
-- **xgboost.dynamic_horizon_max_h**: 168. Maximo permitido para el horizonte din·mico de TBM. Elimina dependencias hacia embargo_hours y prohibe el colapso del Target cuando embargo_hours=0.
+- **xgboost.dynamic_horizon_min_h**: 48. Minimo permitido para el horizonte dinmico de TBM.
+- **xgboost.dynamic_horizon_max_h**: 168. Maximo permitido para el horizonte dinmico de TBM. Elimina dependencias hacia embargo_hours y prohibe el colapso del Target cuando embargo_hours=0.
+| `ensemble_max_is_dsr` | `wfb.ensemble_max_is_dsr` | `0.0` | luna/validation/ensemble_voter.py y ensemble_live_inference.py (Anti-Overfitting Inverse Sharpe Pruning H-A) |
+
+
+## [FIX-PRED-DRIFT-SENTINEL 2026-06-13] Prediction Drift Sentinel (OOD Circuit Breaker)
+- **wfb.pred_drift_min_psi**: 0.08. PSI m√≠nimo de las predicciones calibradas XGBoost (xgb_prob_cal) en Holdout vs Validaci√≥n In-Sample para empezar a atenuar Kelly.
+- **wfb.pred_drift_max_psi**: 0.20. PSI m√°ximo de las predicciones calibradas a partir del cual se ejecuta un Shutdown total (Kelly=0, desactivando la operativa de la ventana).
+- *Justificaci√≥n*: Protege la cuenta ante el desajuste poblacional del holdout cuando el modelo in-sample queda obsoleto o desfasado por transiciones estructurales.
+
+## [FIX-DYN-HMM-ALLOWED 2026-06-13] Selecci√≥n Din√°mica In-Sample de Reg√≠menes HMM
+- **hmm_allowed_regimes**: Se reemplaza la selecci√≥n manual y est√°tica por un an√°lisis din√°mico en tiempo de ejecuci√≥n. Eval√∫a el rendimiento (Profit Factor) de cada r√©gimen en la ventana de validaci√≥n in-sample.
+- **criterios**:
+  - Habilitar si n√∫mero de trades in-sample >= 3 y Profit Factor > 1.05 con retorno neto positivo.
+  - O si es catalogado como BULL/RANGE y el Profit Factor no destruye capital (PF > 0.95).
+  - De lo contrario, se aplica un veto preventivo por defecto.
+
+## [GUARDIAN-ADJUSTMENTS 2026-06-14] Ajuste de Umbrales de Validaci√≥n
+- **xgboost.guardian_min_p_iqr**: 0.01. Relajaci√≥n de 0.02 a 0.01 para prevenir abortos innecesarios (SystemExit 3) por p√©rdida de convicci√≥n en el calibrador de XGBoost.
+- **xgboost.guardian_rank_order_min_samples**: 100. Muestras m√≠nimas requeridas para que se ejecute la validaci√≥n Spearman Rank-Order Quintiles. Si el conjunto de validaci√≥n del r√©gimen tiene menos de 100 muestras, se omite el aborto por falla de ordenamiento.
+- *Justificaci√≥n*: Previene paradas del pipeline (SystemExit 3) en reg√≠menes menores o ventanas con conjuntos de validaci√≥n peque√±os y ruidosos (W2-W5).
+
+
+## [FIX-TBM-DECAY 2026-06-14] ReducciÛn de la Barrera de Tiempo (TBM)
+- **tbm.vertical_barrier_hours**: 24. Reducido de 48 a 24 horas.
+- **tbm.dynamic_horizon_min_h**: 24. Reducido de 48 a 24 horas.
+- *JustificaciÛn*: Simulaciones en OOS (CVD sobre Seed 100 y 42) demostraron un 'Holding Time Hemorrhage'. Los trades r·pidos (<24H) concentran todo el Edge (WR > 57%). Los trades que superan las 24 horas colapsan el Win Rate a niveles del 20%, erosionando gravemente el Sharpe final. Reducir la barrera m·xima a 24H aniquila el riesgo de Zombie Trades sin incurrir en overfitting, ya que aumenta el DSR a niveles de pase para el Gauntlet.

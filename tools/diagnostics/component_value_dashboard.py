@@ -46,6 +46,8 @@ print("[LOAD] Cargando datos de la run de las ultimas ~21h...")
 dfs = []
 for f in sorted(DATA.glob('oos_trades_seed*.parquet')):
     d = pd.read_parquet(f)
+    if d.index.name == 'entry_time' or 'entry_time' not in d.columns:
+        d = d.reset_index(names='entry_time') if d.index.name else d.reset_index()
     d['_seed'] = int(f.stem.split('seed')[1])
     dfs.append(d)
 
@@ -416,6 +418,118 @@ if 'xgb_prob_cal' in df.columns and 'ood_kl_distance' in df.columns:
 else:
     print("  xgb_prob_cal u ood_kl_distance no disponibles en parquets.")
 
+# ─── 10. HOLDING TIME Y SALIDAS (NUEVO) ───────────────────────────────────
+print()
+print(SEP)
+print("COMPONENTE 10: Holding Time y Fricción de Salida (TBM)")
+print("Hipótesis: Analizar si el 'Time-in-Market' o el Time Barrier erosionan el Alpha")
+print(SEP)
+if 'entry_time' in df.columns and 'exit_time' in df.columns:
+    # Convertir a datetime si no lo están
+    df['entry_time'] = pd.to_datetime(df['entry_time'], utc=True)
+    df['exit_time'] = pd.to_datetime(df['exit_time'], utc=True)
+    df['holding_time_hours'] = (df['exit_time'] - df['entry_time']).dt.total_seconds() / 3600.0
+
+    print(spearman_global(df['holding_time_hours'], df['is_win'].astype(float), "Spearman global (Holding Time vs Win)"))
+    print(spearman_per_seed('holding_time_hours', 'is_win', "Spearman honesto (Holding Time vs Win)"))
+    print()
+
+    # Agrupar por cuartiles de Holding Time (Duración)
+    print("  Distribución por duración del trade (Cuartiles):")
+    ht_q25 = df['holding_time_hours'].quantile(0.25)
+    ht_q50 = df['holding_time_hours'].quantile(0.50)
+    ht_q75 = df['holding_time_hours'].quantile(0.75)
+    
+    # Etiquetar para agrupar
+    conditions = [
+        (df['holding_time_hours'] <= ht_q25),
+        (df['holding_time_hours'] > ht_q25) & (df['holding_time_hours'] <= ht_q50),
+        (df['holding_time_hours'] > ht_q50) & (df['holding_time_hours'] <= ht_q75),
+        (df['holding_time_hours'] > ht_q75)
+    ]
+    labels = [f"1. Rápido (<= {ht_q25:.1f}h)", f"2. Medio-Rápido ({ht_q25:.1f}h - {ht_q50:.1f}h)", 
+              f"3. Medio-Lento ({ht_q50:.1f}h - {ht_q75:.1f}h)", f"4. Lento (> {ht_q75:.1f}h)"]
+    df['holding_category'] = np.select(conditions, labels, default="Unknown")
+    
+    wr_range_ht = group_by_window('holding_category', "Holding Time")
+    
+    # Inferencia de Time Barrier
+    # Si un trade dura > 90h, probablemente fue cortado por Time Barrier en vez de Take Profit/Stop Loss
+    tb_trades = df[df['holding_time_hours'] >= 90]
+    ptsl_trades = df[df['holding_time_hours'] < 90]
+    
+    print("\n  [TBM EXIT EDGE] Take-Profit/Stop-Loss vs Time Barrier:")
+    m_ptsl = metricas_fin(ptsl_trades)
+    m_tb = metricas_fin(tb_trades)
+    print(f"  {'Categoría':<30} {'N':>6}  {'WR':>7}  {'RetTot':>8}  {'Sharpe':>7}  {'MaxDD':>7}")
+    print("  " + DASH)
+    print(f"  {'Salida Dinámica (PT/SL)':<30} {m_ptsl['n']:>6}  {m_ptsl['wr']:>7.1f}%  {m_ptsl['ret']:>+8.1f}pp  {m_ptsl['sharpe']:>7.2f}  {m_ptsl['maxdd']:>6.1f}%")
+    print(f"  {'Salida Lenta (Time Barrier)':<30} {m_tb['n']:>6}  {m_tb['wr']:>7.1f}%  {m_tb['ret']:>+8.1f}pp  {m_tb['sharpe']:>7.2f}  {m_tb['maxdd']:>6.1f}%")
+
+    # Invertimos el Delta porque Q4 = Lentos. Si Delta es negativo, los lentos pierden más -> Hipótesis correcta
+    print("\n[FIX-CVD-HT-01] Analizando Holding Time DIRECTO (Q4=Lento, Q1=Rápido):")
+    d_ht = quartile_by_window('holding_time_hours', "Holding Time (Q4=Lento, Q1=Rápido)")
+    results['Holding_Time_Friction'] = d_ht
+else:
+    print("  entry_time o exit_time no disponibles en el parquet.")
+
+# ─── 11. DIRECTIONAL BIAS ─────────────────────────────────────────────────
+print()
+print(SEP)
+print("COMPONENTE 11: Sesgo Direccional (Directional Bias)")
+print("Hipótesis: Analizar si el modelo sufre asimetría y pierde Edge operando en corto (Short)")
+print(SEP)
+if 'direction' in df.columns:
+    wr_range_dir = group_by_window('direction', "Direction (Long vs Short)")
+    
+    _longs = df[df['direction'].str.lower() == 'long']
+    _shorts = df[df['direction'].str.lower() == 'short']
+    
+    m_long = metricas_fin(_longs)
+    m_short = metricas_fin(_shorts)
+    
+    print("\n  [DIRECTIONAL EDGE] Long vs Short:")
+    print(f"  {'Categoría':<30} {'N':>6}  {'WR':>7}  {'RetTot':>8}  {'Sharpe':>7}  {'MaxDD':>7}")
+    print("  " + DASH)
+    print(f"  {'Long':<30} {m_long['n']:>6}  {m_long['wr']:>7.1f}%  {m_long['ret']:>+8.1f}pp  {m_long['sharpe']:>7.2f}  {m_long['maxdd']:>6.1f}%")
+    print(f"  {'Short':<30} {m_short['n']:>6}  {m_short['wr']:>7.1f}%  {m_short['ret']:>+8.1f}pp  {m_short['sharpe']:>7.2f}  {m_short['maxdd']:>6.1f}%")
+
+    if m_long['n'] > 5 and m_short['n'] > 5:
+        results['Directional_Symmetry'] = abs(m_long['wr'] - m_short['wr'])
+    else:
+        results['Directional_Symmetry'] = None
+else:
+    print("  direction no disponible en parquets.")
+
+# ─── 12. STARVATION FALLBACK ──────────────────────────────────────────────
+print()
+print(SEP)
+print("COMPONENTE 12: Degradación por Inanición (Starvation Fallback)")
+print("Hipótesis: Forzar trades bajando los umbrales de seguridad destruye el Alpha")
+print(SEP)
+if 'threshold_was_lowered' in df.columns:
+    wr_range_lowered = group_by_window('threshold_was_lowered', "Threshold Lowered")
+    
+    _pure = df[df['threshold_was_lowered'] == False]
+    _forced = df[df['threshold_was_lowered'] == True]
+    
+    m_pure = metricas_fin(_pure)
+    m_forced = metricas_fin(_forced)
+    
+    print("\n  [STARVATION EDGE] Umbral Original vs Degradado:")
+    print(f"  {'Categoría':<30} {'N':>6}  {'WR':>7}  {'RetTot':>8}  {'Sharpe':>7}  {'MaxDD':>7}")
+    print("  " + DASH)
+    print(f"  {'Puro (Original)':<30} {m_pure['n']:>6}  {m_pure['wr']:>7.1f}%  {m_pure['ret']:>+8.1f}pp  {m_pure['sharpe']:>7.2f}  {m_pure['maxdd']:>6.1f}%")
+    print(f"  {'Forzado (Degradado)':<30} {m_forced['n']:>6}  {m_forced['wr']:>7.1f}%  {m_forced['ret']:>+8.1f}pp  {m_forced['sharpe']:>7.2f}  {m_forced['maxdd']:>6.1f}%")
+
+    if m_pure['n'] > 5 and m_forced['n'] > 5:
+        delta_lowered = m_pure['wr'] - m_forced['wr']
+        results['Starvation_Degradation'] = delta_lowered
+    else:
+        results['Starvation_Degradation'] = None
+else:
+    print("  threshold_was_lowered no disponible en parquets.")
+
 
 print()
 print(SEP)
@@ -449,6 +563,27 @@ def fmt_result(name, val):
             print(f"  {name:<30} {val:>+13.1f}pp  ⚠️  HIPOTESIS INVERTIDA — covariate shift (anomalos ganan)")
         else:
             print(f"  {name:<30} {val:>+13.1f}pp  ~ SIN DISCRIMINACION CLARA")
+    elif name == 'Directional_Symmetry':
+        if val > 15:
+            print(f"  {name:<30} {val:>+13.1f}pp  ❌ ASIMETRÍA CRÍTICA (Desbalance Long/Short)")
+        elif val > 5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ⚠️  SESGO MODERADO")
+        else:
+            print(f"  {name:<30} {val:>+13.1f}pp  ✅ MODELO SIMÉTRICO")
+    elif name == 'Starvation_Degradation':
+        if val > 5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ❌ DESTRUYE EDGE (Trades forzados pierden)")
+        elif val < -5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ✅ APORTA EDGE (Fallback es útil)")
+        else:
+            print(f"  {name:<30} {val:>+13.1f}pp  ⚠️  NEUTRAL")
+    elif name == 'Holding_Time_Friction':
+        if val < -5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ❌ PERJUDICA (Time-in-Market destruye Edge)")
+        elif val > 5:
+            print(f"  {name:<30} {val:>+13.1f}pp  ✅ APORTA EDGE (Beneficia mantener)")
+        else:
+            print(f"  {name:<30} {val:>+13.1f}pp  ⚠️  NEUTRAL")
     elif val > 5:
         print(f"  {name:<30} {val:>+13.1f}pp  ✅ APORTA EDGE")
     elif val < -5:

@@ -27,16 +27,13 @@ _roadmap:
   xgboost:
     stacking_fallback_dsr_threshold: 0.4
 execution:
-  # [P3-FUTURES-2026-06-12] Migracion de Spot a Futuros Perpetuos OKX (USDT-margined)
-  # Para volver a Spot: symbol = BTC/USDT, instrument_type = spot
-  # Para Futuros Perps: symbol = BTC/USDT:USDT, instrument_type = swap
-  symbol: BTC/USDT:USDT            # Instrumento activo de trading (Futuros Perpetuos USDT-margined)
-  instrument_type: swap             # [spot|swap] — determina la ruta de fees y de posicion
-  use_hybrid_execution: true        # [P2] Activar Limit Maker con Order Chasing + Fallback Market
-  hybrid_order_timeout_s: 30        # Timeout en segundos antes de caer a Market
-  funding_drag_enabled: true        # [SOP-R14] Descontar Funding Rate del P&L en posicion abierta
-  funding_rate_8h: 0.0001           # Tasa base de funding cada 8H (0.01%) — 0.03% por trade 24H hold
-
+  symbol: BTC/USDT:USDT
+  instrument_type: swap
+  use_hybrid_execution: true
+  hybrid_order_timeout_s: 30
+  funding_drag_enabled: true
+  funding_rate_8h: 0.0001
+  execution_holding_cap_h: 24
 ai_mining:
   advanced:
     granger_maxlag: 13
@@ -469,20 +466,19 @@ position_sizer:
   roll_sr_gate_enabled: false
   roll_sr_window: 10
   roll_sr_threshold: 0.0
+  max_concurrent_trades: 1
+  dynamic_concurrency_enabled: false
 project:
   description: Unified AI trading system merging Correlaciones + Luna v2
   name: Luna V1
   version: 1.0.0
 sop:
   annual_factor: 93.6
-  cost_pct: 0.0025             # TRAINING: Spot Taker conservador — NO tocar sin re-train
-
-  # [P3-FEES-2026-06-12] Fees de produccion (solo MFT y simulaciones OOS)
-  cost_spot_taker_rt: 0.0020   # OKX Spot Taker (0.10% * 2)
-  cost_perp_taker_rt: 0.0010   # OKX Futuros Taker (0.05% * 2)
-  cost_perp_maker_rt: 0.0004   # OKX Futuros Maker (0.02% * 2) — ACTIVO EN PRODUCCION
-  funding_rate_24h: 0.0003     # Funding 24H hold (3 pagos de 8H a 0.01%)
-
+  cost_pct: 0.0025
+  cost_spot_taker_rt: 0.002
+  cost_perp_taker_rt: 0.001
+  cost_perp_maker_rt: 0.0004
+  funding_rate_24h: 0.0003
   cpcv_groups: 10
   embargo_hours: 0
   purge_hours: 96
@@ -497,6 +493,7 @@ stat:
   min_trades: 30
   n_trials_total: 100
   pbo_n_blocks: 7
+  dsr_transversal_std: 1.0
   total_return_cap: 1000000.0
   wfv_max_std_dsr: 0.3
   wfv_min_window_dsr: 0.0
@@ -519,16 +516,16 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-12-31
+  hmm_train_end: 2025-06-30
   hmm_train_start: '2020-01-01'
-  holdout_end: 2026-03-31
-  holdout_start: 2026-01-01
-  train_end: 2025-10-31
+  holdout_end: 2025-09-30
+  holdout_start: 2025-07-01
+  train_end: 2025-04-30
   train_start: '2017-08-17'
-  validation_end: 2025-12-31
-  validation_start: 2025-11-01
+  validation_end: 2025-06-30
+  validation_start: 2025-05-01
 wfb:
-  ensemble_voting_method: soft  # [hard|soft]
+  ensemble_voting_method: soft
   soft_voting_threshold: 0.55
   ensemble_consensus_threshold: 4
   consensus_bucket_hours: 2
@@ -619,6 +616,7 @@ xgboost:
   focal_loss_gamma: 2.0
   hmm_velocity_ewm_span: 24
   holdout_calib_months: 0
+  guardian_rank_order_min_samples: 100
   linear_decay_pt: false
   n_estimators_min_floor: 5
   min_viable_train_samples: 200
@@ -658,7 +656,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 79567
+  optuna_seed: 42
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
