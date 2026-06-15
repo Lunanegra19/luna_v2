@@ -44,3 +44,5 @@ Para restaurar el *Edge* de la estrategia, se debe intervenir estructuralmente e
 
 1. **Purga de Lista Negra (Blacklist):** Insertar `GBTC_*`, `SSR`, `XRP_Price`, `Gold`, `pi_cycle_*` y todas las métricas de precio absoluto (`open`, `high`, `low`, `close`) en la lista de exclusión obligatoria (`sfi_blacklist_features`) dentro de `settings.yaml`.
 2. **Desactivación de MetaLabeler y OOD Guard:** Su entrenamiento está sesgado por el pasado pre-ETF. Deben ser apagados (`skip_metalabeler: true`) hasta que XGBoost recupere la causalidad usando exclusivamente el pool de variables estacionarias (`Stable Features`).
+
+diagnose_covariant_sifht.py
