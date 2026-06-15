@@ -2036,6 +2036,21 @@ class OOSTradesGenerator:
                 raw_probs_df["prob_bear"] = 0.0
                 raw_probs_df["prob_range"] = 0.0
                 
+            # [BUG-5 FIX] OOD Score Passthrough
+            if "ood_kl_distance" in df_oos_base.columns:
+                raw_probs_df["ood_score"] = df_oos_base["ood_kl_distance"]
+            if "is_ood_outlier" in df_oos_base.columns:
+                raw_probs_df["is_ood_outlier"] = df_oos_base["is_ood_outlier"]
+            elif "ood_kl_distance" in df_oos_base.columns:
+                # Fallback if binary column doesn't exist
+                _ood_thresh = 0.95 
+                try:
+                    from config.settings import cfg as _cfg_ood
+                    _ood_thresh = float(getattr(_cfg_ood.xgboost, 'ood_kl_threshold', 0.95))
+                except Exception:
+                    pass
+                raw_probs_df["is_ood_outlier"] = df_oos_base["ood_kl_distance"] > _ood_thresh
+                
             # [FIX-predict_oos.py] Guardar con index=True para conservar el DatetimeIndex timestamp y eliminar to_parquet con index=False
             print("[FIX-RAW-PROBS] Guardando oos_raw_probs.parquet con index=True (DatetimeIndex)...")
             raw_probs_out_dir = self.root / "data" / "predictions"

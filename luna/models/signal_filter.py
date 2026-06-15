@@ -395,6 +395,19 @@ class SignalFilter:
             for r_key, r_thresh in _thresh_by_regime.items():
                 r_mask_idx = (_regime_col == r_key)
                 _n_regime = int(r_mask_idx.sum())
+                
+                # [BUG-4 FIX] OOS-Aware Thresholding (P90 Fallback)
+                if _n_regime > 0 and prob_col in df_oos.columns:
+                    _max_oos_prob = float(df_oos.loc[r_mask_idx, prob_col].max())
+                    if _max_oos_prob < r_thresh and _max_oos_prob > 0.0:
+                        import numpy as np
+                        _p90 = float(np.percentile(df_oos.loc[r_mask_idx, prob_col].dropna(), 90))
+                        logger.warning(
+                            "  [BUG-4 FIX] Régimen {}: max(prob_OOS)={:.4f} < IS_thresh={:.4f}. Fallback a P90={:.4f}",
+                            r_key, _max_oos_prob, r_thresh, _p90
+                        )
+                        r_thresh = _p90
+
                 model_mask.loc[r_mask_idx] = df_oos.loc[r_mask_idx, prob_col] > r_thresh
                 if _n_regime > 0:
                     _weighted_thr_sum += r_thresh * _n_regime
@@ -419,6 +432,17 @@ class SignalFilter:
         else:
             logger.info("  Umbral señal {} global estático: {:.2f} [fuente: {}]", model_name, _DEFAULT_XGB_LIMIT, threshold_source)
             if prob_col in df_oos.columns:
+                # [BUG-4 FIX] Global OOS-Aware Thresholding
+                _max_oos_prob = float(df_oos[prob_col].max())
+                if _max_oos_prob < _DEFAULT_XGB_LIMIT and _max_oos_prob > 0.0:
+                    import numpy as np
+                    _p90 = float(np.percentile(df_oos[prob_col].dropna(), 90))
+                    logger.warning(
+                        "  [BUG-4 FIX] Global: max(prob_OOS)={:.4f} < IS_thresh={:.4f}. Fallback a P90={:.4f}",
+                        _max_oos_prob, _DEFAULT_XGB_LIMIT, _p90
+                    )
+                    _DEFAULT_XGB_LIMIT = _p90
+                    
                 model_mask = df_oos[prob_col] > _DEFAULT_XGB_LIMIT
             else:
                 model_mask = pd.Series(False, index=df_oos.index)
@@ -1297,7 +1321,7 @@ class SignalFilter:
                                     # [BUG-9 FIX] HMM-Predictive Gate (Desbloqueo predictivo)
                                     # Si el IS fue BEAR (provocando exclusión de BULL por bajo PF), pero
                                     # el HMM Forward Algorithm detecta que vamos hacia BULL, forzamos inclusión.
-                                    if _is_bull_semantic and not _decision and _n_signals >= 3:
+                                    if _is_bull_semantic and not _decision:
                                         _predictive_margin = 0.05
                                         if _bull_mean_is > (_bear_mean_is + _predictive_margin):
                                             _decision = True

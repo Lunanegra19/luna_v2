@@ -280,10 +280,15 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
         except Exception as _e_anchor:
             logger.warning(f"[AE-ANCHOR] W1: Error al guardar ae_valid_features.json: {_e_anchor}")
     elif _window_id_anchor.startswith("W"):
-        # W2+ forces the geometry of W1
-        if _anchor_file.exists():
+        # W2+ forces the geometry of W1. Since W1's output was cached, read from wfb_cache/W1.
+        _cached_w1_anchor = _root_dir_anchor / "data" / "wfb_cache" / "W1" / "models" / "ae_valid_features.json"
+        
+        # Retrocompatibilidad por si aún está en data/models o estamos en debug
+        _target_anchor = _cached_w1_anchor if _cached_w1_anchor.exists() else _anchor_file
+        
+        if _target_anchor.exists():
             try:
-                with open(_anchor_file, "r", encoding="utf-8") as _af:
+                with open(_target_anchor, "r", encoding="utf-8") as _af:
                     _anchored_features = json.load(_af)
                 # Ensure all anchored features exist in the current df
                 _missing_anchor = [c for c in _anchored_features if c not in df.columns]
