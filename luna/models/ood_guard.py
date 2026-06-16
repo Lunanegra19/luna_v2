@@ -82,9 +82,9 @@ class OODGuardTrainer:
         # Ahora: ood_guard.contamination en settings.yaml = 0.10 (configurable).
         try:
             from config.settings import cfg as _cfg_ood
-            _contamination  = float(getattr(_cfg_ood.ood_guard, 'contamination',  0.10))
-            _n_estimators   = int(getattr(_cfg_ood.ood_guard,   'n_estimators',   200))
-            _random_state   = int(getattr(_cfg_ood.ood_guard,   'random_state',   42))
+            _contamination  = float(int(_cfg_ood.ood_guard.contamination))
+            _n_estimators   = int(int(_cfg_ood.ood_guard.n_estimators))
+            _random_state   = int(int(_cfg_ood.ood_guard.random_state))
         except Exception:
             _contamination, _n_estimators, _random_state = 0.10, 200, 42
             logger.warning("OOD Guard: settings.yaml no disponible — usando fallback contamination=0.10")

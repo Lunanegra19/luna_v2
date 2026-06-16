@@ -168,7 +168,7 @@ try:
 
 
 
-    OPTUNA_TRIALS = int(getattr(_cfg_xgb.xgboost, 'optuna_trials', 600))
+    OPTUNA_TRIALS = int(int(_cfg_xgb.xgboost.optuna_trials))
 
 
 
@@ -180,8 +180,8 @@ try:
 
 
 
-    _cpcv_n = getattr(_cfg_xgb.sop, 'cpcv_groups', None) \
-               or getattr(_cfg_xgb.xgboost, 'n_purged_splits', 8)
+    _cpcv_n = int(_cfg_xgb.sop.cpcv_groups) \
+               or int(_cfg_xgb.xgboost.n_purged_splits)
 
 
 
@@ -189,8 +189,8 @@ try:
 
 
 
-    PURGE_H       = int(getattr(_cfg_xgb.sop,   'purge_hours',  96))
-    EMBARGO_H     = int(getattr(_cfg_xgb.sop,   'embargo_hours',  96))
+    PURGE_H       = int(int(_cfg_xgb.sop.purge_hours))
+    EMBARGO_H     = int(int(_cfg_xgb.sop.embargo_hours))
 
 
 
@@ -344,7 +344,7 @@ class MiningRuleValidator:
         self.cost_pct = cost_pct
         try:
             from config.settings import cfg as _cfg_tp_lgbm
-            self.N_TRIALS_PENALTY = float(getattr(getattr(_cfg_tp_lgbm, 'ai_mining', object()), 'n_trials_penalty', self._N_TRIALS_PENALTY_DEFAULT))
+            self.N_TRIALS_PENALTY = float(_cfg_tp_lgbm.ai_mining.n_trials_penalty)
         except Exception:
             self.N_TRIALS_PENALTY = self._N_TRIALS_PENALTY_DEFAULT
             print(f"[FIX-D] LGBM WARN: No se pudo leer ai_mining.n_trials_penalty. Usando fallback={self.N_TRIALS_PENALTY} (Bailey 2014)")
@@ -597,7 +597,7 @@ class LGBMTrainer:
         
         try:
             from config.settings import cfg as _cfg_dir
-            _dmode = getattr(_cfg_dir.fase2, 'direction_mode', 'both')
+            _dmode = str(_cfg_dir.fase2.direction_mode)
         except Exception:
             _dmode = "both"
             
@@ -660,9 +660,9 @@ class LGBMTrainer:
         # ── [CAPA-1] Rolling Window de 3 años (Filtro de Memoria) ──────────────
         try:
             from config.settings import cfg as _cfg_rw
-            _t_mode = getattr(_cfg_rw.wfb, 'training_mode', 'expanding')
+            _t_mode = str(_cfg_rw.wfb.training_mode)
             if _t_mode == 'rolling':
-                _rw_years = int(getattr(_cfg_rw.wfb, 'rolling_window_years', 3))
+                _rw_years = int(int(_cfg_rw.wfb.rolling_window_years))
                 _train_end_str = _cfg_rw.temporal_splits.train_end
                 _train_end_dt = pd.to_datetime(_train_end_str, utc=True)
                 _rolling_start = _train_end_dt - pd.DateOffset(years=_rw_years)
@@ -770,7 +770,7 @@ class LGBMTrainer:
 
 
 
-                    _vbh_mvr = int(getattr(_cfg_mvr.xgboost, 'vertical_barrier_hours', 96))
+                    _vbh_mvr = int(int(_cfg_mvr.xgboost.vertical_barrier_hours))
 
 
 
@@ -962,7 +962,7 @@ class LGBMTrainer:
 
 
 
-            _bypass_sfi = bool(getattr(getattr(_cfg_timing, 'features', None), 'timing_features_bypass_sfi', True))
+            _bypass_sfi = bool(int(int(_cfg_timing.features).timing_features_bypass_sfi))
 
 
 
@@ -1349,15 +1349,15 @@ class LGBMTrainer:
 
 
 
-            _pt      = getattr(_cfg.lightgbm, 'pt_mult_min', 2.0)
+            _pt      = float(_cfg.lightgbm.pt_mult_min)
 
 
 
-            _sl      = getattr(_cfg.lightgbm, 'sl_mult_min', 1.0)
+            _sl      = float(_cfg.lightgbm.sl_mult_min)
 
 
 
-            _min_ret = float(getattr(_cfg.lightgbm, 'tbm_min_return', 0.005))
+            _min_ret = float(float(_cfg.lightgbm.tbm_min_return))
 
 
 
@@ -1397,15 +1397,15 @@ class LGBMTrainer:
 
 
 
-            _dynamic_barrier = bool(getattr(_cfg, 'xgboost', None) and
+            _dynamic_barrier = bool(int(_cfg.xgboost) and
 
 
 
-                                    getattr(_cfg.lightgbm, 'dynamic_barrier', False))
+                                    bool(_cfg.lightgbm.dynamic_barrier))
 
 
 
-            _event_sampling_h = int(getattr(_cfg.lightgbm, 'event_sampling_hours', 1))
+            _event_sampling_h = int(int(_cfg.lightgbm.event_sampling_hours))
 
 
 
@@ -1441,12 +1441,12 @@ class LGBMTrainer:
 
 
 
-        _vbh = int(getattr(_cfg.lightgbm, 'vertical_barrier_hours', 96)) if hasattr(_cfg, 'xgboost') else 96
-        _dyn_min = int(getattr(_cfg.lightgbm, 'dynamic_horizon_min_h', 48)) if hasattr(_cfg, 'xgboost') else 48
+        _vbh = int(int(_cfg.lightgbm.vertical_barrier_hours)) if hasattr(_cfg, 'xgboost') else 96
+        _dyn_min = int(bool(_cfg.lightgbm.dynamic_horizon_min_h)) if hasattr(_cfg, 'xgboost') else 48
         # Vincular el techo maximo de la barrera dinamica al EMBARGO_H del SOP
         _dyn_max = EMBARGO_H
-        _lin_decay = bool(getattr(_cfg.lightgbm, 'linear_decay_pt', False)) if hasattr(_cfg, 'xgboost') else False
-        _pt_decay_frac = float(getattr(_cfg.lightgbm, 'pt_decay_fraction', 0.75)) if hasattr(_cfg, 'xgboost') else 0.75
+        _lin_decay = bool(bool(_cfg.lightgbm.linear_decay_pt)) if hasattr(_cfg, 'xgboost') else False
+        _pt_decay_frac = float(int(_cfg.lightgbm.pt_decay_fraction)) if hasattr(_cfg, 'xgboost') else 0.75
 
         _side_val = -1.0 if self.native_direction == "short" else 1.0
         _sides_series = pd.Series(_side_val, index=events_idx)
@@ -1642,7 +1642,7 @@ class LGBMTrainer:
         # ── [FIX-PBO-01] Submuestreo de trayectorias superpuestas (Anti-Overlap) ──
         try:
             from config.settings import cfg as _cfg_tbm
-            _sampling_h = int(getattr(_cfg_tbm.xgboost, 'event_sampling_hours', 12))
+            _sampling_h = int(int(_cfg_tbm.xgboost.event_sampling_hours))
         except Exception:
             _sampling_h = 12
 
@@ -2288,7 +2288,7 @@ class LGBMTrainer:
 
 
 
-            _alpha = float(getattr(_cfg_sw.xgboost, 'weight_decay_alpha', 0.5))
+            _alpha = float(float(_cfg_sw.xgboost.weight_decay_alpha))
 
 
 
@@ -2388,7 +2388,7 @@ class LGBMTrainer:
 
 
 
-            gamma = float(getattr(_cfg_fl.xgboost, 'focal_loss_gamma', 2.0))
+            gamma = float(int(_cfg_fl.xgboost.focal_loss_gamma))
 
 
 
@@ -2631,11 +2631,11 @@ class LGBMTrainer:
 
 
 
-            use_focal_loss = bool(getattr(getattr(_cfg_opts, 'lightgbm', None), 'use_focal_loss', False))
+            use_focal_loss = bool(int(float(_cfg_opts.lightgbm).use_focal_loss))
 
 
 
-            use_monetary_loss = bool(getattr(_cfg_opts.fase2, 'use_monetary_loss', False))
+            use_monetary_loss = bool(bool(_cfg_opts.fase2.use_monetary_loss))
 
 
 
@@ -2819,7 +2819,7 @@ class LGBMTrainer:
 
 
 
-                    _samp_h = int(getattr(_cfg_tmp.xgboost, 'event_sampling_hours', 24))
+                    _samp_h = int(int(_cfg_tmp.xgboost.event_sampling_hours))
 
 
 
@@ -2894,7 +2894,7 @@ class LGBMTrainer:
             from config.settings import cfg as _cfg_metric
             # [FIX-B1] cfg.lightgbm es el namespace correcto en settings.yaml (sección 'lightgbm:').
             # cfg.lgbm no existe → getattr caía siempre al default 'dsr' → LGBM corría ciego.
-            _optuna_metric = str(getattr(_cfg_metric.lightgbm, 'optuna_metric', 'dsr')).lower()
+            _optuna_metric = str(str(_cfg_metric.lightgbm.optuna_metric)).lower()
         except Exception:
             _optuna_metric = 'dsr'
 
@@ -2904,7 +2904,7 @@ class LGBMTrainer:
             from sklearn.metrics import brier_score_loss, log_loss
             try:
                 # [FIX-B1-EMBARGO] Mismo namespace fix: cfg.lightgbm (no cfg.lgbm)
-                _purge_gap = int(getattr(_cfg_metric.lightgbm, 'purge_hours', 96))
+                _purge_gap = int(int(_cfg_metric.lightgbm.purge_hours))
             except Exception:
                 _purge_gap = 96
 
@@ -3197,7 +3197,7 @@ class LGBMTrainer:
 
 
 
-            _optuna_seed = int(getattr(_cfg_xgb.xgboost, 'optuna_seed', 42))
+            _optuna_seed = int(int(_cfg_xgb.xgboost.optuna_seed))
 
 
 
@@ -3217,7 +3217,7 @@ class LGBMTrainer:
         try:
             from config.settings import cfg as _cfg_tune_dir
             # [FIX-B1] Mismo fix: leer desde cfg.lightgbm, no cfg.lgbm (namespace inexistente).
-            _optuna_metric_dir = str(getattr(_cfg_tune_dir.lightgbm, 'optuna_metric', 'dsr')).lower()
+            _optuna_metric_dir = str(str(_cfg_tune_dir.lightgbm.optuna_metric)).lower()
         except Exception:
             _optuna_metric_dir = 'dsr'
         _study_direction = 'minimize' if _optuna_metric_dir in ('brier', 'logloss') else 'maximize'
@@ -3380,13 +3380,8 @@ class LGBMTrainer:
         import pandas as pd
 
         try:
-
             from config.settings import cfg as _cfg_cal_src
-
-            _calib_months = int(getattr(getattr(_cfg_cal_src, 'lightgbm', object()),
-
-                                        'holdout_calib_months', 3))
-
+            _calib_months = int(_cfg_cal_src.lightgbm.holdout_calib_months)
         except Exception:
 
             _calib_months = 3
@@ -3501,19 +3496,19 @@ class LGBMTrainer:
 
 
 
-            t_min      = float(getattr(cal_cfg, 'threshold_sweep_min',  0.40))
+            t_min      = float(float(cal_cfg.threshold_sweep_min))
 
 
 
-            t_max      = float(getattr(cal_cfg, 'threshold_sweep_max',  0.75))
+            t_max      = float(float(cal_cfg.threshold_sweep_max))
 
 
 
-            t_step     = float(getattr(cal_cfg, 'threshold_sweep_step', 0.01))
+            t_step     = float(float(cal_cfg.threshold_sweep_step))
 
 
 
-            min_trades = int(getattr(cal_cfg, 'threshold_min_trades',   30))
+            min_trades = int(int(cal_cfg.threshold_min_trades))
 
 
 
@@ -3533,7 +3528,7 @@ class LGBMTrainer:
 
 
 
-            min_density_pct = float(getattr(cal_cfg, 'threshold_min_density_pct', 0.30))
+            min_density_pct = float(float(cal_cfg.threshold_min_density_pct))
 
 
 
@@ -3565,7 +3560,7 @@ class LGBMTrainer:
 
 
 
-            _calib_months = int(getattr(cal_cfg, 'holdout_calib_months', 3))
+            _calib_months = int(int(cal_cfg.holdout_calib_months))
 
 
 
@@ -3897,7 +3892,7 @@ class LGBMTrainer:
 
 
 
-            _n_target = int(getattr(getattr(_cfg_xgb, 'sop', object()), 'min_trades', 100))
+            _n_target = int(_cfg_xgb.sop.min_trades)
 
 
 
@@ -4125,18 +4120,18 @@ class LGBMTrainer:
 
 
 
-            _pt_c  = float(getattr(cal_cfg, 'pt_mult_min',  1.5))  # valor real del training
+            _pt_c  = float(float(cal_cfg.pt_mult_min))  # valor real del training
 
 
 
-            _sl_c  = float(getattr(cal_cfg, 'sl_mult_min',  1.0))
+            _sl_c  = float(float(cal_cfg.sl_mult_min))
 
 
 
-            _vbh_c = int(getattr(cal_cfg, 'vertical_barrier_hours', 96))
-            _min_ret_c = float(getattr(cal_cfg, 'tbm_min_return', 0.005))
-            _lin_decay_c = bool(getattr(cal_cfg, 'linear_decay_pt', False))
-            _pt_decay_frac_c = float(getattr(cal_cfg, 'pt_decay_fraction', 0.75))
+            _vbh_c = int(int(cal_cfg.vertical_barrier_hours))
+            _min_ret_c = float(float(cal_cfg.tbm_min_return))
+            _lin_decay_c = bool(bool(cal_cfg.linear_decay_pt))
+            _pt_decay_frac_c = float(int(cal_cfg.pt_decay_fraction))
 
             _tbm_val = _atb(
                 price_series=df_val["close"],
@@ -4218,11 +4213,11 @@ class LGBMTrainer:
 
 
 
-            _max_density_pct = float(getattr(getattr(_cfg_xgb, 'xgboost', object()), 'max_signal_density_pct', 0.60))
+            _max_density_pct = float(_cfg_xgb.xgboost.max_signal_density_pct)
 
 
 
-            fallback_t = float(getattr(getattr(_cfg_xgb, 'xgboost', object()), 'xgb_signal_threshold', 0.40))
+            fallback_t = float(_cfg_xgb.xgboost.xgb_signal_threshold)
 
 
 
@@ -4696,9 +4691,9 @@ class LGBMTrainer:
             from config.settings import cfg as _cfg_opts
 
             # [FIX-LGBM-FOCAL-NS-01] Leer de sección 'lightgbm', NO de 'xgboost'
-            use_focal_loss = bool(getattr(getattr(_cfg_opts, 'lightgbm', None), 'use_focal_loss', False))
+            use_focal_loss = bool(int(float(_cfg_opts.lightgbm).use_focal_loss))
 
-            use_monetary_loss = bool(getattr(_cfg_opts.fase2, 'use_monetary_loss', False))
+            use_monetary_loss = bool(bool(_cfg_opts.fase2.use_monetary_loss))
 
 
 
@@ -4746,7 +4741,7 @@ class LGBMTrainer:
 
 
 
-                        getattr(_cfg_opts.xgboost, 'focal_loss_gamma', 2.0))
+                        int(_cfg_opts.xgboost.focal_loss_gamma))
 
 
 
@@ -4856,7 +4851,7 @@ class LGBMTrainer:
 
 
 
-            _alpha_log = float(getattr(_cfg_log.xgboost, 'weight_decay_alpha', 0.5))
+            _alpha_log = float(float(_cfg_log.xgboost.weight_decay_alpha))
 
 
 
@@ -5307,7 +5302,7 @@ if __name__ == "__main__":
 
 
 
-        use_regime = getattr(_cfg_main.fase2, 'use_regime_agents', False)
+        use_regime = bool(_cfg_main.fase2.use_regime_agents)
 
 
 

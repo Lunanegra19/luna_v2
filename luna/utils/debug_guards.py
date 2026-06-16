@@ -50,7 +50,7 @@ def _load_verbose() -> bool:
         return False
     try:
         from config.settings import cfg
-        return bool(getattr(getattr(cfg, "debug", None), "verbose", False))
+        return bool(int(getattr(cfg.debug), "verbose", False))
     except Exception:
         return False
 
@@ -61,7 +61,7 @@ def _cfg_val(key: str, default: Any) -> Any:
     """Lee un valor de cfg.debug.key con fallback seguro."""
     try:
         from config.settings import cfg
-        return getattr(getattr(cfg, "debug", None), key, default)
+        return int(getattr(cfg.debug), key, default)
     except Exception:
         return default
 

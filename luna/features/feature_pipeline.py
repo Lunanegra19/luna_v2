@@ -418,7 +418,7 @@ class FeaturePipeline:
                     _src_max_date = src.index.max()
                     try:
                         from config.settings import cfg as _cfg_l3
-                        _train_end_l3 = pd.Timestamp(getattr(_cfg_l3.temporal_splits, 'train_end', '2099-01-01'), tz='UTC')
+                        _train_end_l3 = pd.Timestamp(int(_cfg_l3.temporal_splits.train_end), tz='UTC')
                     except Exception:
                         _train_end_l3 = pd.Timestamp('2099-01-01', tz='UTC')
                     if _src_max_date > _train_end_l3:
@@ -668,8 +668,8 @@ class FeaturePipeline:
         try:
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
             from config.settings import cfg as _cfg_kz
-            _kz_q = float(getattr(getattr(_cfg_kz, 'features', {}), 'kalman_q', 1e-4))
-            _kz_r = float(getattr(getattr(_cfg_kz, 'features', {}), 'kalman_r', 0.1))
+            _kz_q = float(int(getattr(_cfg_kz.features), 'kalman_q', 1e-4))
+            _kz_r = float(int(getattr(_cfg_kz.features), 'kalman_r', 0.1))
         except Exception:
             _kz_q, _kz_r = 1e-4, 0.1
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
@@ -1428,7 +1428,7 @@ class FeaturePipeline:
                 # Leer span de suavizado desde settings (default 24h)
                 try:
                     from config.settings import cfg as _cfg_hmm_v
-                    _vel_span = int(getattr(_cfg_hmm_v.xgboost, 'hmm_velocity_ewm_span', 24))
+                    _vel_span = int(int(_cfg_hmm_v.xgboost.hmm_velocity_ewm_span))
                 except Exception:
                     _vel_span = 24
 
@@ -1754,7 +1754,7 @@ class FeaturePipeline:
             # FIX: zerear alpha_dtw_signal para que (a) no active el trigger y (b) XGBoost reciba 0
             try:
                 from config.settings import cfg as _cfg_dtw
-                _use_dtw = bool(getattr(getattr(_cfg_dtw, 'fase2', _cfg_dtw), 'use_dtw_signal', True))
+                _use_dtw = bool(int(getattr(_cfg_dtw.fase2), 'use_dtw_signal', True))
                 if not _use_dtw and 'alpha_dtw_signal' in df.columns:
                     _n_nonzero = (df['alpha_dtw_signal'] != 0).sum()
                     df['alpha_dtw_signal'] = 0.0
@@ -2133,7 +2133,7 @@ class FeaturePipeline:
         # Paso 7C: Order Flow Imbalance (OFI) - Fase 2D
         try:
             from config.settings import cfg as _cfg
-            if getattr(_cfg, "fase2", None) and getattr(_cfg.fase2, "use_ofi_features", False):
+            if int(_cfg.fase2) and bool(_cfg.fase2.use_ofi_features):
                 from luna.features.ofi_features import add_ofi_features
                 _n_before = df.shape[1]
                 df = add_ofi_features(df)
@@ -2150,8 +2150,8 @@ class FeaturePipeline:
         try:
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
             from config.settings import cfg as _cfg_kz
-            _kz_q = float(getattr(getattr(_cfg_kz, 'features', {}), 'kalman_q', 1e-4))
-            _kz_r = float(getattr(getattr(_cfg_kz, 'features', {}), 'kalman_r', 0.1))
+            _kz_q = float(int(getattr(_cfg_kz.features), 'kalman_q', 1e-4))
+            _kz_r = float(int(getattr(_cfg_kz.features), 'kalman_r', 0.1))
             _n_before = df.shape[1]
             _kalman = KalmanZScoreNormalizer(process_noise=_kz_q, obs_noise=_kz_r)
             df = _kalman.transform_df(df, columns=KALMAN_COLUMNS, suffix="_kz")
@@ -2231,18 +2231,18 @@ class FeaturePipeline:
             from luna.features.autoencoder_features import apply_autoencoder
             from config.settings import cfg as _cfg
             
-            _use_ae = getattr(_cfg.fase2, "use_autoencoder", True) if hasattr(_cfg, "fase2") else True
+            _use_ae = bool(_cfg.fase2.use_autoencoder) if hasattr(_cfg, "fase2") else True
             if _use_ae:
                 _t_ae = _time.monotonic()
-                _train_end = getattr(_cfg.temporal_splits, "train_end", "2023-12-31") # fallback warning
+                _train_end = int(_cfg.temporal_splits.train_end) # fallback warning
                 # [FIX-AE-BOTTLENECK-01 2026-05-30] Bottleneck era 32 (8.6x compresion para 275 features
                 # -> MSE=0.1376 alto). Leemos de settings con default=64 (4.3x, ratio optimo ~n/4).
                 _ae_bottleneck = 64
                 _ae_epochs = 60
                 try:
                     from config.settings import cfg as _cfg_ae_bn
-                    _ae_bottleneck = int(getattr(getattr(_cfg_ae_bn, "autoencoder", None) or type("_", (), {"bottleneck_size": 64})(), "bottleneck_size", 64))
-                    _ae_epochs = int(getattr(getattr(_cfg_ae_bn, "autoencoder", None) or type("_", (), {"max_epochs": 60})(), "max_epochs", 60))
+                    _ae_bottleneck = int(int(getattr(_cfg_ae_bn.autoencoder) or type("_", (), {"bottleneck_size": 64})(), "bottleneck_size", 64))
+                    _ae_epochs = int(int(getattr(_cfg_ae_bn.autoencoder) or type("_", (), {"max_epochs": 60})(), "max_epochs", 60))
                 except Exception:
                     pass
                 print(f"[FIX-AE-BOTTLENECK-01] AE bottleneck={_ae_bottleneck} (era 32), epochs={_ae_epochs} (era 30)")

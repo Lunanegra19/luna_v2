@@ -552,7 +552,7 @@ class LunaEnsembleLiveInference:
                     # Preparar secuencias temporales para el extractor rolling
                     seq_len_cfg = 48  # seq_len estandar de settings.yaml
                     if len(df_seed) >= seq_len_cfg:
-                        seq_features = getattr(active_meta, "_seq_features", None)
+                        seq_features = int(active_meta._seq_features)
                         if not seq_features:
                             # [BUGFIX-MEMBER-SHIELD] Filtrar estrictamente columnas numéricas para evitar castear HMM_Semantic (RULE[fixbugsprints.md])
                             seq_features = [c for c in df_seed.columns if c not in ["HMM_Semantic", "HMM_Regime", "timestamp"] and df_seed[c].dtype.kind in ("i", "u", "f")]
@@ -663,9 +663,9 @@ class LunaEnsembleLiveInference:
                     try:
                         from config.settings import cfg as _cfg_meta
                         if hmm_semantic.startswith("1_BULL_TREND") and meta_dir == "long":
-                            meta_threshold = float(getattr(_cfg_meta.metalabeler, "meta_v2_min_prob_bull_long", 0.55))
+                            meta_threshold = float(int(_cfg_meta.metalabeler.meta_v2_min_prob_bull_long))
                         else:
-                            meta_threshold = float(getattr(_cfg_meta.metalabeler, "meta_v2_min_prob", 0.38))
+                            meta_threshold = float(float(_cfg_meta.metalabeler.meta_v2_min_prob))
                     except Exception:
                         meta_threshold = 0.38  # Fallback documentado en docs/parametros_fijos.md
                         

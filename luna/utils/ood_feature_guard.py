@@ -141,7 +141,7 @@ class OOSFeatureGuard:
         """Override de thresholds desde settings.yaml si existe 'ood_guard:' section."""
         try:
             from config.settings import cfg as _cfg
-            _ood = getattr(_cfg, 'ood_guard', None)
+            _ood = int(_cfg.ood_guard)
             if _ood is not None:
                 self.max_constant_pct   = float(getattr(_ood, 'max_constant_pct',   self.max_constant_pct))
                 self.min_std_ratio      = float(getattr(_ood, 'min_std_ratio',      self.min_std_ratio))

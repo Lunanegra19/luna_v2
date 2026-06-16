@@ -69,15 +69,15 @@ if str(ROOT) not in sys.path:
 try:
     from config.settings import cfg as _cfg_meta
     COST_PCT           = float(_cfg_meta.sop.cost_pct)
-    EMBARGO_H          = int(getattr(_cfg_meta.sop,         'embargo_hours',      96))
-    SEQ_LEN            = int(getattr(_cfg_meta.metalabeler, 'seq_len',            48))
-    LSTM_HIDDEN        = int(getattr(_cfg_meta.metalabeler, 'lstm_hidden',        32))
-    N_CPCV_GROUPS      = int(getattr(_cfg_meta.metalabeler, 'n_cpcv_groups',      10))
-    RF_N_ESTIMATORS    = int(getattr(_cfg_meta.metalabeler, 'rf_n_estimators',   300))
-    HMM_N_STATES       = int(getattr(_cfg_meta.hmm,         'n_states',           4))
+    EMBARGO_H          = int(int(_cfg_meta.sop.embargo_hours))
+    SEQ_LEN            = int(int(_cfg_meta.metalabeler.seq_len))
+    LSTM_HIDDEN        = int(int(_cfg_meta.metalabeler.lstm_hidden))
+    N_CPCV_GROUPS      = int(int(_cfg_meta.metalabeler.n_cpcv_groups))
+    RF_N_ESTIMATORS    = int(int(_cfg_meta.metalabeler.rf_n_estimators))
+    HMM_N_STATES       = int(int(_cfg_meta.hmm.n_states))
     # M-40 (2026-03-18): decaimiento exponencial de sample_weights por año (ARCH-02)
     # peso_i = exp(-alpha × años_desde_train_end). 0.0 = uniforme, 0.8 = moderado (ratio ~2.2:1)
-    WEIGHT_DECAY_ALPHA = float(getattr(_cfg_meta.metalabeler, 'weight_decay_alpha', 0.5))
+    WEIGHT_DECAY_ALPHA = float(float(_cfg_meta.metalabeler.weight_decay_alpha))
 except Exception as _e:
     # ARCH-FAIL-LOUD (2026-03-18): NO silenciar errores de configuración.
     # Si settings.yaml no carga, el pipeline correría con valores incorrectos
@@ -236,12 +236,12 @@ class MetaLabelerV2:
         # P6-FIX: leer parámetros RF desde settings.yaml (sin hardcodes)
         try:
             from config.settings import cfg as _cfg_rf
-            _rf_min_leaf   = int(getattr(_cfg_rf.metalabeler, 'rf_min_samples_leaf', 20)) # FASE C: bajado default
-            _rf_max_depth  = int(getattr(_cfg_rf.metalabeler, 'rf_max_depth',        8))
-            _rf_max_samp   = float(getattr(_cfg_rf.metalabeler, 'rf_max_samples',    0.8))
+            _rf_min_leaf   = int(int(_cfg_rf.metalabeler.rf_min_samples_leaf)) # FASE C: bajado default
+            _rf_max_depth  = int(int(_cfg_rf.metalabeler.rf_max_depth))
+            _rf_max_samp   = float(int(_cfg_rf.metalabeler.rf_max_samples))
             
             # FASE C: Asimetria R:R
-            _pt_mult       = float(getattr(_cfg_rf.xgboost, 'pt_mult_min', 1.6))
+            _pt_mult       = float(float(_cfg_rf.xgboost.pt_mult_min))
         except Exception:
             _rf_min_leaf, _rf_max_depth, _rf_max_samp, _pt_mult = 20, 8, 0.8, 1.6
 
@@ -307,12 +307,15 @@ class MetaLabelerV2:
         _n_minority    = max(1, int((np.array(y) == 1).sum()))
         # max_depth: log2(n_minority) con floor=2, cap=8
         _topo_max_depth = int(np.clip(int(np.log2(max(_n_minority, 4))), 2, 8))
-        # min_samples_leaf: 4% de n_samples con floor=10, cap=50
-        _topo_min_leaf  = int(np.clip(int(_n_samples * 0.04), 10, 50))
-
-        # Actualizar RF solo si los bounds topológicos son más conservadores que el baseline
-        _effective_max_depth = min(_topo_max_depth, getattr(self, '_rf_max_depth_base', 5))
-        _effective_min_leaf  = max(_topo_min_leaf,  getattr(self, '_rf_min_leaf_base', 30))
+        _topo_min_leaf  = int(np.clip(int(_n_samples * 0.04), 10, max(50, int(_n_samples * 0.03))))
+        
+        # FIX-AUDIT-02: Erradicar fallback hardcodeado y leer desde config strict
+        from config.settings import cfg as _cfg
+        _rf_max_depth_base = float(int(_cfg.metalabeler.rf_max_depth_cap))
+        _rf_min_leaf_base = float(int(_cfg.metalabeler.rf_min_leaf_base))
+        
+        _effective_max_depth = int(min(_topo_max_depth, _rf_max_depth_base))
+        _effective_min_leaf  = int(max(_topo_min_leaf, _rf_min_leaf_base))
 
         logger.info(
             "[V2-FIX-3] Topology-Aware RF: n_samples={}, n_minority={} → "
@@ -435,7 +438,7 @@ class MetaLabelerV2:
         # 3. Calcular sample_weight por decaimiento temporal REAL (MEJORA-WEIGHT-01)
         try:
             from config.settings import cfg as _cfg_ml_sw
-            _ml_floor = float(getattr(_cfg_ml_sw.metalabeler, 'weight_decay_floor', 0.3))
+            _ml_floor = float(float(_cfg_ml_sw.metalabeler.weight_decay_floor))
         except Exception:
             _ml_floor = 0.3
 
@@ -497,9 +500,9 @@ class MetaLabelerV2:
         # SOP R3: embargo temporal crítico — política No-Fallback LOUD.
         try:
             from config.settings import cfg as _cfg_embargo_cv
-            _embargo_h_cv = int(getattr(_cfg_embargo_cv.sop, 'embargo_hours', None) or
-                                getattr(_cfg_embargo_cv.sop, 'embargo_h', None) or 96)
-            _seq_len_cv   = int(getattr(_cfg_embargo_cv.metalabeler, 'seq_len', 48))
+            _embargo_h_cv = int(int(_cfg_embargo_cv.sop.embargo_hours) or
+                                int(_cfg_embargo_cv.sop.embargo_h) or 96)
+            _seq_len_cv   = int(int(_cfg_embargo_cv.metalabeler.seq_len))
             _embargo_h    = _embargo_h_cv + _seq_len_cv
             print(f"[FIX-EMBARGO-META-CV-01] MetaLabeler CV gap={_embargo_h}H (embargo={_embargo_h_cv}H + seq_len={_seq_len_cv}H)")  # RULE[fixbugsprints.md]
         except Exception as _e_emb_cv:
@@ -631,7 +634,7 @@ class MetaLabelerV2:
         # P5-FIX: leer patience desde settings.yaml
         try:
             from config.settings import cfg as _cfg_p
-            PATIENCE = int(getattr(_cfg_p.metalabeler, 'patience', 15))
+            PATIENCE = int(int(_cfg_p.metalabeler.patience))
         except Exception:
             PATIENCE = 15  # fallback
         # BUG-R12-02 fix: gradient clipping para prevenir exploding gradients.
@@ -640,7 +643,7 @@ class MetaLabelerV2:
         # P2-2-FIX (2026-03-30): cfg_gradient_clip era undefined — NameError si se invocaba.
         try:
             from config.settings import cfg as _cfg_grad
-            MAX_GRAD_NORM = float(getattr(getattr(_cfg_grad, 'metalabeler', object()), 'gradient_clip', 1.0))
+            MAX_GRAD_NORM = float(_cfg_grad.metalabeler.gradient_clip)
         except Exception:
             MAX_GRAD_NORM = 1.0
 
@@ -904,10 +907,10 @@ class MetaLabelerV2Trainer:
         # ── [CAPA-1] Rolling Window de 3 años (Filtro de Memoria) ──────────────
         try:
             from config.settings import cfg as _cfg_rw
-            _t_mode = getattr(_cfg_rw.wfb, 'training_mode', 'expanding')
+            _t_mode = str(_cfg_rw.wfb.training_mode)
             if _t_mode == 'rolling':
-                _rw_years = int(getattr(_cfg_rw.wfb, 'rolling_window_years', 3))
-                _train_end_str = getattr(_cfg_rw.temporal_splits, 'train_end', None)
+                _rw_years = int(int(_cfg_rw.wfb.rolling_window_years))
+                _train_end_str = int(_cfg_rw.temporal_splits.train_end)
                 if _train_end_str:
                     _train_end_dt = pd.to_datetime(_train_end_str, utc=True)
                     _rolling_start = _train_end_dt - pd.DateOffset(years=_rw_years)
@@ -934,7 +937,7 @@ class MetaLabelerV2Trainer:
         # Fix: corte temporal explícito sobre el dataframe, igual que hace XGBoost.
         try:
             from config.settings import cfg as _cfg_wfb
-            _train_end_str = getattr(_cfg_wfb.temporal_splits, 'train_end', None)
+            _train_end_str = int(_cfg_wfb.temporal_splits.train_end)
             if _train_end_str:
                 _train_end_ts = pd.Timestamp(_train_end_str, tz='UTC')
                 _rows_before = len(df)
@@ -1065,9 +1068,9 @@ class MetaLabelerV2Trainer:
         try:
             from config.settings import cfg as _cfg_meta
             if epochs is None:
-                epochs = int(getattr(_cfg_meta.metalabeler, 'max_epochs', 100))
+                epochs = int(int(_cfg_meta.metalabeler.max_epochs))
             if lstm_lr is None:
-                lstm_lr = float(getattr(_cfg_meta.metalabeler, 'lstm_lr', 3e-4))
+                lstm_lr = float(float(_cfg_meta.metalabeler.lstm_lr))
             logger.debug(f"[P5-FIX] MetaLabeler epochs={epochs} lr={lstm_lr} (de settings.yaml)")
         except Exception:
             epochs   = epochs   or 100   # fallback por si settings no disponible
@@ -1088,25 +1091,23 @@ class MetaLabelerV2Trainer:
         # que aprenda que los agentes "se equivocan" cuando en realidad son correctos.
         try:
             from config.settings import cfg
-            _pt_base = getattr(cfg.xgboost, 'pt_mult_min', 2.0)  # usar pt_mult_min como valor base
-            _sl_base = getattr(cfg.xgboost, 'sl_mult_min', 1.0)  # usar sl_mult_min como valor base
+            _pt_base = float(cfg.xgboost.pt_mult_min)
+            _sl_base = float(cfg.xgboost.sl_mult_min)
             logger.info(f"TBM MetaLabelerV2: Base pt_mult={_pt_base}, sl_base={_sl_base} (de settings.yaml)")
-        except Exception:
-            _pt_base, _sl_base = 2.0, 1.0
-            logger.warning("TBM MetaLabelerV2: usando defaults hardcodeados 2.0/1.0 (settings no disponible)")
+        except Exception as _e_tbm_base:
+            raise RuntimeError(f"Falta config TBM Base en settings. Política No-Fallback: {_e_tbm_base}") from _e_tbm_base
 
         from luna.features.tbm import apply_triple_barrier
         try:
             from config.settings import cfg as _cfg_tbm
-            _vbh_ml  = int(getattr(_cfg_tbm.xgboost,   'vertical_barrier_hours', 96))
-            _minr_ml = float(getattr(_cfg_tbm.xgboost, 'tbm_min_return', 0.005))
-            _dyn_barrier_ml = bool(getattr(_cfg_tbm.xgboost, 'dynamic_barrier', False))
-            _dyn_min_ml = int(getattr(_cfg_tbm.xgboost, 'dynamic_horizon_min_h', 48))
-            _dyn_max_ml = int(getattr(_cfg_tbm.xgboost, 'dynamic_horizon_max_h', 168))
-        except Exception:
-            _vbh_ml, _minr_ml = 96, 0.005
-            _dyn_barrier_ml = False
-            _dyn_min_ml, _dyn_max_ml = 48, 168
+            # Ajuste dinámico de nombres de variables para no usar getattr obsoleto
+            _vbh_ml  = int(_cfg_tbm.xgboost.dynamic_horizon_max_h) # Se usa el máximo del horizonte como barrera vertical histórica
+            _minr_ml = float(_cfg_tbm.xgboost.tbm_min_return)
+            _dyn_barrier_ml = bool(_cfg_tbm.xgboost.dynamic_barrier)
+            _dyn_min_ml = int(_cfg_tbm.xgboost.dynamic_horizon_min_h)
+            _dyn_max_ml = int(_cfg_tbm.xgboost.dynamic_horizon_max_h)
+        except Exception as _e_dyn:
+            raise RuntimeError(f"Falta config TBM Dynamic en settings. Política No-Fallback: {_e_dyn}") from _e_dyn
 
         pt_mult_series = pd.Series(_pt_base, index=df.index)
         sl_mult_series = pd.Series(_sl_base, index=df.index)
@@ -1114,7 +1115,7 @@ class MetaLabelerV2Trainer:
         if "HMM_Semantic" in df.columns:
             try:
                 from config.settings import cfg as _cfg_reg
-                _regime_profiles_raw = getattr(_cfg_reg.xgboost, 'regime_tbm_profiles', None)
+                _regime_profiles_raw = int(_cfg_reg.xgboost.regime_tbm_profiles)
                 if _regime_profiles_raw is not None:
                     try:
                         _regime_profiles = vars(_regime_profiles_raw)
@@ -1140,11 +1141,10 @@ class MetaLabelerV2Trainer:
 
         try:
             from config.settings import cfg as _cfg_ml
-            _lin_decay_ml = bool(getattr(_cfg_ml.xgboost, 'linear_decay_pt', False))
-            _pt_decay_frac_ml = float(getattr(_cfg_ml.xgboost, 'pt_decay_fraction', 0.75))
-        except Exception:
-            _lin_decay_ml = False
-            _pt_decay_frac_ml = 0.75
+            _lin_decay_ml = bool(_cfg_ml.xgboost.linear_decay_pt)
+            _pt_decay_frac_ml = float(_cfg_ml.xgboost.pt_decay_fraction)
+        except Exception as _e_dec:
+            raise RuntimeError(f"Falta config TBM Decay en settings. Política No-Fallback: {_e_dec}") from _e_dec
 
         _side_val = -1.0 if self.direction == "short" else 1.0
         _sides_series = pd.Series(_side_val, index=df.index)
@@ -1192,14 +1192,14 @@ class MetaLabelerV2Trainer:
         use_lgbm = False
         try:
             from config.settings import cfg as _cfg_lgbm
-            use_lgbm = bool(getattr(_cfg_lgbm.fase2, "use_lgbm_ensemble", False))
+            use_lgbm = bool(bool(_cfg_lgbm.fase2.use_lgbm_ensemble))
         except Exception:
             pass
 
         use_regime = False
         try:
             from config.settings import cfg as _cfg_regime
-            use_regime = bool(getattr(_cfg_regime.fase2, "use_regime_agents", False))
+            use_regime = bool(bool(_cfg_regime.fase2.use_regime_agents))
         except Exception:
             pass
 
@@ -1467,7 +1467,7 @@ class MetaLabelerV2Trainer:
         # [FIX-SPLIT-ML-01] Hacer ratio de split temporal train/val configurable
         try:
             from config.settings import cfg as _cfg_ml
-            _val_ratio = float(getattr(_cfg_ml.metalabeler, 'val_split_ratio', 0.20))
+            _val_ratio = float(float(_cfg_ml.metalabeler.val_split_ratio))
             _train_ratio = 1.0 - _val_ratio
             print(f"[FIX-SPLIT-ML-01] Split temporal cargado de config: train_ratio={_train_ratio:.2f} (val_ratio={_val_ratio:.2f})")  # debug
         except Exception as _e_ml_sp:
@@ -1584,9 +1584,9 @@ class MetaLabelerV2Trainer:
         # de validation cae (régimen adverso), lo que causa pass-through masivo del MetaLabeler.
         try:
             from config.settings import cfg as _cfg_dynmeta
-            _thresh_mode   = str(getattr(_cfg_dynmeta.metalabeler, 'meta_v2_threshold_mode', 'fixed')).lower()
-            _edge_pct_dyn  = float(getattr(_cfg_dynmeta.metalabeler, 'meta_v2_dynamic_edge_pct', 0.05))
-            _floor_abs_dyn = float(getattr(_cfg_dynmeta.metalabeler, 'meta_v2_min_prob', 0.38))
+            _thresh_mode   = str(str(_cfg_dynmeta.metalabeler.meta_v2_threshold_mode)).lower()
+            _edge_pct_dyn  = float(float(_cfg_dynmeta.metalabeler.meta_v2_dynamic_edge_pct))
+            _floor_abs_dyn = float(float(_cfg_dynmeta.metalabeler.meta_v2_min_prob))
         except Exception:
             _thresh_mode = 'fixed'
             _edge_pct_dyn, _floor_abs_dyn = 0.05, 0.38
@@ -1682,7 +1682,7 @@ class MetaLabelerV2Trainer:
         # FIX seq_features (2026-03-09): leer best_lstm_loss del objeto model._pretrain_lstm
         # El atributo se guarda en self.extractor dentro del model, no en el trainer.
         _best_lstm_loss = getattr(model, 'best_lstm_loss',
-                           getattr(model.extractor, 'best_lstm_loss', 0.0))
+                           int(model.extractor.best_lstm_loss))
         signature = {
             "version": "v2",
             "arch": "LSTM-extractor + RF-arbitro",

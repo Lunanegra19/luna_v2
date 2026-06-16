@@ -29,11 +29,11 @@ _THIS_DIR  = Path(__file__).resolve().parent
 _ROOT_AUTO = _THIS_DIR.parent.parent  # tools/diagnostics -> tools -> root
 _FALLBACK_G = Path(r'g:\Mi unidad\ia\luna_v2\data\predictions')
 _DATA_AUTO  = _ROOT_AUTO / 'data' / 'predictions'
-if _DATA_AUTO.exists() and len(list(_DATA_AUTO.glob('oos_trades_*seed*.parquet'))) > 0:
-    DATA = _DATA_AUTO
+if _DATA_AUTO.exists() and len(list(_DATA_AUTO.glob('oos_trades_seed*.parquet'))) > 0:
+    DATA = Path('data/reports/wfb')
     print(f"[FIX-CVD-PATH-01] Ruta local auto-detectada: {DATA}")
-elif _FALLBACK_G.exists() and len(list(_FALLBACK_G.glob('oos_trades_*seed*.parquet'))) > 0:
-    DATA = _FALLBACK_G
+elif _FALLBACK_G.exists() and len(list(_FALLBACK_G.glob('oos_trades_seed*.parquet'))) > 0:
+    DATA = Path('data/reports/wfb')
     print(f"[FIX-CVD-PATH-01] Ruta G: produccion: {DATA}")
 else:
     DATA = Path('data') / 'predictions'
@@ -44,19 +44,11 @@ DASH  = "-" * 72
 # ─── CARGA ────────────────────────────────────────────────────────────────
 print("[LOAD] Cargando datos de la run de las ultimas ~21h...")
 dfs = []
-import re
-for f in sorted(DATA.glob('oos_trades_*seed*.parquet')):
+for f in sorted(DATA.glob('oos_trades_seed*.parquet')):
     d = pd.read_parquet(f)
     if d.index.name == 'entry_time' or 'entry_time' not in d.columns:
         d = d.reset_index(names='entry_time') if d.index.name else d.reset_index()
-    try:
-        d['_seed'] = int(f.stem.split('seed')[1])
-    except:
-        d['_seed'] = 0
-        
-    if 'wfb_window' not in d.columns:
-        w_match = re.search(r'_(W\d+)_', f.stem)
-        d['wfb_window'] = w_match.group(1) if w_match else 'W?'
+    d['_seed'] = int(f.stem.split('seed')[1])
     dfs.append(d)
 
 if not dfs:
@@ -72,35 +64,6 @@ df['_window'] = df['wfb_window']
 print(f"[LOAD] OK: {len(df)} trades | {df['_seed'].nunique()} seeds | Ventanas: {sorted(df['_window'].unique())}")
 print(f"[LOAD] Inconsistencias is_win/return_raw: {((df['is_win']==1)&(df['return_raw']<0)|(df['is_win']==0)&(df['return_raw']>0)).sum()}")
 print()
-
-# ─── INYECTAR CARGA DE PRECIOS CONTINUOS Y CALCULO DE DIRECCION ───
-print("[LOAD] Recopilando historial de precios continuos para calculo direccional...")
-price_files = sorted((_ROOT_AUTO / "data" / "features").glob("features_*.parquet"))
-dfs_prices = []
-for pf in price_files:
-    try:
-        dp = pd.read_parquet(pf, columns=["close"])
-        dfs_prices.append(dp)
-    except Exception:
-        pass
-if dfs_prices:
-    df_prices = pd.concat(dfs_prices)
-    df_prices = df_prices[~df_prices.index.duplicated(keep='last')].sort_index()
-    if df['entry_time'].dt.tz is None:
-        df['entry_time'] = df['entry_time'].dt.tz_localize('UTC')
-    if df_prices.index.tz is None:
-        df_prices.index = df_prices.index.tz_localize('UTC')
-        
-    df['entry_time_24h'] = df['entry_time'] + pd.Timedelta(hours=24)
-    close_t0 = df_prices['close'].reindex(df['entry_time'], method='ffill').values
-    close_t24 = df_prices['close'].reindex(df['entry_time_24h'], method='ffill').values
-    pure_ret = (close_t24 / close_t0) - 1.0
-    side_mult = df['direction'].map({'long': 1.0, 'short': -1.0}).fillna(1.0).values
-    df['is_dir_win'] = ((pure_ret * side_mult) > 0.0).astype(int)
-    print(f"[LOAD] Hit Rate Direccional (Alpha puro) computado: {df['is_dir_win'].mean()*100:.1f}%")
-else:
-    print("[LOAD] WARN: No se pudieron cargar precios. is_dir_win = is_win")
-    df['is_dir_win'] = df['is_win']
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────
 def spearman_global(x, y, label):
@@ -162,18 +125,16 @@ def group_by_window(groupby_col, label):
     # Global
     grp = df.groupby(groupby_col).agg(
         N=('is_win','count'),
-        Exe_WR=('is_win', lambda x: x.mean()*100),
-        Dir_WR=('is_dir_win', lambda x: x.mean()*100),
+        WR=('is_win', lambda x: x.mean()*100),
         RetMed=('ret100','mean'),
         RetTot=('ret100','sum')
-    ).sort_values('Exe_WR', ascending=False)
-    grp['Gap'] = grp['Dir_WR'] - grp['Exe_WR']
-    print(f"\n  {'Categoria':<38} {'N':>5} {'Dir_WR%':>8} {'Exe_WR%':>8} {'Gap(pp)':>8} {'RetMed%':>8}")
+    ).sort_values('WR', ascending=False)
+    print(f"\n  {'Categoria':<38} {'N':>5} {'WR_global%':>11} {'RetMed%':>9} {'RetTot%':>9}")
     print("  " + DASH)
     for cat, row in grp.iterrows():
-        marker = " ← MEJOR" if row['Exe_WR']==grp['Exe_WR'].max() else (" ← PEOR" if row['Exe_WR']==grp['Exe_WR'].min() else "")
-        print(f"  {str(cat):<38} {int(row['N']):>5} {row['Dir_WR']:>8.1f}% {row['Exe_WR']:>8.1f}% {row['Gap']:>8.1f} {row['RetMed']:>8.4f}%{marker}")
-    wr_range = grp['Exe_WR'].max() - grp['Exe_WR'].min()
+        marker = " ← MEJOR" if row['WR']==grp['WR'].max() else (" ← PEOR" if row['WR']==grp['WR'].min() else "")
+        print(f"  {str(cat):<38} {int(row['N']):>5} {row['WR']:>11.1f}% {row['RetMed']:>9.4f}% {row['RetTot']:>9.2f}%{marker}")
+    wr_range = grp['WR'].max() - grp['WR'].min()
 
     # Por ventana — para ver si el efecto persiste o es un artefacto
     print(f"\n  Por ventana (check de consistencia del efecto):")
@@ -684,10 +645,10 @@ if 'xgb_prob_cal' in df.columns and 'meta_v2_prob' in df.columns and 'ood_kl_dis
         for subset in coalition_sharpes.keys():
             if c not in subset:
                 subset_with_c = tuple(sorted(list(subset) + [c]))
-                subset_without = tuple(sorted([x for x in subset if x != c]))
+                subset_without = tuple(sorted(list(subset)))
                 
                 weight = (math.factorial(len(subset)) * math.factorial(n - 1 - len(subset))) / math.factorial(n)
-                marginal = coalition_sharpes.get(subset_with_c, 0.0) - coalition_sharpes.get(subset_without, 0.0)
+                marginal = coalition_sharpes[subset_with_c] - coalition_sharpes.get(subset_without, 0.0)
                 shap_values[c] += weight * marginal
                 
     print(f"  {'Filtro Estricto':<20} {'Shapley Value (Delta Sharpe)':>30}")

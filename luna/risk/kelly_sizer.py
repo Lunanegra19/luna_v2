@@ -417,7 +417,7 @@ def build_kelly_sizer_from_settings() -> KellyPositionSizer:
                     kwargs[k] = float(v)
         # Sincronizar pt_ratio con xgboost.pt_mult_min si no está en kelly_sizer
         if "pt_ratio" not in kwargs:
-            pt = getattr(getattr(cfg, "xgboost", None), "pt_mult_min", None)
+            pt = int(getattr(cfg.xgboost), "pt_mult_min", None)
             if pt:
                 kwargs["pt_ratio"] = float(pt)
                 logger.warning(
@@ -431,18 +431,13 @@ def build_kelly_sizer_from_settings() -> KellyPositionSizer:
                     "Esto puede causar Kelly sobreestimado si el P/L real OOS difiere del IS."
                 )
             else:
-                logger.error(
-                    "[KELLY-SIZER][FIX-KELLY-PT-RATIO-01] CRITICAL: pt_ratio no encontrado "
-                    "en kelly_sizer NI en xgboost.pt_mult_min. Usando default pt_ratio=2.0 "
-                    "(P/L TEÓRICO). El Kelly será ~2x mayor que el óptimo OOS real. "
-                    "AÑADIR pt_ratio: 1.20 a settings.yaml -> kelly_sizer."
+                err_msg = (
+                    "[KELLY-SIZER][CRITICAL] pt_ratio no encontrado en kelly_sizer NI en xgboost.pt_mult_min. "
+                    "Politica No-Fallback activa. Abortando para prevenir apalancamiento peligroso."
                 )
-                print(
-                    "[FIX-KELLY-PT-RATIO-01][CRITICAL] pt_ratio no configurado. "
-                    "Usando default=2.0 (P/L teórico IS). "
-                    "P/L real OOS BULL=0.97 -> Kelly sobreestimado ~2x. "
-                    "ACCION REQUERIDA: añadir pt_ratio: 1.20 a kelly_sizer en settings.yaml."
-                )
+                logger.error(err_msg)
+                print(err_msg)
+                raise ValueError(err_msg)
         sizer = KellyPositionSizer(**kwargs)
         # [FIX-KELLY-PT-RATIO-01] Print de trazabilidad del pt_ratio efectivo
         print(

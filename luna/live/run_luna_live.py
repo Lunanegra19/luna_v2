@@ -150,7 +150,7 @@ class LunaLive:
                 # [P1-DYNAMIC-HOLD] Histéresis de salida: dejar correr la ganancia si xgb_prob sigue siendo alcista
                 try:
                     from config.settings import cfg as _cfg
-                    exit_prob = float(getattr(_cfg.metalabeler, "dynamic_hold_exit_prob", 0.48))
+                    exit_prob = float(int(_cfg.metalabeler.dynamic_hold_exit_prob))
                 except Exception:
                     exit_prob = 0.48
                     
@@ -165,7 +165,7 @@ class LunaLive:
             elif current_pos["side"] == "SHORT":
                 try:
                     from config.settings import cfg as _cfg
-                    exit_prob = float(getattr(_cfg.metalabeler, "dynamic_hold_exit_prob", 0.48))
+                    exit_prob = float(int(_cfg.metalabeler.dynamic_hold_exit_prob))
                 except Exception:
                     exit_prob = 0.48
                 xgb_prob = float(decision.get("xgb_prob", 0.5))

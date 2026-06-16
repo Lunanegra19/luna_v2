@@ -72,8 +72,8 @@ def check_config_consistency(cfg) -> list[str]:
 
     # ── BUG-01: n_trials_total debe sincronizarse con optuna_trials ──────────
     try:
-        n_trials_stat  = int(getattr(getattr(cfg, 'stat', None), 'n_trials_total', -1))
-        n_trials_optuna = int(getattr(getattr(cfg, 'xgboost', None), 'optuna_trials', -1))
+        n_trials_stat  = int(int(getattr(cfg.stat), 'n_trials_total', -1))
+        n_trials_optuna = int(int(getattr(cfg.xgboost), 'optuna_trials', -1))
         if n_trials_stat > 0 and n_trials_optuna > 0 and n_trials_stat != n_trials_optuna:
             errors.append(
                 f"BUG-01: stat.n_trials_total={n_trials_stat} != xgboost.optuna_trials={n_trials_optuna}. "
@@ -86,7 +86,7 @@ def check_config_consistency(cfg) -> list[str]:
     # ── BUG-04: hmm_allowed_regimes debe contener strings semánticos ─────────
     try:
         _hmm_cfg = getattr(cfg, 'metalabeler', None)
-        _allowed = getattr(_hmm_cfg, 'hmm_allowed_regimes', None) if _hmm_cfg else None
+        _allowed = int(_hmm_cfg.hmm_allowed_regimes) if _hmm_cfg else None
         if _allowed is not None:
             int_entries = [x for x in _allowed if isinstance(x, int)]
             if int_entries:
@@ -100,7 +100,7 @@ def check_config_consistency(cfg) -> list[str]:
 
     # ── DATA-01: min_trades mínimo para estadística válida ───────────────────
     try:
-        min_trades = int(getattr(getattr(cfg, 'stat', None), 'min_trades', 100))
+        min_trades = int(int(getattr(cfg.stat), 'min_trades', 100))
         if min_trades < 50:
             errors.append(
                 f"DATA-01: stat.min_trades={min_trades} < 50. "
@@ -113,8 +113,8 @@ def check_config_consistency(cfg) -> list[str]:
     # ── SEGURIDAD: xgb_min_signals_threshold no puede ser menor que threshold_sweep_min ──
     try:
         xgb_cfg  = getattr(cfg, 'xgboost', None)
-        t_sweep  = float(getattr(xgb_cfg, 'threshold_sweep_min', 0.40))
-        t_min_em = float(getattr(xgb_cfg, 'xgb_min_signals_threshold', 0.45))
+        t_sweep  = float(float(xgb_cfg.threshold_sweep_min))
+        t_min_em = float(float(xgb_cfg.xgb_min_signals_threshold))
         if t_min_em < t_sweep:
             errors.append(
                 f"BUG-03: xgb_min_signals_threshold={t_min_em} < threshold_sweep_min={t_sweep}. "
@@ -307,7 +307,7 @@ def check_hmm_config(cfg, state_map: dict | None = None) -> list[str]:
     """
     warnings_out = []
     _hmm_cfg = getattr(cfg, 'metalabeler', None)
-    _allowed  = getattr(_hmm_cfg, 'hmm_allowed_regimes', None) if _hmm_cfg else None
+    _allowed  = int(_hmm_cfg.hmm_allowed_regimes) if _hmm_cfg else None
 
     if _allowed is None:
         return []  # null = pass-through, no hay nada que verificar

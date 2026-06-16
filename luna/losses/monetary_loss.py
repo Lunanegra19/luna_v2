@@ -22,7 +22,7 @@ def get_monetary_pnl_loss():
         from config.settings import cfg
         pt_mult = float(cfg.xgboost.pt_mult_min)
         sl_mult = float(cfg.xgboost.sl_mult_min)
-        min_return = float(getattr(cfg.xgboost, 'tbm_min_return', 0.005))
+        min_return = float(cfg.xgboost.tbm_min_return)
         cost_pct = float(cfg.sop.cost_pct)
     except Exception as e:
         raise RuntimeError(f"Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback (SOP R6): {e}")

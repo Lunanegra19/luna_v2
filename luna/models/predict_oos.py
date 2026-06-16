@@ -111,19 +111,7 @@ HMM_TBM_PARAMS = {
     # FIX-I4 (2026-04-29): tp 2.5->1.5 — objetivo mas realista en regimen bajista.
     "3_BEAR_CRASH":      {"sl": 1.5, "tp": 1.5},
 }
-HMM_HORIZON_MAP = {
-    # [CAPA-4-ARQUITECTURA Camino B] Reducción agresiva de la Barrera Vertical (VB)
-    # Evita trades zombies con retorno negativo sistemático pasadas 48H.
-    "1_VOLATILE_BULL":   48,
-    "1_BULL_GRIND":      48,
-    "1_BULL_TREND":      48,
-    "2_CALM_RANGE":      24,
-    "2_VOLATILE_RANGE":  24,
-    "3_CALM_BEAR":       24,
-    "3_BEAR_CRASH":      24,
-}
-_HMM_TBM_FALLBACK = {"sl": 0.8, "tp": 1.5}
-_HMM_HORIZON_FALLBACK = 48
+
 
 # --- RESOLVEDORES ROBUSTOS CONTRA SILENT REGIME FALLBACK ---
 # [BUG-FIX-HMM-RESOLVER] (2026-05-20): Permite mapear variantes semánticas dinámicas
@@ -163,33 +151,7 @@ def get_hmm_tbm_params(regime_name: str) -> dict:
     print(f"[BUG-FIX-HMM-RESOLVER] WARN: Régimen '{regime_str}' no reconocido. Usando fallback _HMM_TBM_FALLBACK.")
     return _HMM_TBM_FALLBACK
 
-def get_hmm_horizon(regime_name: str) -> int:
-    """
-    Resuelve de manera robusta el horizonte de tiempo máximo para un régimen HMM.
-    """
-    if not isinstance(regime_name, str):
-        regime_name = str(regime_name)
-    regime_str = regime_name.strip()
-    
-    if regime_str in HMM_HORIZON_MAP:
-        return HMM_HORIZON_MAP[regime_str]
-        
-    for base_regime in HMM_HORIZON_MAP.keys():
-        if regime_str.startswith(base_regime):
-            return HMM_HORIZON_MAP[base_regime]
-            
-    import re as _re_regime
-    _stripped = _re_regime.sub(r'_(WEAK|[B-D])$', '', regime_str)
-    if _stripped in HMM_HORIZON_MAP:
-        return HMM_HORIZON_MAP[_stripped]
-        
-    # --- NUEVA GUARDA FAIL-FAST CONTRA MAPEOS INCOMPLETOS EN REGÍMENES CONOCIDOS ---
-    if regime_str.startswith(("1_", "2_", "3_")):
-        err_msg = f"[CRITICAL-FALLBACK-ALERT] Régimen conocido '{regime_str}' no pudo ser resuelto a ninguna clave base de HMM_HORIZON_MAP!"
-        print(f"[CRITICAL-FALLBACK-ALERT] {err_msg}")  # trazabilidad institucional RULE[fixbugsprints.md]
-        raise ValueError(err_msg)
-        
-    return _HMM_HORIZON_FALLBACK
+
 
 
 class OOSTradesGenerator:
@@ -304,8 +266,8 @@ class OOSTradesGenerator:
         # ── Verificar existencia de archivos necesarios ──
         try:
             from config.settings import cfg as _cfg_xgb
-            use_regime = getattr(_cfg_xgb.fase2, 'use_regime_agents', False)
-            use_lgbm = getattr(_cfg_xgb.fase2, 'use_lgbm_ensemble', False)
+            use_regime = bool(_cfg_xgb.fase2.use_regime_agents)
+            use_lgbm = bool(_cfg_xgb.fase2.use_lgbm_ensemble)
         except Exception:
             use_regime = False
             use_lgbm = False
@@ -356,12 +318,7 @@ class OOSTradesGenerator:
                 
             from config.settings import cfg as _cfg_regimes
             # [SOL3-CALM-BEAR-01 2026-06-01] Fallback actualizado: calm_bear separado de bear.
-            _rm = getattr(_cfg_regimes.fase2, 'regimes_config', {
-                "bull":      ["1_BULL_TREND", "1_VOLATILE_BULL"],
-                "range":     ["2_CALM_RANGE", "2_VOLATILE_RANGE"],
-                "calm_bear": ["3_CALM_BEAR", "3_CALM_BEAR_B", "3_CALM_BEAR_C", "3_CALM_BEAR_D"],
-                "bear":      ["3_BEAR_CRASH", "3_BEAR_CRASH_B", "4_BEAR_FORCED"]
-            })
+            _rm = int(_cfg_regimes.fase2.regimes_config)
             print("[SOL3-CALM-BEAR-01/PREDICT] regime_mapping cargado para predict_oos.")
 
             # [SOL3-CALM-BEAR-01 2026-06-01] calm_bear añadido al loop de carga de modelos
@@ -374,7 +331,10 @@ class OOSTradesGenerator:
                             _all_regime_feats.extend(sig["features"])
                             
                             # Map the optimal_threshold for this agent to the regimes it handles
-                            _thr = float(sig.get("optimal_threshold", 0.51))
+                            try:
+                                _thr = float(sig["optimal_threshold"])
+                            except KeyError as _e_thr:
+                                raise RuntimeError(f"Falta optimal_threshold en firma de {model_name}. Política No-Fallback.") from _e_thr
                             _sem_list = _rm.get(model_name, [])
                             for _sem in _sem_list:
                                 _num_id = _sem_to_num.get(_sem)
@@ -794,7 +754,7 @@ class OOSTradesGenerator:
             # trades con datos de periodos ya vistos por el modelo (anti-leakage defensivo).
             try:
                 from config.settings import cfg as _cfg_val_cut
-                _val_hstart_str = getattr(_cfg_val_cut.temporal_splits, 'holdout_start', None)
+                _val_hstart_str = int(_cfg_val_cut.temporal_splits.holdout_start)
                 if _val_hstart_str:
                     _val_hstart = pd.Timestamp(_val_hstart_str, tz="UTC")
                     _before = len(df_oos)
@@ -828,7 +788,7 @@ class OOSTradesGenerator:
             # [FIX-SPLIT-PRED-01] Hacer ratio de split temporal train/val de fallback configurable
             try:
                 from config.settings import cfg as _cfg_sp
-                _val_ratio = float(getattr(_cfg_sp.metalabeler, 'val_split_ratio', 0.20))
+                _val_ratio = float(float(_cfg_sp.metalabeler.val_split_ratio))
                 _train_ratio = 1.0 - _val_ratio
                 print(f"[FIX-SPLIT-PRED-01] Fallback split temporal cargado: train_ratio={_train_ratio:.2f} (val_ratio={_val_ratio:.2f})")
             except Exception as _e_pred_sp:
@@ -851,8 +811,8 @@ class OOSTradesGenerator:
             import config.settings as _cs_oos
             importlib.reload(_cs_oos)
             _cfg_xgb = _cs_oos.cfg
-            use_regime = getattr(_cfg_xgb.fase2, 'use_regime_agents', False)
-            use_lgbm2  = getattr(_cfg_xgb.fase2, 'use_lgbm_ensemble', False)
+            use_regime = bool(_cfg_xgb.fase2.use_regime_agents)
+            use_lgbm2  = bool(_cfg_xgb.fase2.use_lgbm_ensemble)
         except Exception:
             use_regime = False
             use_lgbm2  = False
@@ -903,7 +863,7 @@ class OOSTradesGenerator:
         all_xgb_baseline_records = []
         try:
             from config.settings import cfg as _cfg_dir
-            _dmode = getattr(_cfg_dir.fase2, 'direction_mode', 'both')
+            _dmode = str(_cfg_dir.fase2.direction_mode)
             if _dmode == "both":
                 directions_to_run = ["long", "short"]
             elif isinstance(_dmode, list):
@@ -948,7 +908,7 @@ class OOSTradesGenerator:
             logger.warning("  [V2-P3-DRIFT] PSI Monitor falló (no crítico): {}", _e_psi)
 
         for _direct in directions_to_run:
-            df_oos = df_oos_base.copy()
+            df_oos_iter = df_oos_base.copy()
             _pred_drift_penalty = 1.0
 
             # [DEGRADED-MODE] Leer agentes deshabilitados por Gate-G2 (si aplica)
@@ -1022,12 +982,12 @@ class OOSTradesGenerator:
                     direction=_direct,
                     disabled_regimes=_g2_disabled_agents,
                 )
-                logger.info(f"Generando predicciones XGBoost (Multi-Agent OOS) sobre {len(df_oos)} filas...")
-                xgb_probs_df = router_xgb.route_and_predict(df_oos)
-                df_oos["xgb_prob"] = xgb_probs_df["raw"]
+                logger.info(f"Generando predicciones XGBoost (Multi-Agent OOS) sobre {len(df_oos_iter)} filas...")
+                xgb_probs_df = router_xgb.route_and_predict(df_oos_iter)
+                df_oos_iter["xgb_prob"] = xgb_probs_df["raw"]
                 # [CALIB-FIX 2026-06-16] Desactivamos la Calibracion Isotónica Estática (Covariate Shift Killer).
                 # Usamos passthrough de la probabilidad RAW, ya que con SPW=1.0 el ranking natural es superior (66% WR).
-                df_oos["xgb_prob_cal"] = xgb_probs_df["raw"]
+                df_oos_iter["xgb_prob_cal"] = xgb_probs_df["raw"]
 
                 # [FIX-PRED-DRIFT-SENTINEL 2026-06-13] Prediction Drift Sentinel (OOD Circuit Breaker)
                 # Compara las predicciones calibradas de Holdout contra las de Validación.
@@ -1044,7 +1004,7 @@ class OOSTradesGenerator:
                         # Predecir con el mismo router para validación in-sample
                         _xgb_val_s = router_xgb.route_and_predict(_df_val_s)
                         _val_cal = _xgb_val_s["calibrated"].fillna(0.5).values
-                        _hold_cal = df_oos["xgb_prob_cal"].fillna(0.5).values
+                        _hold_cal = df_oos_iter["xgb_prob_cal"].fillna(0.5).values
                         
                         if len(_val_cal) > 0 and len(_hold_cal) > 0:
                             _num_buckets = 10
@@ -1067,8 +1027,8 @@ class OOSTradesGenerator:
                                 _pred_max_psi = 0.20
                                 if _cfg_xgb is not None:
                                     try:
-                                        _pred_min_psi = float(getattr(_cfg_xgb.wfb, "pred_drift_min_psi", 0.08))
-                                        _pred_max_psi = float(getattr(_cfg_xgb.wfb, "pred_drift_max_psi", 0.20))
+                                        _pred_min_psi = float(int(_cfg_xgb.wfb.pred_drift_min_psi))
+                                        _pred_max_psi = float(int(_cfg_xgb.wfb.pred_drift_max_psi))
                                     except Exception as _e_cfg:
                                         pass
                                 
@@ -1087,8 +1047,8 @@ class OOSTradesGenerator:
                 # Verifica que xgb_prob_cal difiere de xgb_prob_raw antes de continuar.
                 # Si son identicos con calibradores cargados -> bug activo -> CRITICAL.
                 try:
-                    _n_total_oos = len(df_oos)
-                    _diff_oos    = (df_oos["xgb_prob_cal"].fillna(df_oos["xgb_prob"]) - df_oos["xgb_prob"]).abs()
+                    _n_total_oos = len(df_oos_iter)
+                    _diff_oos    = (df_oos_iter["xgb_prob_cal"].fillna(df_oos_iter["xgb_prob"]) - df_oos_iter["xgb_prob"]).abs()
                     _n_mod_oos   = (_diff_oos > 1e-6).sum()
                     _pct_mod_oos = _n_mod_oos / max(_n_total_oos, 1) * 100
                     _n_cals_ok   = len(router_xgb.isotonic_calibrators)
@@ -1113,7 +1073,7 @@ class OOSTradesGenerator:
                 model = xgb.XGBClassifier()
                 model.load_model(xgb_model_path)
                 logger.info("Generando predicciones XGBoost tradicional sobre OOS...")
-                X_oos = df_oos[available_feats]
+                X_oos = df_oos_iter[available_feats]
 
                 # [OPT-INFERENCE] Force CPU device to bypass DMatrix PCIe transfer bottleneck in XGBoost 3.x
                 try:
@@ -1123,7 +1083,7 @@ class OOSTradesGenerator:
                     pass
 
                 xgb_probs = model.predict_proba(X_oos)[:, 1]
-                df_oos["xgb_prob"] = xgb_probs
+                df_oos_iter["xgb_prob"] = xgb_probs
 
             # 2) INFERENCIA LIGHTGBM (P1-V3-1 FIX: Fuera de condicional use_regime XGBoost)
             # P3-V3-5 FIX: Discriminar adecuadamente el modelo a cargar para LGBM
@@ -1136,9 +1096,9 @@ class OOSTradesGenerator:
                         direction=_direct,
                         disabled_regimes=_g2_disabled_agents,
                     )
-                    logger.info(f"Generando predicciones LightGBM (Multi-Agent OOS) sobre {len(df_oos)} filas...")
-                    lgbm_probs_df = router_lgbm.route_and_predict(df_oos)
-                    df_oos["lgbm_prob"] = lgbm_probs_df["raw"]
+                    logger.info(f"Generando predicciones LightGBM (Multi-Agent OOS) sobre {len(df_oos_iter)} filas...")
+                    lgbm_probs_df = router_lgbm.route_and_predict(df_oos_iter)
+                    df_oos_iter["lgbm_prob"] = lgbm_probs_df["raw"]
 
                     # BUG-LGBM-SIG-01 FIX (2026-04-08): generar lgbm_meta_signature.json global.
                     # signal_filter.apply_model_threshold() busca '{prefix}_signature.json' (es decir,
@@ -1183,7 +1143,10 @@ class OOSTradesGenerator:
                         if _agent_sig_path.exists():
                             try:
                                 _agent_sig = json.loads(_agent_sig_path.read_text(encoding="utf-8"))
-                                _thr = float(_agent_sig.get("optimal_threshold", 0.51))
+                                try:
+                                    _thr = float(_agent_sig["optimal_threshold"])
+                                except KeyError as _e_thr:
+                                    raise RuntimeError(f"Falta optimal_threshold en firma LGBM de {_agent_name}. Política No-Fallback.") from _e_thr
                                 _lgbm_thresholds_found.append(_thr)
                                 # Mapear cada régimen semántico de este agente a su threshold
                                 for _sem in _sem_list:
@@ -1224,7 +1187,7 @@ class OOSTradesGenerator:
                         _lgbm_model = joblib.load(_lgbm_meta_path)
                     
                         # Garantizar que las columnas de features esten (LightGBM no tolera features faltantes)
-                        _X_lgbm = df_oos.copy()
+                        _X_lgbm = df_oos_iter.copy()
                         for _f_lgbm in _lgbm_feats:
                             if _f_lgbm not in _X_lgbm.columns:
                                 _X_lgbm[_f_lgbm] = 0.0
@@ -1235,7 +1198,7 @@ class OOSTradesGenerator:
                         if lgbm_probs.min() < 0 or lgbm_probs.max() > 1.0:
                             from scipy.special import expit
                             lgbm_probs = expit(lgbm_probs)
-                        df_oos["lgbm_prob"] = lgbm_probs
+                        df_oos_iter["lgbm_prob"] = lgbm_probs
                     else:
                         logger.warning("use_lgbm_ensemble=True, pero lgbm_meta.model o signature no existen. Omitiendo LGBM.")
 
@@ -1243,7 +1206,7 @@ class OOSTradesGenerator:
             from luna.models.signal_filter import SignalFilter
             signal_pipeline = SignalFilter(self.models_dir)
         
-            signal_mask = signal_pipeline.filter_signals(df_oos, available_feats, direction=_direct)
+            signal_mask = signal_pipeline.filter_signals(df_oos_iter, available_feats, direction=_direct)
             n_signals = int(signal_mask.sum())
         
             if n_signals == 0:
@@ -1260,7 +1223,7 @@ class OOSTradesGenerator:
             try:
                 import os as _os_pool
                 if _os_pool.environ.get("LUNA_SAVE_SIGNAL_POOL", "0") == "1":
-                    _pool_df = df_oos[signal_mask].copy()
+                    _pool_df = df_oos_iter[signal_mask].copy()
                     _pool_cols = [c for c in ["close", "xgb_prob", "lgbm_prob", "meta_v2_prob",
                                               "HMM_Regime", "HMM_Semantic"] if c in _pool_df.columns]
                     _pool_df = _pool_df[_pool_cols]
@@ -1284,7 +1247,7 @@ class OOSTradesGenerator:
             except Exception as _e_pool:
                 logger.debug(f"[POOL-SAVE-01] No se pudo guardar pool: {_e_pool}")
 
-            signal_times = signal_pipeline.apply_embargo(df_oos, signal_mask)
+            signal_times = signal_pipeline.apply_embargo(df_oos_iter, signal_mask)
             n_signals = len(signal_times)
         
             if n_signals == 0:
@@ -1309,7 +1272,7 @@ class OOSTradesGenerator:
             # Leer seed desde settings para construir key estable
             try:
                 from config.settings import cfg as _cfg_fnl
-                _optuna_seed_fnl = int(getattr(_cfg_fnl.xgboost, 'optuna_seed', 0))
+                _optuna_seed_fnl = int(int(_cfg_fnl.xgboost.optuna_seed))
             except Exception:
                 _optuna_seed_fnl = 0
 
@@ -1364,7 +1327,7 @@ class OOSTradesGenerator:
                 _dynamic_barrier = bool(_cfg_tbm.xgboost.dynamic_barrier)
                 _lin_decay = bool(_cfg_tbm.xgboost.linear_decay_pt)
                 _pt_decay_frac = float(_cfg_tbm.xgboost.pt_decay_fraction)
-                _funding_series_oos = df_oos["FundingRate"] if "FundingRate" in df_oos.columns else None
+                _funding_series_oos = df_oos_iter["FundingRate"] if "FundingRate" in df_oos_iter.columns else None
             except Exception as e_tbm2:
                 raise RuntimeError(f"Faltan parametros de riesgo TBM en settings.yaml (SOP No-Fallback): {e_tbm2}")
 
@@ -1372,8 +1335,8 @@ class OOSTradesGenerator:
             # [FIX-OBS-01] Barreras PT/SL dinámicas por trade (TBM Vectorizado)
             # Bug anterior: calculaba una única moda de HMM_Semantic para toda la ventana OOS
             # y aplicaba el mismo PT/SL a todos los trades, ignorando los cambios de régimen intra-ventana.
-            if "HMM_Semantic" in df_oos.columns:
-                _sem_series = df_oos["HMM_Semantic"].fillna("UNKNOWN").astype(str)
+            if "HMM_Semantic" in df_oos_iter.columns:
+                _sem_series = df_oos_iter["HMM_Semantic"].fillna("UNKNOWN").astype(str)
                 # [BUG-FIX-HMM-RESOLVER] (2026-05-20): Usar resolvedor robusto con fallback dinámico
                 _pt = _sem_series.map(lambda r: get_hmm_tbm_params(r)["tp"])
                 _sl = _sem_series.map(lambda r: get_hmm_tbm_params(r)["sl"])
@@ -1385,29 +1348,26 @@ class OOSTradesGenerator:
                 # Expandimos SL
                 _sl = np.where(_is_volatile, _sl * _atr_expansion_factor, _sl)
                 # Penalizamos Kelly inversamente proporcional para mantener riesgo nominal constante
-                _kelly_penalty = pd.Series(np.where(_is_volatile, 1.0 / _atr_expansion_factor, 1.0), index=df_oos.index)
+                _kelly_penalty = pd.Series(np.where(_is_volatile, 1.0 / _atr_expansion_factor, 1.0), index=df_oos_iter.index)
                 
                 # [CONF-SCALER-01] Escala Intra-Régimen por Confianza
-                if "xgb_prob_cal" in df_oos.columns:
-                    _prob_series = df_oos["xgb_prob_cal"].fillna(0.5).clip(0.5, 1.0)
-                elif "meta_v2_prob" in df_oos.columns:
-                    _prob_series = df_oos["meta_v2_prob"].fillna(0.5).clip(0.5, 1.0)
-                elif "xgb_prob" in df_oos.columns:
-                    _prob_series = df_oos["xgb_prob"].fillna(0.5).clip(0.5, 1.0)
+                if "xgb_prob_cal" in df_oos_iter.columns:
+                    _prob_series = df_oos_iter["xgb_prob_cal"].fillna(0.5).clip(0.5, 1.0)
+                elif "meta_v2_prob" in df_oos_iter.columns:
+                    _prob_series = df_oos_iter["meta_v2_prob"].fillna(0.5).clip(0.5, 1.0)
+                elif "xgb_prob" in df_oos_iter.columns:
+                    _prob_series = df_oos_iter["xgb_prob"].fillna(0.5).clip(0.5, 1.0)
                 else:
-                    _prob_series = pd.Series(0.5, index=df_oos.index)
+                    _prob_series = pd.Series(0.5, index=df_oos_iter.index)
                 
                 # Mapear probabilidad [0.5, 1.0] a escalar [0.7, 1.3]
                 _conf_scaler = 0.7 + ((_prob_series - 0.5) / 0.5) * (1.3 - 0.7)
                 _pt = _pt * _conf_scaler
                 _sl = _sl * _conf_scaler
                 
-                # Mantenemos moda para max_horizon porque apply_triple_barrier espera escalar
-                # [BUG-FIX-HMM-RESOLVER] (2026-05-20): Usar resolvedor robusto para horizontes dinámicos
-                _dyn_max = int(df_oos.loc[df_oos.index >= signal_times[0], "HMM_Semantic"].dropna().map(
-                    lambda r: get_hmm_horizon(r)
-                ).mode().iloc[0] if not df_oos.loc[df_oos.index >= signal_times[0], "HMM_Semantic"].dropna().empty else _HMM_HORIZON_FALLBACK)
-                
+                # Eliminada la sobreescritura estática de get_hmm_horizon (Selection Bias)
+                # Ahora heredamos estrictamente el horizonte del modelo XGBoost (ATR Dynamic).
+                _dyn_max = int(_cfg_tbm.xgboost.dynamic_horizon_max_h)
                 # Variables locales para retrocompatibilidad downstream si es necesario
                 _regime_now = "MIXED (Dynamic)"
                 _pt_log, _sl_log = _pt.median(), _sl.median()
@@ -1417,25 +1377,12 @@ class OOSTradesGenerator:
                 _regime_now = "UNKNOWN"
                 # [BUG-FIX-HMM-RESOLVER] (2026-05-20): Usar resolvedores robustos en bloque fallback estático
                 tbm_p = get_hmm_tbm_params(_regime_now)
-                _dyn_max = get_hmm_horizon(_regime_now)
+                _dyn_max = int(_cfg_tbm.xgboost.dynamic_horizon_max_h)
                 _pt = tbm_p["tp"]
                 _sl = tbm_p["sl"]
                 logger.info(f"  [DIAG] OOS TBM (Estático): PT={_pt}x SL={_sl}x VB={_vb_h}h min_ret={_min_ret:.4f} dyn={_dynamic_barrier} [{_dyn_min}h,{_dyn_max}h]")
-
-            # [FIX-HOLDING-CAP 2026-06-14] Cargar cap de simulacion/ejecucion si existe
-            try:
-                from config.settings import cfg as _cfg_exec
-                _exec_cap = int(getattr(_cfg_exec.execution, 'execution_holding_cap_h', 0))
-            except Exception:
-                _exec_cap = 0
-
-            if _exec_cap > 0:
-                _vb_h = min(_vb_h, _exec_cap)
-                _dyn_max = min(_dyn_max, _exec_cap)
-                print(f"[FIX-HOLDING-CAP 2026-06-14] Truncando horizonte maximo de la simulacion a {_exec_cap}H (TBM original: {_cfg_tbm.xgboost.vertical_barrier_hours}H)")
-                logger.info(f"  [EXECUTION-CAP] Truncando horizonte máximo de la simulación a {_exec_cap}H (TBM original: {_cfg_tbm.xgboost.vertical_barrier_hours}H)")
             tbm_result = apply_triple_barrier(
-                price_series=df_oos["close"],
+                price_series=df_oos_iter["close"],
                 event_times=signal_times,
                 sides=pd.Series(1 if _direct=='long' else -1, index=signal_times),
                 pt_sl_multiplier=[_pt, _sl],
@@ -1483,9 +1430,9 @@ class OOSTradesGenerator:
             # No-Fallback estricto: parametro critico de riesgo, ausencia -> RuntimeError
             try:
                 from config.settings import cfg as _cfg_h5
-                _h5_enabled   = bool(getattr(_cfg_h5.position_sizer, 'roll_sr_gate_enabled', None))
-                _h5_window    = int(getattr(_cfg_h5.position_sizer, 'roll_sr_window', None))
-                _h5_threshold = float(getattr(_cfg_h5.position_sizer, 'roll_sr_threshold', None))
+                _h5_enabled   = bool(int(_cfg_h5.position_sizer.roll_sr_gate_enabled))
+                _h5_window    = int(int(_cfg_h5.position_sizer.roll_sr_window))
+                _h5_threshold = float(int(_cfg_h5.position_sizer.roll_sr_threshold))
                 if _h5_enabled is None or _h5_window is None or _h5_threshold is None:
                     raise KeyError("Parametros H5 incompletos en position_sizer")
                 print(f"[H5-ROLL-SR-GATE] Cargado: enabled={_h5_enabled} window={_h5_window} threshold={_h5_threshold}")
@@ -1535,7 +1482,7 @@ class OOSTradesGenerator:
                 active_exits = [ex for ex in active_exits if ex > t]
 
                 # Determine HMM semantic label and regime-based concurrency cap
-                _hmm_sem_t = str(df_oos.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t in df_oos.index else ""
+                _hmm_sem_t = str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t in df_oos_iter.index else ""
                 
                 if _dynamic_concurrency:
                     # round(C_base * 1.5) for strong trends, max(1, round(C_base * 0.5)) for volatile/range/bear
@@ -1570,11 +1517,11 @@ class OOSTradesGenerator:
                 
                 if _kelly_sizer_instance is not None:
                     # Empaquetamos la fila para que el método nativo evalue todo el conjunto
-                    _row_df = df_oos.loc[[t]].copy()
+                    _row_df = df_oos_iter.loc[[t]].copy()
                     # Mapear columnas esperadas por KellyPositionSizer
-                    _row_df["xgb_prob"] = float(df_oos.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos.columns and t in df_oos.index else float(df_oos.loc[t, "xgb_prob"]) if "xgb_prob" in df_oos.columns and t in df_oos.index else 0.5
-                    _row_df["meta_prob"] = float(df_oos.loc[t, "meta_v2_prob"]) if "meta_v2_prob" in df_oos.columns and t in df_oos.index else 0.5
-                    _row_df["hmm_regime"] = float(df_oos.loc[t, "HMM_Regime"]) if "HMM_Regime" in df_oos.columns and t in df_oos.index else np.nan
+                    _row_df["xgb_prob"] = float(df_oos_iter.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos_iter.columns and t in df_oos_iter.index else float(df_oos_iter.loc[t, "xgb_prob"]) if "xgb_prob" in df_oos_iter.columns and t in df_oos_iter.index else 0.5
+                    _row_df["meta_prob"] = float(df_oos_iter.loc[t, "meta_v2_prob"]) if "meta_v2_prob" in df_oos_iter.columns and t in df_oos_iter.index else 0.5
+                    _row_df["hmm_regime"] = float(df_oos_iter.loc[t, "HMM_Regime"]) if "HMM_Regime" in df_oos_iter.columns and t in df_oos_iter.index else np.nan
                     
                     _fractions = _kelly_sizer_instance.size_signals_dynamic(_row_df, prob_col="xgb_prob")
                     _eff_mult = float(_fractions.iloc[0]) * _psi_kelly_penalty * _pred_drift_penalty
@@ -1584,7 +1531,7 @@ class OOSTradesGenerator:
                 # [H8] Ponderación de Capital por "Alpha Triggers"
                 # Multiplicador Kelly de 1.2x si la señal contiene un alpha_trigger activo
                 _alpha_triggers = ["alpha_golden_score", "alpha_genetic_score", "alpha_dtw_signal"]
-                _has_alpha = any(c in df_oos.columns and t in df_oos.index and float(df_oos.loc[t, c]) > 0 for c in _alpha_triggers)
+                _has_alpha = any(c in df_oos_iter.columns and t in df_oos_iter.index and float(df_oos_iter.loc[t, c]) > 0 for c in _alpha_triggers)
                 if _has_alpha:
                     _eff_mult *= 1.2
                     print(f"[H8-ALPHA-TRIGGER] Señal con Alpha en {t}. Kelly ponderado 1.2x -> {_eff_mult:.4f}")
@@ -1625,7 +1572,7 @@ class OOSTradesGenerator:
                 # (is_win evaluado sobre ret_bruto aunque posicion=0 → ruido estadistico puro).
                 # [H2-FIX 2026-05-30] Cambiado de soft (kelly=0, trade loggeado) a hard exclusion
                 # (continue antes del append). Impacto esperado: +0.5pp WR, N limpio sin fantasmas.
-                _hmm_sem_t = str(df_oos.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t in df_oos.index else ""
+                _hmm_sem_t = str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t in df_oos_iter.index else ""
                 _is_bear_crash = "BEAR_CRASH" in _hmm_sem_t or "3_BEAR" in _hmm_sem_t
                 if _is_bear_crash:
                     print(f"[H2-FIX][P1-BEAR-CRASH-01] HARD SKIP en {t} | regime={_hmm_sem_t} | kelly_original={_eff_mult:.4f} | trade NO registrado (hard exclusion)")
@@ -1654,7 +1601,7 @@ class OOSTradesGenerator:
                 if _eff_mult > 0.0 and use_regime:
                     try:
                         _agent_name = None
-                        _semantic_t = str(df_oos.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns else ""
+                        _semantic_t = str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns else ""
                         for _r_name, _r_permitted in router_xgb.regimes_config.items():
                             if _semantic_t in _r_permitted:
                                 _agent_name = _r_name
@@ -1664,8 +1611,8 @@ class OOSTradesGenerator:
                             _model = router_xgb.models[_agent_name]
                             _features = router_xgb.signatures[_agent_name]["features"]
                             _explainer = shap.TreeExplainer(_model)
-                            _avail_feats = [f for f in _features if f in df_oos.columns]
-                            _X_t = df_oos.loc[[t], _avail_feats].copy()
+                            _avail_feats = [f for f in _features if f in df_oos_iter.columns]
+                            _X_t = df_oos_iter.loc[[t], _avail_feats].copy()
                             # Rellenar faltantes con 0 para que explainer no falle
                             for mf in [f for f in _features if f not in _avail_feats]:
                                 _X_t[mf] = 0.0
@@ -1702,10 +1649,10 @@ class OOSTradesGenerator:
                     # Gauntlet usa return_pct → is_win_kelly es la métrica relevante para Calmar/WR real.
                     "is_win":       bool(ret_bruto > 0),
                     "is_win_kelly": bool(ret_kelly > 0),
-                    "xgb_prob":     float(df_oos.loc[t, "xgb_prob"]) if t in df_oos.index else np.nan,
-                    "xgb_prob_cal": float(df_oos.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos.columns and t in df_oos.index else np.nan,
-                    "meta_v2_prob": float(df_oos.loc[t, "meta_v2_prob"]) if "meta_v2_prob" in df_oos.columns and t in df_oos.index else np.nan,
-                    "lgbm_prob":    float(df_oos.loc[t, "lgbm_prob"]) if "lgbm_prob" in df_oos.columns and t in df_oos.index else np.nan,
+                    "xgb_prob":     float(df_oos_iter.loc[t, "xgb_prob"]) if t in df_oos_iter.index else np.nan,
+                    "xgb_prob_cal": float(df_oos_iter.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
+                    "meta_v2_prob": float(df_oos_iter.loc[t, "meta_v2_prob"]) if "meta_v2_prob" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
+                    "lgbm_prob":    float(df_oos_iter.loc[t, "lgbm_prob"]) if "lgbm_prob" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
                     # BUG-03 FIX: registrar si este trade entro con threshold de emergencia
                     "signal_threshold":      signal_pipeline.used_threshold if 'signal_pipeline' in locals() else np.nan,
                     "threshold_was_lowered": signal_pipeline.threshold_was_lowered if 'signal_pipeline' in locals() else False,
@@ -1716,12 +1663,12 @@ class OOSTradesGenerator:
                     # FIX-REGIME-STATIC-01 (2026-04-29): hmm_regime por trade (no moda estática del OOS completo).
                     # Bug: _regime_now era la moda de TODO el holdout, asignando 3_BEAR_CRASH a todos los trades
                     # en W3+W4 aunque BTC pasó de $60K a $108K. Fix: leer HMM_Semantic del bar de entrada.
-                    "hmm_regime":   str(df_oos.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t in df_oos.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
-                    "HMM_Semantic": str(df_oos.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t in df_oos.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
+                    "hmm_regime":   str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t in df_oos_iter.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
+                    "HMM_Semantic": str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t in df_oos_iter.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
                     "kelly_fraction_used": _eff_mult,
-                    "ood_kl_distance": float(df_oos.loc[t, "ood_kl_distance"]) if "ood_kl_distance" in df_oos.columns and t in df_oos.index else np.nan,
+                    "ood_kl_distance": float(df_oos_iter.loc[t, "ood_kl_distance"]) if "ood_kl_distance" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
                     "shap_drivers": top_shap_features,
-                    "alpha_trigger": ",".join([c for c in ["alpha_golden_score", "alpha_genetic_score", "alpha_dtw_signal"] if c in df_oos.columns and t in df_oos.index and float(df_oos.loc[t, c]) > 0]),
+                    "alpha_trigger": ",".join([c for c in ["alpha_golden_score", "alpha_genetic_score", "alpha_dtw_signal"] if c in df_oos_iter.columns and t in df_oos_iter.index and float(df_oos_iter.loc[t, c]) > 0]),
                 })
                 # [FIX-CONCURRENCY-CAP 2026-06-13] Registrar la salida del trade activo
                 _exit_t = row.get("first_touch", pd.NaT) if hasattr(row, "get") else getattr(row, "first_touch", pd.NaT)
@@ -1744,10 +1691,10 @@ class OOSTradesGenerator:
             # ---> RESEARCH: XGBoost Only (Pre-MetaLabeler Baseline)
             try:
                 logger.info(f"  [RESEARCH] Generando baseline XGBoost Puro (Sin MetaLabeler) para {_direct}...")
-                xgb_times = signal_pipeline.apply_embargo(df_oos, signal_pipeline.last_xgb_mask)
+                xgb_times = signal_pipeline.apply_embargo(df_oos_iter, signal_pipeline.last_xgb_mask)
                 if len(xgb_times) > 0:
                     tbm_xgb = apply_triple_barrier(
-                        price_series=df_oos["close"],
+                        price_series=df_oos_iter["close"],
                         event_times=xgb_times,
                         sides=pd.Series(1 if _direct=='long' else -1, index=xgb_times),
                         pt_sl_multiplier=[_pt, _sl],
@@ -1813,11 +1760,11 @@ class OOSTradesGenerator:
                                 if not pd.isna(_ft) and hasattr((_ft - t_x), 'total_seconds')
                                 else 0.0
                             ),
-                            "hmm_regime": str(df_oos.loc[t_x, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t_x in df_oos.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
-                            "HMM_Semantic": str(df_oos.loc[t_x, "HMM_Semantic"]) if "HMM_Semantic" in df_oos.columns and t_x in df_oos.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
-                            "xgb_prob": float(df_oos.loc[t_x, "xgb_prob"]) if "xgb_prob" in df_oos.columns and t_x in df_oos.index else float('nan'),
-                            "meta_v2_prob": float(df_oos.loc[t_x, "meta_v2_prob"]) if "meta_v2_prob" in df_oos.columns and t_x in df_oos.index else float('nan'),
-                            "xgb_prob_cal": float(df_oos.loc[t_x, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos.columns and t_x in df_oos.index else float('nan'),
+                            "hmm_regime": str(df_oos_iter.loc[t_x, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t_x in df_oos_iter.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
+                            "HMM_Semantic": str(df_oos_iter.loc[t_x, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t_x in df_oos_iter.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
+                            "xgb_prob": float(df_oos_iter.loc[t_x, "xgb_prob"]) if "xgb_prob" in df_oos_iter.columns and t_x in df_oos_iter.index else float('nan'),
+                            "meta_v2_prob": float(df_oos_iter.loc[t_x, "meta_v2_prob"]) if "meta_v2_prob" in df_oos_iter.columns and t_x in df_oos_iter.index else float('nan'),
+                            "xgb_prob_cal": float(df_oos_iter.loc[t_x, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos_iter.columns and t_x in df_oos_iter.index else float('nan'),
                             "exit_time": _ft
                         })
                         print(f"[XGB-BASELINE-BUGFIX] Trade baseline logeado: t={t_x}, dir={_direct}, ret_bruto={ret_bruto:.4f}")
@@ -2093,7 +2040,7 @@ class OOSTradesGenerator:
                 _ood_thresh = 0.95 
                 try:
                     from config.settings import cfg as _cfg_ood
-                    _ood_thresh = float(getattr(_cfg_ood.xgboost, 'ood_kl_threshold', 0.95))
+                    _ood_thresh = float(int(_cfg_ood.xgboost.ood_kl_threshold))
                 except Exception:
                     pass
                 raw_probs_df["is_ood_outlier"] = df_oos_base["ood_kl_distance"] > _ood_thresh

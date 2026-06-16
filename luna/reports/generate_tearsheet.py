@@ -978,20 +978,35 @@ class LunaTearSheet:
 
         # (name, passed, value_raw, threshold_raw, scale_max, higher_better, disp_val, disp_thr)
         n_tr   = metrics.get("total_trades", 0)
-        min_tr = thresh.get("min_trades", 100)
+        try:
+            min_tr = int(thresh["min_trades"])
+        except KeyError as _e:
+            raise RuntimeError("Falta sop_thresholds.min_trades en verdict. Política No-Fallback.") from _e
         wr     = metrics.get("win_rate", 0)
         # Calculate dynamic win rate threshold passing p-value
-        alpha  = thresh.get("alpha_binomial", 0.05)  # [FIX-07] Fallback corregido 0.15→0.05 (α estándar 5%)
+        try:
+            alpha = float(thresh["alpha_binomial"])
+        except KeyError as _e:
+            raise RuntimeError("Falta sop_thresholds.alpha_binomial en verdict. Política No-Fallback.") from _e
         print(f"[FIX-07] Gate semaphore: alpha_binomial={alpha:.3f} (fuente: sop_thresholds={'alpha_binomial' in thresh})")
         min_wins = binom.ppf(1 - alpha, max(n_tr, 1), 0.5)
         min_wr = min_wins / max(n_tr, 1)
 
         dsr    = audit.get("dsr", 0)
-        min_dsr = thresh.get("min_dsr", 0.75)
+        try:
+            min_dsr = float(thresh["min_dsr"])
+        except KeyError as _e:
+            raise RuntimeError("Falta sop_thresholds.min_dsr en verdict. Política No-Fallback.") from _e
         pbo    = audit.get("estimated_pbo", 1.0)
-        max_pbo = thresh.get("max_pbo_pct", 10) / 100
+        try:
+            max_pbo = float(thresh["max_pbo_pct"]) / 100
+        except KeyError as _e:
+            raise RuntimeError("Falta sop_thresholds.max_pbo_pct en verdict. Política No-Fallback.") from _e
         dd     = metrics.get("max_drawdown_pct", 100)
-        max_dd_t = thresh.get("max_drawdown_pct", 20)
+        try:
+            max_dd_t = float(thresh["max_drawdown_pct"])
+        except KeyError as _e:
+            raise RuntimeError("Falta sop_thresholds.max_drawdown_pct en verdict. Política No-Fallback.") from _e
         p_val  = audit.get("binomial_p_value", 1.0)
 
         gate_defs = [

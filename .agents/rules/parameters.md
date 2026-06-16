@@ -1,0 +1,13 @@
+---
+trigger: always_on
+---
+
+las implementaciones, configuraciones y arreglos de código deben respetar estrictamente la política institucional de **No-Fallback Silencioso** para evitar sesgos estadísticos devastadores (como el bug PBO_N_BLOCKS):
+1. **Evitar Valores Hardcodeados o Mágicos:** Toda constante o parámetro debe leerse dinámicamente de `config/settings.yaml`.
+2. **Política No-Fallback en Parámetros Críticos:**
+   - Para Gates del Gauntlet (`min_dsr`, `max_pbo`, `min_trades`, `max_drawdown`, `pbo_n_blocks`), parámetros de riesgo (`embargo_hours`, `purge_hours`) e integridad de base de datos: **Prohibido el fallback silencioso (ej. `.get("param", default)` dentro de bloques `except` sin advertir)**. Si la lectura falla o el parámetro falta, se debe lanzar un error `CRITICAL` + `KeyError` o `RuntimeError` para forzar la parada visible.
+   - Para parámetros menores de diagnóstico o informes, se permite un aviso `WARNING` o fallback silencioso `DEBUG`.
+3. **Unificación de Parámetros Codependientes:** Evitar la creación de variables redundantes o conceptualmente idénticas (ej. `execution_holding_cap_h` truncando y colisionando con `vertical_barrier_hours`). Todo concepto estructural debe tener un **origen único de la verdad** en `settings.yaml`. Los módulos del pipeline (Entrenamiento, MetaLabeler, Predicción OOS) deben heredar y usar exactamente la misma clave de configuración.
+4. **Validación Pre-Flight de Invariantes y Correlaciones:** Cualquier parámetro crítico o par de parámetros que mantengan una codependencia matemática o de asimetría de riesgo (ej. `pt_mult_min > sl_mult_min > 0` o `dynamic_horizon_max_h >= vertical_barrier_hours`) debe estar fiscalizado. Al añadir nuevos parámetros codependientes, es **obligatorio** escribir un test en `scripts/pre_flight/test_parameter_correlations.py` para bloquear automáticamente el orquestador (`run_wfb_orchestrator.py`) en caso de que alguien modifique `settings.yaml` rompiendo la lógica matemática.
+5. **Registro y Trazabilidad:** Todo número o parámetro fijo justificado debe registrarse y documentarse formalmente en el archivo `docs/parametros_fijos.md` o en su equivalente base.
+6. **Verificación de Auditoría:** Tras alterar parámetros o configs, ejecutar la auditoría estática con `python tools/diagnostics/audit_parametros_fijos.py` y actualizar el documento de control en docs. Asegurarse también de pasar el `python scripts/pre_flight_check.py --section consistency`.

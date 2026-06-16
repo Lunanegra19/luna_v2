@@ -323,7 +323,7 @@ def _validate_calibrator_cache(models_dir: Path, cache_dir: Path, window_id: str
             _test_x_xgb = _np_xgb.linspace(0.3, 0.7, 50)
             _out_xgb = _xgb_cal.predict(_test_x_xgb) if hasattr(_xgb_cal, 'predict') else _np_xgb.array([0.5] * 50)
             _std_xgb = float(_np_xgb.std(_out_xgb))
-            _n_anchors = len(getattr(_xgb_cal, 'X_thresholds_', []))
+            _n_anchors = len(int(_xgb_cal.X_thresholds_))
             if _std_xgb < 1e-4:
                 logger.warning(
                     f"[BUG-CALIB-XGB-01] XGB calibrador DEGENERADO: {_xgb_name.name} | "
@@ -1337,7 +1337,7 @@ class LunaPipelineExecutor:
         _use_lgbm = self.options.get("use_lgbm_ensemble", False)
         try:
             from config.settings import cfg as _cfg_lgbm
-            _use_lgbm = bool(getattr(getattr(_cfg_lgbm, 'fase2', None), 'use_lgbm_ensemble', _use_lgbm))
+            _use_lgbm = bool(int(bool(_cfg_lgbm.fase2).use_lgbm_ensemble))
         except Exception:
             pass
         if _use_lgbm:
@@ -1361,7 +1361,7 @@ class LunaPipelineExecutor:
         
         try:
             from config.settings import cfg as _cfg_dir
-            _dmode = getattr(_cfg_dir.fase2, 'direction_mode', 'both')
+            _dmode = str(_cfg_dir.fase2.direction_mode)
         except Exception:
             _dmode = "both"
             

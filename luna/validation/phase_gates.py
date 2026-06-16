@@ -126,7 +126,7 @@ class WFBPhaseGate:
         # Gate G0: NaN excesivo no afecta el veredicto estadístico final, solo la calidad del dato.
         try:
             from config.settings import cfg as _cfg_pg
-            _nan_thr = float(getattr(_cfg_pg.debug, 'nan_threshold_pct', 5.0))
+            _nan_thr = float(float(_cfg_pg.debug.nan_threshold_pct))
             self.DATA_MAX_NAN_PCT = _nan_thr / 100.0  # convertir % a fracción
             print(f"[FIX-E] PhaseGates G0: DATA_MAX_NAN_PCT={self.DATA_MAX_NAN_PCT:.3f} ({self.DATA_MAX_NAN_PCT*100:.1f}% NaN max)")
         except Exception as _e_nan:
@@ -138,7 +138,7 @@ class WFBPhaseGate:
         # Política: si settings falla → WARNING con fallback 0.60 (valor validado). No es gate de trading.
         try:
             from config.settings import cfg as _cfg_pg
-            _alpha_ratio = float(getattr(getattr(_cfg_pg, 'features', object()), 'sfi_max_alpha_ratio', 0.60))
+            _alpha_ratio = float(_cfg_pg.features.sfi_max_alpha_ratio)
             self.SFI_MAX_ALPHA_RATIO = _alpha_ratio
             print(f"[FIX-J] PhaseGates G1: SFI_MAX_ALPHA_RATIO={self.SFI_MAX_ALPHA_RATIO:.3f} ({self.SFI_MAX_ALPHA_RATIO*100:.1f}% max alpha)")
         except Exception as _e_sfi:
@@ -154,7 +154,7 @@ class WFBPhaseGate:
         # porque no afectan directamente el veredicto de calidad del modelo.
         try:
             from config.settings import cfg as _cfg_pg
-            _stat = getattr(_cfg_pg, 'stat', None)
+            _stat = int(_cfg_pg.stat)
             if _stat is None:
                 raise KeyError("[PhaseGates] CRITICAL: sección 'stat' no encontrada en settings.yaml. "
                                "Añadir xgb_auc_hard_stop, xgb_brier_hard_stop, xgb_proba_std_min. "
@@ -716,7 +716,7 @@ class WFBPhaseGate:
                     # [MEJORA-GATE-01] Hacer bloqueante la falta de probas si el ensemble está activado
                     try:
                         from config.settings import cfg as _cfg_ens
-                        use_lgbm = getattr(_cfg_ens.ensemble, 'use_lgbm_ensemble', False)
+                        use_lgbm = bool(_cfg_ens.ensemble.use_lgbm_ensemble)
                     except Exception:
                         use_lgbm = False
                         

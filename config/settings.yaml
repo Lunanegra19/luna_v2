@@ -33,7 +33,6 @@ execution:
   hybrid_order_timeout_s: 30
   funding_drag_enabled: true
   funding_rate_8h: 0.0001
-  execution_holding_cap_h: 24
 ai_mining:
   advanced:
     granger_maxlag: 13
@@ -59,8 +58,8 @@ ai_mining:
     hidden_size: 128
     horizon_hours: 24
     learning_rate: 0.001
-    max_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) 20
+    max_features: 20
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
     num_layers: 2
     patience: 7
     sequence_len: 168
@@ -160,8 +159,8 @@ fase2:
   use_lgbm_ensemble: false
   use_dtw_signal: false
   use_monetary_loss: false
-  use_ofi_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) true
+  use_ofi_features: true
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   use_regime_agents: true
 features:
   # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
@@ -373,7 +372,7 @@ hmm:
   min_features_required: 2
 kelly_sizer:
   enabled: true
-  kelly_fraction: 0.5
+  kelly_fraction: 0.25
   max_position: 20.0
   target_sl_pct: 0.05
   pt_ratio: 1.2
@@ -520,8 +519,8 @@ stat:
   xgb_proba_std_min: 0.01
   lgbm_proba_std_min: 0.01
   hmm_min_active_states: 2
-  sfi_min_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) 5
+  sfi_min_features: 5
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   data_min_rows: 1000
   data_max_gap_h: 48
   signal_min_count_warn: 5
@@ -530,14 +529,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-02-28
+  hmm_train_end: 2024-12-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-03-31
-  holdout_start: 2025-03-01
-  train_end: 2024-12-31
+  holdout_end: 2025-01-31
+  holdout_start: 2025-01-01
+  train_end: 2024-10-31
   train_start: '2017-08-17'
-  validation_end: 2025-02-28
-  validation_start: 2025-01-01
+  validation_end: 2024-12-31
+  validation_start: 2024-11-01
 wfb:
   ensemble_voting_method: soft
   soft_voting_threshold: 0.55
@@ -799,3 +798,7 @@ shap_audit:
   - gain
 tbm:
   use_confidence_scaler: false
+
+
+
+

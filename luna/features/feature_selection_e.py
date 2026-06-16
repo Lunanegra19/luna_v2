@@ -162,30 +162,30 @@ PASSTHROUGH_FEATURES: list[str] = [
 # Sin hardcodes: cambiar el valor en settings.yaml lo propaga automáticamente al pipeline.
 try:
     from config.settings import cfg as _cfg_sfi
-    CLUSTER_FIXED_N       = int(getattr(_cfg_sfi.features, 'sfi_n_clusters',    15))
-    MAX_LAG_HOURS         = int(getattr(_cfg_sfi.features, 'max_lag_hours',     500))
-    SFI_TOP_N_FEATURES    = int(getattr(_cfg_sfi.features, 'sfi_top_n',         15))
-    SFI_N_GROUPS          = int(getattr(_cfg_sfi.features, 'sfi_n_groups',       6))
+    CLUSTER_FIXED_N       = int(int(_cfg_sfi.features.sfi_n_clusters))
+    MAX_LAG_HOURS         = int(int(_cfg_sfi.features.max_lag_hours))
+    SFI_TOP_N_FEATURES    = int(int(_cfg_sfi.features.sfi_top_n))
+    SFI_N_GROUPS          = int(int(_cfg_sfi.features.sfi_n_groups))
     # LOGIC-SFI-01 FIX (2026-04-06): Separar las fuentes de Purge y Embargo.
     # Antes: ambos leían de 'embargo_hours' → purge == embargo == 96H
     # → 192H de exclusión total (96H antes + 96H después de cada test fold).
     # Correcto: purge = horizonte TBM (hacia atrás), embargo = cooldown post-test (menor).
-    SFI_PURGE_H           = int(getattr(_cfg_sfi.sop,      'purge_hours',    96))  # LdP: hacia atrás del test
-    SFI_EMBARGO_H         = int(getattr(_cfg_sfi.sop,      'embargo_hours',  24))  # LdP: cooldown post-test
-    SFI_N_ESTIMATORS      = int(getattr(_cfg_sfi.features, 'sfi_n_estimators', 200))
-    SFI_MAX_DEPTH         = int(getattr(_cfg_sfi.features, 'sfi_max_depth',      4))
+    SFI_PURGE_H           = int(int(_cfg_sfi.sop.purge_hours))  # LdP: hacia atrás del test
+    SFI_EMBARGO_H         = int(int(_cfg_sfi.sop.embargo_hours))  # LdP: cooldown post-test
+    SFI_N_ESTIMATORS      = int(int(_cfg_sfi.features.sfi_n_estimators))
+    SFI_MAX_DEPTH         = int(int(_cfg_sfi.features.sfi_max_depth))
     SFI_COST_ROUNDTRIP = 0.0025; SFI_COST_ROUNDTRIP = float(_cfg_sfi.sop.cost_pct)  # R6: Lectura dinamica desde settings.yaml
-    SFI_MIN_SHARPE        = float(getattr(_cfg_sfi.features,'sfi_min_sharpe',  0.05))  # floor DSR-null (MEJORA-SFI-SHARPE-01)
-    SFI_DSR_N_TRIALS      = 600; SFI_DSR_N_TRIALS = int(getattr(_cfg_sfi.stat, 'n_trials_total', 600))  # BUG M-01
+    SFI_MIN_SHARPE        = float(float(_cfg_sfi.features.sfi_min_sharpe))  # floor DSR-null (MEJORA-SFI-SHARPE-01)
+    SFI_DSR_N_TRIALS      = 600; SFI_DSR_N_TRIALS = int(int(_cfg_sfi.stat.n_trials_total))  # BUG M-01
     FORWARD_ENABLED       = False  # Etapa E: controlado por código (no por cfg aún)
-    FORWARD_MAX_FEATURES  = int(getattr(_cfg_sfi.features, 'forward_max_features', 25))
+    FORWARD_MAX_FEATURES  = int(int(_cfg_sfi.features.forward_max_features))
     FORWARD_MIN_IMPROVE   = 0.00   # Etapa E: mejora mínima 0% — por diseño, no heurístico
     # [SFI-BALANCE-01 2026-06-03] Slots mínimos garantizados por categoría.
     # 3 cuotas independientes: macro estructural, onchain valuation, calendar/halving.
     # Total garantizado: 3+1+1=5 slots de 13. Resto: competición libre por DSR.
-    SFI_MACRO_MIN_SLOTS     = int(getattr(_cfg_sfi.features, 'sfi_macro_min_slots',     0))
-    SFI_ONCHAIN_MIN_SLOTS   = int(getattr(_cfg_sfi.features, 'sfi_onchain_min_slots',   0))
-    SFI_CALENDAR_MIN_SLOTS  = int(getattr(_cfg_sfi.features, 'sfi_calendar_min_slots',  0))
+    SFI_MACRO_MIN_SLOTS     = int(int(_cfg_sfi.features.sfi_macro_min_slots))
+    SFI_ONCHAIN_MIN_SLOTS   = int(int(_cfg_sfi.features.sfi_onchain_min_slots))
+    SFI_CALENDAR_MIN_SLOTS  = int(int(_cfg_sfi.features.sfi_calendar_min_slots))
     print(
         f"[SFI-BALANCE-01] Cuotas cargadas: "
         f"macro={SFI_MACRO_MIN_SLOTS} onchain={SFI_ONCHAIN_MIN_SLOTS} "
@@ -339,7 +339,7 @@ class FeatureClusterer:
         # 0.85 filtra: IBIT/ARKB (93% NaN, ESET-bloqueadas) y ShortAccount (83% NaN).
         # 0.85 preserva: Transactions/Unique_Addresses (80.5% NaN, historico desde 2023).
         try:
-            _max_nan = float(getattr(_cfg_sfi.features, 'sfi_max_nan_pct', 0.85))
+            _max_nan = float(float(_cfg_sfi.features.sfi_max_nan_pct))
         except Exception:
             _max_nan = 0.85
         nan_mask = X.isna().mean() < _max_nan
@@ -455,8 +455,8 @@ class FeatureClusterer:
             # tiene la frontera mas natural entre grupos. Coste: 0 (usa Z ya computado).
             # Floor/cap desde settings.yaml para que Etapa D no explote en tiempo.
             try:
-                _k_min = int(getattr(_cfg_sfi.features, 'sfi_n_clusters_min', 8))
-                _k_max = int(getattr(_cfg_sfi.features, 'sfi_n_clusters_max', 30))
+                _k_min = int(int(_cfg_sfi.features.sfi_n_clusters_min))
+                _k_max = int(int(_cfg_sfi.features.sfi_n_clusters_max))
                 # FIX: Permitir que k_max sea al menos el 85% de las features totales, evitando compresiÃ³n destructiva
                 _k_max = max(_k_max, int(len(X.columns) * 0.85))
             except Exception:
@@ -559,8 +559,8 @@ class FeatureClusterer:
             # El boost es ADITIVO (no multiplicativo) para preservar el ordinal relativo.
             try:
                 from config.settings import cfg as _cfg_macro
-                _macro_boost = float(getattr(_cfg_macro.features, 'sfi_macro_stable_boost', 0.15))
-                _macro_feats = set(getattr(_cfg_macro.features, 'sfi_macro_stable_features', []) or [])
+                _macro_boost = float(int(_cfg_macro.features.sfi_macro_stable_boost))
+                _macro_feats = set(int(_cfg_macro.features.sfi_macro_stable_features) or [])
             except Exception:
                 _macro_boost = 0.15
                 _macro_feats = set()
@@ -970,7 +970,7 @@ class SFI_CPCV:
                 # BUG-SFI-01 FIX (2026-04-06): Alinear modelo de retorno del SFI con
                 # el sistema real de trading (TBM long-only).
                 try:
-                    _tbm_h = int(getattr(_cfg_sfi.xgboost, 'vertical_barrier_hours', 96))
+                    _tbm_h = int(int(_cfg_sfi.xgboost.vertical_barrier_hours))
                 except Exception:
                     _tbm_h = 96  # default TBM horizon
 
@@ -1030,7 +1030,7 @@ class SFI_CPCV:
             print(f"[FIX-PBOGRD-QUALITY-01] Feature '{feature_name}': {_n_constant}/{len(fold_sharpes)} folds constantes (ratio={_constant_ratio:.2f}). MeanSR puede estar inflado por zeros.")
 
         try:
-            _tbm_h = int(getattr(_cfg_sfi.xgboost, 'vertical_barrier_hours', 96))
+            _tbm_h = int(int(_cfg_sfi.xgboost.vertical_barrier_hours))
         except Exception:
             _tbm_h = 96
         # [FIX-H-SFI-09 2026-05-30] Usar n_obs_base (pre-mask) si se pasa, para evitar
@@ -1079,17 +1079,17 @@ class SFI_CPCV:
         logger.debug("[LIFECYCLE-01] Two-phase lifecycle-aware temporal stability.")
 
         try:
-            _stab_min_dsr      = float(getattr(_cfg_sfi.features, 'stability_min_dsr', 0.05))
-            _stab_min_positive = int(getattr(_cfg_sfi.features, 'stability_min_positive', 3))
-            _half_life_yr      = float(getattr(_cfg_sfi.features, 'stability_half_life_years', 2.0))
-            _recent_window_yr  = int(getattr(_cfg_sfi.features, 'stability_recent_window_years', 2))
-            _trend_window_yr   = int(getattr(_cfg_sfi.features, 'stability_trend_window_years', 4))
-            _trend_thresh      = float(getattr(_cfg_sfi.features, 'stability_trend_threshold', 0.10))
-            _var_thresh        = float(getattr(_cfg_sfi.features, 'stability_variance_threshold', 1e-6))
-            _min_real_years    = int(getattr(_cfg_sfi.features, 'stability_min_real_years', 2))
-            _min_mature_years  = int(getattr(_cfg_sfi.features, 'stability_maturity_min_years', 3))
-            _dead_thresh_years = int(getattr(_cfg_sfi.features, 'stability_dead_threshold_years', 2))
-            _gap_penalty       = float(getattr(_cfg_sfi.features, 'stability_gap_penalty', -0.5))
+            _stab_min_dsr      = float(float(_cfg_sfi.features.stability_min_dsr))
+            _stab_min_positive = int(int(_cfg_sfi.features.stability_min_positive))
+            _half_life_yr      = float(int(_cfg_sfi.features.stability_half_life_years))
+            _recent_window_yr  = int(int(_cfg_sfi.features.stability_recent_window_years))
+            _trend_window_yr   = int(int(_cfg_sfi.features.stability_trend_window_years))
+            _trend_thresh      = float(float(_cfg_sfi.features.stability_trend_threshold))
+            _var_thresh        = float(float(_cfg_sfi.features.stability_variance_threshold))
+            _min_real_years    = int(int(_cfg_sfi.features.stability_min_real_years))
+            _min_mature_years  = int(int(_cfg_sfi.features.stability_maturity_min_years))
+            _dead_thresh_years = int(int(_cfg_sfi.features.stability_dead_threshold_years))
+            _gap_penalty       = float(int(_cfg_sfi.features.stability_gap_penalty))
         except Exception as _cfg_e:
             logger.warning(f"[LIFECYCLE-01] Config read error: {_cfg_e} — using defaults")
             _stab_min_dsr, _stab_min_positive = 0.05, 3
@@ -1437,7 +1437,7 @@ class SFI_CPCV:
         )
         # k_test desde cfg.cpcv.k_test_blocks (ya en settings.yaml como k_test_blocks: 2)
         try:
-            _k_test = int(getattr(_cfg_sfi.cpcv, 'k_test_blocks', 2))
+            _k_test = int(int(_cfg_sfi.cpcv.k_test_blocks))
         except Exception:
             _k_test = 2  # fallback — C(n_groups, 2) diseño estándar CPCV
         _n_obs_oob = max(int(_n_obs_common_preview * _k_test / max(self.n_groups, 1)), 30)
@@ -1490,7 +1490,7 @@ class SFI_CPCV:
         _top_n = self.top_n
 
         try:
-            _stab_penalty_w = float(getattr(_cfg_sfi.features, 'stability_penalty_weight', 0.5))
+            _stab_penalty_w = float(float(_cfg_sfi.features.stability_penalty_weight))
         except Exception:
             _stab_penalty_w = 0.5
 
@@ -1644,7 +1644,7 @@ class SFI_CPCV:
 
         # [V2-FIX-2] MDI Bootstrap blend: leer peso desde settings
         try:
-            _stab_sel_w = float(getattr(_cfg_sfi.features, 'stability_selection_weight', 0.0))
+            _stab_sel_w = float(float(_cfg_sfi.features.stability_selection_weight))
         except Exception:
             _stab_sel_w = 0.0  # default conservador: si no está en YAML, usar solo DSR (legacy)
 
@@ -1782,7 +1782,7 @@ class ShapRFEFeatureSelector:
 
         # FIX-FORWARD-03: leer horizonte TBM desde settings (mismo que SFI_CPCV)
         try:
-            _tbm_h = int(getattr(_cfg_sfi.xgboost, 'vertical_barrier_hours', 96))
+            _tbm_h = int(int(_cfg_sfi.xgboost.vertical_barrier_hours))
         except Exception:
             _tbm_h = 96
         ann_factor = np.sqrt((365 * 24) / _tbm_h)  # sqrt(8760/96)=9.55, NO sqrt(8760)=93.6
@@ -2013,7 +2013,7 @@ class FeatureSelectionPipelineE:
     """
 
     def __init__(self):
-        _n_reps = int(getattr(_cfg_sfi.features, 'sfi_n_reps_per_cluster', 2))
+        _n_reps = int(int(_cfg_sfi.features.sfi_n_reps_per_cluster))
         self.clusterer  = FeatureClusterer(n_clusters=CLUSTER_FIXED_N, n_reps=_n_reps)
         self.lag_disc   = AutoLagDiscovery(max_lag=MAX_LAG_HOURS)
         self.sfi        = SFI_CPCV(top_n=SFI_TOP_N_FEATURES)
@@ -2213,7 +2213,7 @@ class FeatureSelectionPipelineE:
         # mÃ¡xima del parquet, lo que viola la causalidad y hace no-reproducible el WFB.
         try:
             from config.settings import cfg as _cfg_sfi_fix
-            _wfb_train_end = getattr(getattr(_cfg_sfi_fix, 'temporal_splits', None), 'train_end', None)
+            _wfb_train_end = int(int(_cfg_sfi_fix.temporal_splits).train_end)
             if _wfb_train_end:
                 _cutoff_sfi = pd.Timestamp(str(_wfb_train_end), tz='UTC')
                 if df.index.tz is None:
@@ -2373,7 +2373,7 @@ class FeatureSelectionPipelineE:
         # features macro suelen tener trailing NaNs al final del holdout por retraso en publicaciÃ³n.
         # Si los NaNs son estrictamente trailing (hasta un limite, ej 45%), se conservan.
         try:
-            _hmax_nan = float(getattr(_cfg_sfi.features, 'sfi_holdout_max_nan_pct', 0.10))
+            _hmax_nan = float(float(_cfg_sfi.features.sfi_holdout_max_nan_pct))
         except Exception:
             _hmax_nan = 0.10
             
@@ -3002,9 +3002,9 @@ class FeatureSelectionPipelineE:
         # Cargar las 3 whitelists desde settings (con fallback vacío = backward compatible)
         try:
             from config.settings import cfg as _cfg_quota
-            _wl_macro    = set(getattr(_cfg_quota.features, 'sfi_macro_features',    []) or [])
-            _wl_onchain  = set(getattr(_cfg_quota.features, 'sfi_onchain_features',  []) or [])
-            _wl_calendar = set(getattr(_cfg_quota.features, 'sfi_calendar_features', []) or [])
+            _wl_macro    = set(int(_cfg_quota.features.sfi_macro_features) or [])
+            _wl_onchain  = set(int(_cfg_quota.features.sfi_onchain_features) or [])
+            _wl_calendar = set(int(_cfg_quota.features.sfi_calendar_features) or [])
         except Exception as _eq:
             logger.warning(f"[SFI-BALANCE-01] No se pudieron cargar whitelists de settings: {_eq}")
             _wl_macro = _wl_onchain = _wl_calendar = set()

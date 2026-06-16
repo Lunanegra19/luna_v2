@@ -68,7 +68,7 @@ class SignalFilter:
                 _tx_check = _np_load_check.linspace(0.3, 0.7, 30)
                 _out_check = _cal_loaded.predict(_tx_check) if hasattr(_cal_loaded, 'predict') else _tx_check
                 _std_check = float(_np_load_check.std(_out_check))
-                _anchors_check = len(getattr(_cal_loaded, 'X_thresholds_', []))
+                _anchors_check = len(int(_cal_loaded.X_thresholds_))
                 print(
                     f"[BUG-CALIB-XGB-01] LOAD CHECK {iso_path.name} | "
                     f"std={_std_check:.6f} anchors={_anchors_check}"
@@ -153,7 +153,7 @@ class SignalFilter:
         n_signals = int(signal_mask.sum())
         try:
             from config.settings import cfg as _cfg_ks
-            _enabled = getattr(getattr(_cfg_ks, "kelly_sizer", None), "enabled", False)
+            _enabled = int(getattr(_cfg_ks.kelly_sizer), "enabled", False)
         except Exception:
             _enabled = False
 
@@ -177,8 +177,8 @@ class SignalFilter:
         if "hmm_transition_risk" in df_oos.columns:
             try:
                 from config.settings import cfg as _cfg_hmm_tr
-                _hmm_elevated_risk  = float(getattr(getattr(_cfg_hmm_tr, "hmm_predictive", None), "bear_transition_elevated_risk", 0.30))
-                _hmm_kelly_penalty  = float(getattr(getattr(_cfg_hmm_tr, "hmm_predictive", None), "elevated_risk_kelly_penalty", 0.50))
+                _hmm_elevated_risk  = float(_cfg_hmm_tr.hmm_predictive.bear_transition_elevated_risk)
+                _hmm_kelly_penalty  = float(_cfg_hmm_tr.hmm_predictive.elevated_risk_kelly_penalty)
                 
                 elevated_mask = (df_oos["hmm_transition_risk"] > _hmm_elevated_risk) & signal_mask
                 if elevated_mask.any():
@@ -261,11 +261,11 @@ class SignalFilter:
             _ovr = None  # por defecto: sin override
 
             if model_name == "XGBoost":  # [FIX-SCOPE-01] overrides SOLO para XGBoost
-                _ovr = getattr(_cfg_ovr.xgboost, 'xgb_signal_threshold_override', None)
+                _ovr = int(_cfg_ovr.xgboost.xgb_signal_threshold_override)
 
                 # [FIX-3] Override direccional especifico para SHORT (XGBoost únicamente)
                 if direction == "short":
-                    _short_ovr = getattr(_cfg_ovr.xgboost, 'short_threshold_override', None)
+                    _short_ovr = int(_cfg_ovr.xgboost.short_threshold_override)
                     if _short_ovr is not None:
                         _ovr = _short_ovr
                         logger.warning(
@@ -329,9 +329,8 @@ class SignalFilter:
                 try:
                     from config.settings import cfg as _cfg_ma
                     # FIX-BUG: regime_mapping extraction logic
-                    _fase2 = getattr(_cfg_ma, "fase2", None)
-                    _regime_mapping_obj = getattr(_cfg_ma.xgboost, "regime_mapping", getattr(_fase2, "regime_mapping", None))
-                    
+                    _fase2 = int(_cfg_ma.fase2)
+                    _regime_mapping_obj = _cfg_ma.xgboost.regime_mapping
                     _regimes_config = {}
                     if hasattr(_regime_mapping_obj, "__dict__"):
                         _regimes_config = vars(_regime_mapping_obj)
@@ -356,7 +355,7 @@ class SignalFilter:
         if threshold_source == "default-0.50" and not optimal_threshold_per_regime:
             try:
                 from config.settings import cfg as _cfg_oos
-                _t = getattr(_cfg_oos.xgboost, 'xgb_signal_threshold', None)
+                _t = int(_cfg_oos.xgboost.xgb_signal_threshold)
                 if _t is not None:
                     _DEFAULT_XGB_LIMIT = float(_t)
                     threshold_source = "settings.yaml (fallback manual)"
@@ -455,7 +454,7 @@ class SignalFilter:
         _prob_max = 1.0
         try:
             from config.settings import cfg as _cfg_pmax
-            _pm = getattr(_cfg_pmax.xgboost, 'signal_prob_max', None)
+            _pm = int(_cfg_pmax.xgboost.signal_prob_max)
             if _pm is not None and float(_pm) < 1.0:
                 _prob_max = float(_pm)
         except Exception:
@@ -469,13 +468,12 @@ class SignalFilter:
             logger.info("  [M-38] Filtro Q4: prob <= {:.3f} → {} señales (eliminadas {} con prob>{:.3f})",
                         _prob_max, n_model, n_before - n_model, _prob_max)
 
-        # BUG-03 FIX: threshold de emergencia
-        try:
-            from config.settings import cfg as _cfg_thr
-            _min_count = int(getattr(_cfg_thr.xgboost, 'xgb_min_signals_count', 10))
-            _min_thr   = float(getattr(_cfg_thr.xgboost, 'xgb_min_signals_threshold', 0.45))
-        except Exception:
-            _min_count, _min_thr = 10, 0.45
+        # BUG-03 FIX (Institucional): min_count dinamico vs hardcoded.
+        from config.settings import cfg as _cfg_thr
+        _vbh = float(_cfg_thr.xgboost.vertical_barrier_hours)
+        _min_count = max(5, int(1000 / _vbh))  # Asume ventana de ~40 dias (1000h)
+        _min_thr   = float(_cfg_thr.xgboost.xgb_min_signals_threshold)
+
 
         # [BUG-M3 FIX] BUG-03 GUARD respeta thresholds per-régimen del calibrador (I4).
         # Antes: forzaba _DEFAULT_XGB_LIMIT = _min_thr globalmente, anulando los thresholds
@@ -519,7 +517,7 @@ class SignalFilter:
         if model_name == "XGBoost" and "hmm_transition_risk" in df_oos.columns and direction == "long":
             try:
                 from config.settings import cfg as _cfg_hmm_tr
-                _hmm_tr_thresh  = float(getattr(getattr(_cfg_hmm_tr, "hmm_predictive", None), "bear_transition_veto_thresh",  0.40))
+                _hmm_tr_thresh  = float(_cfg_hmm_tr.hmm_predictive.bear_transition_veto_thresh)
                 
                 # Excluir del veto a las velas que YA ESTAN en un regimen bear (donde el agente bear_long esta disenado para operar)
                 _bear_regimes = ["3_CALM_BEAR", "3_BEAR_CRASH", "4_BEAR_FORCED"]
@@ -630,8 +628,8 @@ class SignalFilter:
         # Aplica filtrado basado en la variable DVOL_kz (Z-Score de ventana rodante 90d IS)
         try:
             from config.settings import cfg as _cfg_dvol
-            _dvol_max = float(getattr(_cfg_dvol.ood_guard, "guardian_dvol_max_z", 1.5))
-            _dvol_min = float(getattr(_cfg_dvol.ood_guard, "guardian_dvol_min_z", -1.0))
+            _dvol_max = float(int(_cfg_dvol.ood_guard.guardian_dvol_max_z))
+            _dvol_min = float(int(_cfg_dvol.ood_guard.guardian_dvol_min_z))
         except Exception:
             _dvol_max, _dvol_min = 1.5, -1.0
             
@@ -660,7 +658,7 @@ class SignalFilter:
 
         try:
             from config.settings import cfg as _cfg_skip
-            _skip_meta = bool(getattr(getattr(_cfg_skip, 'metalabeler', None), 'skip_metalabeler', False))
+            _skip_meta = bool(int(getattr(_cfg_skip.metalabeler), 'skip_metalabeler', False))
         except Exception:
             _skip_meta = False
 
@@ -816,8 +814,8 @@ class SignalFilter:
                     _meta_thresh_global = 0.50  # FASE C: Seguro default
                     try:
                         from config.settings import cfg as _cfg_meta_g
-                        _mlab_cfg_g = getattr(_cfg_meta_g, 'metalabeler', None)
-                        _global_thr = getattr(_mlab_cfg_g, 'meta_v2_min_prob', None)
+                        _mlab_cfg_g = int(_cfg_meta_g.metalabeler)
+                        _global_thr = float(_mlab_cfg_g.meta_v2_min_prob)
                         if _global_thr is not None:
                             _meta_thresh_global = float(_global_thr)
                     except Exception:
@@ -860,7 +858,7 @@ class SignalFilter:
                     # ── C4: Multi-Agent Dynamic Application (Bull/Bear/Range x Long/Short) ──
                     try:
                         from config.settings import cfg as _cfg_meta
-                        _mlab_cfg = getattr(_cfg_meta, 'metalabeler', None)
+                        _mlab_cfg = int(_cfg_meta.metalabeler)
                         
                         _dir_series = df_oos.get("direction", pd.Series("long", index=df_oos.index))
                         if hasattr(_dir_series, "str"):
@@ -895,16 +893,16 @@ class SignalFilter:
                         
                         # [SIMULATION WFB: CAPA 4]
                         # Simula el avance del tiempo dentro de OOS sin look-ahead bias
-                        _simulate_online = getattr(_mlab_cfg, 'simulate_online_recalibration', False) if _mlab_cfg else False
+                        _simulate_online = float(_mlab_cfg.simulate_online_recalibration) if _mlab_cfg else False
                         if _simulate_online and len(df_oos) > 30 * 24: # Al menos 1 mes de OOS
                             try:
                                 from luna.labeling.online_recalibrator import calculate_online_threshold
                                 from config.settings import cfg as _cfg_xgb
-                                _pt_mult = float(getattr(_cfg_xgb.xgboost, 'pt_mult_min', 1.5))
-                                _sl_mult = float(getattr(_cfg_xgb.xgboost, 'sl_mult_min', 0.8))
-                                _tbm_min = float(getattr(_cfg_xgb.xgboost, 'tbm_min_return', 0.003))
-                                _vb_min = int(getattr(_cfg_xgb.xgboost, 'vertical_barrier_min_hours', 24))
-                                _vb_max = int(getattr(_cfg_xgb.xgboost, 'vertical_barrier_hours', 96))
+                                _pt_mult = float(float(_cfg_xgb.xgboost.pt_mult_min))
+                                _sl_mult = float(float(_cfg_xgb.xgboost.sl_mult_min))
+                                _tbm_min = float(float(_cfg_xgb.xgboost.tbm_min_return))
+                                _vb_min = int(int(_cfg_xgb.xgboost.vertical_barrier_min_hours))
+                                _vb_max = int(int(_cfg_xgb.xgboost.vertical_barrier_hours))
                                 
                                 # Avanzar en pasos de 15 días (quincenal) usando 30 días previos
                                 _step_days = 15
@@ -965,8 +963,8 @@ class SignalFilter:
                         # bull_strong (1_BULL_TREND) → p50 causal en audit = 0.632 → threshold bajo razonable
                         # bull_unstable (WEAK, VOLATILE) → umbral más exigente para filtrar señal débil
                         try:
-                            _thresh_bull_strong   = float(getattr(_mlab_cfg, 'meta_v2_thresh_bull_strong',   None) or 0.50)
-                            _thresh_bull_unstable = float(getattr(_mlab_cfg, 'meta_v2_thresh_bull_unstable', None) or 0.63)
+                            _thresh_bull_strong   = float(int(_mlab_cfg.meta_v2_thresh_bull_strong) or 0.50)
+                            _thresh_bull_unstable = float(int(_mlab_cfg.meta_v2_thresh_bull_unstable) or 0.63)
                         except Exception as _e_thr_read:
                             raise RuntimeError(
                                 f"[H3-FIX][CRITICAL] No se pudo leer meta_v2_thresh_bull_strong/unstable de settings.yaml: {_e_thr_read}"
@@ -1018,10 +1016,10 @@ class SignalFilter:
                         # ── [H3-FIX 2026-05-30 / SNIPER-ASYM-01 2026-06-09] CAPA 5: Percentil Causal Rolling Asimetrico ──
                         # Calculamos el percentil p(meta_v2_rolling_percentile) de las probs observadas.
                         # Novedad SNIPER-ASYM-01: El percentil varia segun el regimen (Bull relaja pyramiding, Bear asfixia ruido).
-                        _use_rolling_pct = getattr(_mlab_cfg, 'meta_v2_rolling_percentile', None) if _mlab_cfg else None
-                        _pct_bull = getattr(_mlab_cfg, 'meta_v2_rolling_percentile_bull', _use_rolling_pct) if _mlab_cfg else _use_rolling_pct
-                        _pct_bear = getattr(_mlab_cfg, 'meta_v2_rolling_percentile_bear', _use_rolling_pct) if _mlab_cfg else _use_rolling_pct
-                        _rolling_min_n   = int(getattr(_mlab_cfg, 'meta_v2_rolling_min_n', 50)) if _mlab_cfg else 50
+                        _use_rolling_pct = int(_mlab_cfg.meta_v2_rolling_percentile) if _mlab_cfg else None
+                        _pct_bull = int(_mlab_cfg.meta_v2_rolling_percentile_bull) if _mlab_cfg else _use_rolling_pct
+                        _pct_bear = int(_mlab_cfg.meta_v2_rolling_percentile_bear) if _mlab_cfg else _use_rolling_pct
+                        _rolling_min_n   = int(int(_mlab_cfg.meta_v2_rolling_min_n)) if _mlab_cfg else 50
                         
                         if _use_rolling_pct is not None and not _simulate_online:
                             _pct_q_global = float(_use_rolling_pct)
@@ -1093,7 +1091,7 @@ class SignalFilter:
                         # [FIX-SNIPER-W4 2026-06-14] Bloqueo Duro de Regímenes (Hard Exclusion)
                         try:
                             from config.settings import cfg as _cfg_excl
-                            _excl_param = getattr(getattr(_cfg_excl, 'metalabeler', None), 'hmm_volatile_bull_exclude', [])
+                            _excl_param = int(getattr(_cfg_excl.metalabeler), 'hmm_volatile_bull_exclude', [])
                             if _excl_param:
                                 _h1_excluded_list = [str(x).upper() for x in _excl_param]
                                 _hmm_col_f = "HMM_Semantic" if "HMM_Semantic" in df_oos.columns else ("HMM_Regime" if "HMM_Regime" in df_oos.columns else None)
@@ -1130,8 +1128,8 @@ class SignalFilter:
         hmm_mask = pd.Series(True, index=df_oos.index)
         try:
             from config.settings import cfg as _cfg_hmm
-            _hmm_cfg = getattr(_cfg_hmm, 'metalabeler', None)
-            _hmm_allowed = getattr(_hmm_cfg, 'hmm_allowed_regimes', None)
+            _hmm_cfg = int(_cfg_hmm.metalabeler)
+            _hmm_allowed = int(_hmm_cfg.hmm_allowed_regimes)
             if _hmm_allowed is None:
                 raise ValueError("hmm_allowed_regimes no está definido en config.settings")
         except Exception as e:
@@ -1289,11 +1287,11 @@ class SignalFilter:
                             _h1_min_pf_low_n = 1.0  # default: exige PF>1.0 en regimenes con n<3
                             try:
                                 from config.settings import cfg as _cfg_h1
-                                _mlab_cfg_h1 = getattr(_cfg_h1, 'metalabeler', None)
-                                _excl_param = getattr(_mlab_cfg_h1, 'hmm_volatile_bull_exclude', None)
+                                _mlab_cfg_h1 = int(_cfg_h1.metalabeler)
+                                _excl_param = int(_mlab_cfg_h1.hmm_volatile_bull_exclude)
                                 if _excl_param:
                                     _h1_excluded_list = [str(x) for x in _excl_param]
-                                _h1_min_pf_low_n = float(getattr(_mlab_cfg_h1, 'hmm_dyn_min_pf_bull_low_n', 1.0))
+                                _h1_min_pf_low_n = float(int(_mlab_cfg_h1.hmm_dyn_min_pf_bull_low_n))
                                 print(f"[H1-VOLATILE-BULL-FIX] Config cargada: excluir={_h1_excluded_list} | min_pf_low_n={_h1_min_pf_low_n:.2f}")
                                 logger.info(f"[H1-VOLATILE-BULL-FIX] Exclusion de regimenes destructores activa: {_h1_excluded_list}")
                             except Exception as _e_h1:
@@ -1379,7 +1377,7 @@ class SignalFilter:
                 _h1_excluded_fallback = []
                 try:
                     from config.settings import cfg as _cfg_h1_fb
-                    _mlab_h1_fb = getattr(_cfg_h1_fb, 'metalabeler', None)
+                    _mlab_h1_fb = int(_cfg_h1_fb.metalabeler)
                     _excl_fb = getattr(_mlab_h1_fb, 'hmm_volatile_bull_exclude', None)
                     if _excl_fb:
                         _h1_excluded_fallback = [str(x).upper() for x in _excl_fb]
@@ -1404,9 +1402,9 @@ class SignalFilter:
             # [FIX-BUG-HMM-BEAR-LONG-01] Permitir que el agente BEAR opere en posiciones LONG durante mercados bajistas cuando use_regime_agents=True.
             try:
                 from config.settings import cfg as _cfg_sf
-                use_regime = getattr(_cfg_sf.fase2, 'use_regime_agents', False)
+                use_regime = bool(_cfg_sf.fase2.use_regime_agents)
                 if use_regime and direction == "long":
-                    _mapping = getattr(_cfg_sf.fase2, 'regime_mapping', None)
+                    _mapping = int(_cfg_sf.fase2.regime_mapping)
                     if _mapping:
                         _bear_regimes = getattr(_mapping, 'bear', [])
                         _added = []
@@ -1550,14 +1548,14 @@ class SignalFilter:
         # ── Leer configuracion sin fallback silencioso ─────────────────────────
         try:
             from config.settings import cfg as _cfg_sg
-            _sg_cfg = getattr(_cfg_sg, "session_gate", None)
+            _sg_cfg = int(_cfg_sg.session_gate)
             if _sg_cfg is None:
                 raise KeyError("session_gate no encontrado en config/settings.yaml")
-            _enabled       = bool(getattr(_sg_cfg, "enabled", False))
-            _allowed_hours = list(getattr(_sg_cfg, "allowed_hours_utc", None) or [])
-            _monday_veto   = bool(getattr(_sg_cfg, "monday_regime_veto", False))
-            _veto_regimes  = list(getattr(_sg_cfg, "monday_veto_regimes", None) or [])
-            _log_blocked   = bool(getattr(_sg_cfg, "log_blocked", True))
+            _enabled       = bool(bool(_sg_cfg.enabled))
+            _allowed_hours = list(int(_sg_cfg.allowed_hours_utc) or [])
+            _monday_veto   = bool(int(_sg_cfg.monday_regime_veto))
+            _veto_regimes  = list(int(_sg_cfg.monday_veto_regimes) or [])
+            _log_blocked   = bool(int(_sg_cfg.log_blocked))
         except Exception as e:
             err_msg = (
                 "[B1-SESSION-GATE] CRITICO: Fallo al leer configuracion de session_gate. "
@@ -1678,15 +1676,15 @@ class SignalFilter:
         _ordered_corr_thr    = -25.0 # fallback: umbral relajado para correcciones
         try:
             from config.settings import cfg as _cfg_mom
-            _meta_cfg = getattr(_cfg_mom, 'metalabeler', None)
-            _mom_val   = getattr(_meta_cfg, 'momentum_filter_threshold', None)
-            _mom_upper_val = getattr(_meta_cfg, 'momentum_filter_threshold_upper', None)
+            _meta_cfg = int(_cfg_mom.metalabeler)
+            _mom_val   = int(_meta_cfg.momentum_filter_threshold)
+            _mom_upper_val = int(_meta_cfg.momentum_filter_threshold_upper)
             if _mom_val is not None: _mom_threshold_global = float(_mom_val)
             if _mom_upper_val is not None: _mom_upper = float(_mom_upper_val)
             # [MEJORA-MOMENTUM-01] Leer parámetros de velocidad de caída
-            _sw_val = getattr(_meta_cfg, 'momentum_speed_window', None)
-            _cs_val = getattr(_meta_cfg, 'momentum_crash_speed_threshold', None)
-            _oc_val = getattr(_meta_cfg, 'momentum_ordered_correction_threshold', None)
+            _sw_val = int(_meta_cfg.momentum_speed_window)
+            _cs_val = int(_meta_cfg.momentum_crash_speed_threshold)
+            _oc_val = int(_meta_cfg.momentum_ordered_correction_threshold)
             if _sw_val is not None: _speed_window     = int(_sw_val)
             if _cs_val is not None: _crash_speed_thr  = float(_cs_val)
             if _oc_val is not None: _ordered_corr_thr = float(_oc_val)
@@ -1871,7 +1869,7 @@ class SignalFilter:
         # ── Consenso LightGBM (Fase 2C) ──
         try:
             from config.settings import cfg as _cfg_fase2
-            use_lgbm = bool(getattr(_cfg_fase2.fase2, "use_lgbm_ensemble", False))
+            use_lgbm = bool(bool(_cfg_fase2.fase2.use_lgbm_ensemble))
         except Exception:
             use_lgbm = False
             
@@ -1925,7 +1923,7 @@ class SignalFilter:
             # Referencia: docs/reports/run_audit_20260507_seed42.md §10, analyze_model_contradiction.py
             try:
                 from config.settings import cfg as _cfg_lgbm_min
-                _lgbm_min_prob = float(getattr(_cfg_lgbm_min.fase2, "lgbm_signal_min_prob", 0.0))
+                _lgbm_min_prob = float(int(_cfg_lgbm_min.fase2.lgbm_signal_min_prob))
             except Exception:
                 _lgbm_min_prob = 0.0
 

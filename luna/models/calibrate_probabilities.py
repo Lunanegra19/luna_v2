@@ -156,7 +156,7 @@ class MetaLabelerV2Calibrator:
         
         try:
             from config.settings import cfg as _cfg_xgb
-            use_regime = getattr(_cfg_xgb.fase2, 'use_regime_agents', False)
+            use_regime = bool(_cfg_xgb.fase2.use_regime_agents)
         except Exception:
             use_regime = False
 
@@ -397,22 +397,19 @@ class MetaLabelerV2Calibrator:
         from luna.features.tbm import apply_triple_barrier
         try:
             from config.settings import cfg
-            pt_mult     = getattr(cfg.xgboost, 'pt_mult_min', 1.5)
-            sl_mult     = getattr(cfg.xgboost, 'sl_mult_min', 0.8)
-            _tbm_min_return = float(getattr(cfg.xgboost, 'tbm_min_return', 0.003))
+            pt_mult     = float(cfg.xgboost.pt_mult_min)
+            sl_mult     = float(cfg.xgboost.sl_mult_min)
+            _tbm_min_return = float(cfg.xgboost.tbm_min_return)
             # [FIX-P2-TBM-SYNC] Usar rangos dinámicos ATR idénticos al MetaLabeler
-            _vb_min_h   = int(getattr(cfg.xgboost, 'vertical_barrier_min_hours', 24))
-            _vb_max_h   = int(getattr(cfg.xgboost, 'vertical_barrier_hours', 96))
+            _vb_min_h   = int(cfg.xgboost.dynamic_horizon_min_h)
+            _vb_max_h   = int(cfg.xgboost.dynamic_horizon_max_h)
             _use_dynamic_atr = True
-            _lin_decay_c = bool(getattr(cfg.xgboost, 'linear_decay_pt', False))
-            _pt_decay_frac_c = float(getattr(cfg.xgboost, 'pt_decay_fraction', 0.75))
-        except Exception:
-            pt_mult, sl_mult = 1.5, 0.8
-            _tbm_min_return  = 0.003
-            _vb_min_h, _vb_max_h = 24, 96
-            _use_dynamic_atr = True
-            _lin_decay_c, _pt_decay_frac_c = False, 0.75
-            logger.warning("[FIX-P2-TBM-SYNC] Calibrador: usando TBM dinámico ATR defaults (1.5x/0.8x, 24-96H)")
+            _lin_decay_c = bool(cfg.xgboost.linear_decay_pt)
+            _pt_decay_frac_c = float(cfg.xgboost.pt_decay_fraction)
+        except Exception as _e_tbm:
+            _err_msg = f"CRITICAL: Fallo leyendo config TBM para Calibrador. Política No-Fallback: {_e_tbm}"
+            logger.critical(_err_msg)
+            raise RuntimeError(_err_msg) from _e_tbm
         logger.info(
             f"[FIX-P2-TBM-SYNC] Calibrador TBM: PT={pt_mult}x SL={sl_mult}x "
             f"dynamic_ATR=True barrier=[{_vb_min_h}H-{_vb_max_h}H] min_return={_tbm_min_return} "
@@ -750,10 +747,10 @@ class MetaLabelerV2Calibrator:
         try:
             # Parametros del sweep desde settings.yaml
             from config.settings import cfg as _cfg_meta_cal
-            _mt_min    = float(getattr(_cfg_meta_cal.metalabeler, 'meta_sweep_min',  0.25))
-            _mt_max    = float(getattr(_cfg_meta_cal.metalabeler, 'meta_sweep_max',  0.65))
-            _mt_step   = float(getattr(_cfg_meta_cal.metalabeler, 'meta_sweep_step', 0.01))
-            _mt_min_tr = int(getattr(_cfg_meta_cal.metalabeler, 'meta_min_trades',  20))
+            _mt_min    = float(float(_cfg_meta_cal.metalabeler.meta_sweep_min))
+            _mt_max    = float(float(_cfg_meta_cal.metalabeler.meta_sweep_max))
+            _mt_step   = float(float(_cfg_meta_cal.metalabeler.meta_sweep_step))
+            _mt_min_tr = int(int(_cfg_meta_cal.metalabeler.meta_min_trades))
             _xgb_opt_t_global = float(xgb_sig.get("optimal_threshold", 0.50))
             _xgb_opt_t_regime = xgb_sig.get("optimal_threshold_per_regime", {})
             try:
@@ -795,8 +792,8 @@ class MetaLabelerV2Calibrator:
                 # Para el EV usamos win/loss rate directo (mas estable con pocos datos)
                 _best_meta_ev    = -np.inf
                 _best_meta_score = -np.inf
-                _best_meta_t     = float(getattr(_cfg_meta_cal.metalabeler, 'meta_filter_threshold', 0.40))
-                _n_target_meta   = int(getattr(_cfg_meta_cal.sop, 'min_trades', 100))
+                _best_meta_t     = float(float(_cfg_meta_cal.metalabeler.meta_filter_threshold))
+                _n_target_meta   = int(int(_cfg_meta_cal.sop.min_trades))
                 _meta_log        = []
 
                 for _mt in np.arange(_mt_min, _mt_max + _mt_step / 2, _mt_step):
@@ -813,11 +810,11 @@ class MetaLabelerV2Calibrator:
                     # Now it scales the proxy back to absolute returns before subtracting cost.
                     try:
                         from config.settings import cfg
-                        _pt_m = float(getattr(cfg.xgboost, 'pt_mult_min', 2.0))
-                        _sl_m = float(getattr(cfg.xgboost, 'sl_mult_min', 1.0))
-                        _m_ret = float(getattr(cfg.xgboost, 'tbm_min_return', 0.003))
-                    except Exception:
-                        _pt_m, _sl_m, _m_ret = 2.0, 1.0, 0.003
+                        _pt_m = float(cfg.xgboost.pt_mult_min)
+                        _sl_m = float(cfg.xgboost.sl_mult_min)
+                        _m_ret = float(cfg.xgboost.tbm_min_return)
+                    except Exception as _e_cfg:
+                        raise RuntimeError(f"Falta config TBM en settings. Política No-Fallback: {_e_cfg}") from _e_cfg
                         
                     _ev_proxy = _wr * _pt_m - _lr * _sl_m
                     _ev       = _ev_proxy * _m_ret - COST_PCT_META
@@ -912,7 +909,7 @@ class MetaLabelerV2Calibrator:
                     _y_xgb = y_seq[_xgb_mask_cal]
                     _best_meta_ev = -np.inf
                     _best_meta_score = -np.inf
-                    _best_meta_t = float(getattr(_cfg_meta_cal.metalabeler, 'meta_filter_threshold', 0.40))
+                    _best_meta_t = float(float(_cfg_meta_cal.metalabeler.meta_filter_threshold))
                     _n_target_meta = max(5, _n_xgb_pass)
                     for _mt in np.arange(_mt_min, _mt_max + _mt_step / 2, _mt_step):
                         _mask_mt = _cal_probs_xgb > _mt
@@ -923,11 +920,11 @@ class MetaLabelerV2Calibrator:
                         _lr = 1.0 - _wr
                         try:
                             from config.settings import cfg
-                            _pt_m = float(getattr(cfg.xgboost, 'pt_mult_min', 2.0))
-                            _sl_m = float(getattr(cfg.xgboost, 'sl_mult_min', 1.0))
-                            _m_ret = float(getattr(cfg.xgboost, 'tbm_min_return', 0.003))
-                        except Exception:
-                            _pt_m, _sl_m, _m_ret = 2.0, 1.0, 0.003
+                            _pt_m = float(cfg.xgboost.pt_mult_min)
+                            _sl_m = float(cfg.xgboost.sl_mult_min)
+                            _m_ret = float(cfg.xgboost.tbm_min_return)
+                        except Exception as _e_cfg:
+                            raise RuntimeError(f"Falta config TBM en settings. Política No-Fallback: {_e_cfg}") from _e_cfg
                         _ev_proxy = _wr * _pt_m - _lr * _sl_m
                         _ev = _ev_proxy * _m_ret - COST_PCT_META
                         _vol_f = min(1.0, _n_mt / max(_n_target_meta, 1))
@@ -966,7 +963,7 @@ class MetaLabelerV2Calibrator:
         if _meta_thresh_final is None:
             try:
                 from config.settings import cfg as _cfg_mt_fb
-                _meta_thresh_final = float(getattr(_cfg_mt_fb.metalabeler, 'meta_filter_threshold', 0.40))
+                _meta_thresh_final = float(float(_cfg_mt_fb.metalabeler.meta_filter_threshold))
             except Exception:
                 _meta_thresh_final = 0.40
             logger.info(
@@ -980,9 +977,9 @@ class MetaLabelerV2Calibrator:
         # usamos la base rate de cal_probs como proxy IS para calcular un floor más informado.
         try:
             from config.settings import cfg as _cfg_dynmeta_cal
-            _thresh_mode_cal   = str(getattr(_cfg_dynmeta_cal.metalabeler, 'meta_v2_threshold_mode', 'fixed')).lower()
-            _edge_pct_cal      = float(getattr(_cfg_dynmeta_cal.metalabeler, 'meta_v2_dynamic_edge_pct', 0.05))
-            _floor_abs_cal     = float(getattr(_cfg_dynmeta_cal.metalabeler, 'meta_v2_min_prob', 0.38))
+            _thresh_mode_cal   = str(int(_cfg_dynmeta_cal.metalabeler.meta_v2_threshold_mode)).lower()
+            _edge_pct_cal      = float(float(_cfg_dynmeta_cal.metalabeler.meta_v2_dynamic_edge_pct))
+            _floor_abs_cal     = float(float(_cfg_dynmeta_cal.metalabeler.meta_v2_min_prob))
         except Exception:
             _thresh_mode_cal = 'fixed'
             _edge_pct_cal, _floor_abs_cal = 0.05, 0.38
