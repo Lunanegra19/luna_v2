@@ -34,3 +34,6 @@ env/
 
 # Backups de configuracion WFB
 config/settings_backup_*.yaml
+
+mcpt_temp/
+

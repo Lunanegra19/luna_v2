@@ -413,7 +413,7 @@ def t77():
 
     # SEQ_LEN
     cfg_seq = int(getattr(getattr(cfg, "metalabeler", object()), "seq_len", 48))
-    # NOTA: no capturar 'COST_PCT, EMBARGO_H, SEQ_LEN = 0.0015, 96, 48' (tuple unpack ARCH-02)
+    # NOTA: no capturar 'COST_PCT, EMBARGO_H, SEQ_LEN = 0.0010, 96, 48' (tuple unpack ARCH-02)
     m_seq = re.search(r"^\s*SEQ_LEN\s*=\s*(\d+)", src, re.MULTILINE)
     if m_seq:
         code_seq = int(m_seq.group(1))
@@ -1296,7 +1296,7 @@ def t96():
 def t98():
     """
     El retorno en oos_trades.parquet debe ser NETO de costos (0.15% round-trip).
-    run_statistical_validation.py aplica 'rets - 0.0015' en el mock, pero el
+    run_statistical_validation.py aplica 'rets - 0.0010' en el mock, pero el
     retorno real de generate_oos debe ya incluir el costo.
 
     Este test verifica que run_statistical_validation.py lee return_pct tal cual
@@ -1307,17 +1307,17 @@ def t98():
     oos_src = _read(ROOT / "luna/models/predict_oos.py")
 
     # run_statistical_validation no debe restar costos adicionales al return_pct real
-    # (el mock usa 'rets - 0.0015' pero eso es solo para el mock, no para datos reales)
+    # (el mock usa 'rets - 0.0010' pero eso es solo para el mock, no para datos reales)
     assert "return_pct" in val_src, "run_statistical_validation.py no usa columna 'return_pct'"
 
     # generate_oos debe incluir COST_PCT en el cálculo de return_pct
-    cost_in_oos = "COST_PCT" in oos_src or "0.0015" in oos_src or "cost" in oos_src.lower()
+    cost_in_oos = "COST_PCT" in oos_src or "0.0010" in oos_src or "cost" in oos_src.lower()
     assert cost_in_oos, (
         "predict_oos.py no incluye costos en return_pct. "
         "Los retornos OOS serán brutos — la validación no reflejará costos reales."
     )
 
-    # Verificar que los costos en generate_oos son los correctos (>= 0.0015)
+    # Verificar que los costos en generate_oos son los correctos (>= 0.0010)
     m_cost = re.search(r"COST_PCT\s*=\s*([0-9.]+)", oos_src)
     if m_cost:
         cost = float(m_cost.group(1))

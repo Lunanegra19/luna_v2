@@ -61,14 +61,9 @@ def main():
     
     master_probs_path = predictions_dir / "master_ensemble_probs.parquet"
     
-    # 1. Agregar probabilidades de expertos vía Soft Voting (filtrando por active_seeds)
-    df_ensemble_probs = aggregate_wfb_seeds(wfb_out_dir, master_probs_path, active_seeds=active_seeds)
-    if df_ensemble_probs is not None:
-        print(f"[FIX-ENSEMBLE-EVAL] Probabilidades de Soft Voting agregadas exitosamente en {master_probs_path} ({len(df_ensemble_probs)} filas).")
-        logger.success(f"[FIX-ENSEMBLE-EVAL] Soft Voting consolidado en {master_probs_path.name}")
-    else:
-        print("[FIX-ENSEMBLE-EVAL] ADVERTENCIA: No se pudieron consolidar probabilidades Soft Voting (sin archivos oos_raw_probs).")
-        logger.warning("[FIX-ENSEMBLE-EVAL] Soft Voting no consolidado.")
+    # 1. Las probabilidades de Soft Voting se agregarán MÁS ADELANTE,
+    # solo con las semillas que sobrevivan la poda de Sharpe (H1).
+
 
     # 2. Recopilar y evaluar trades por semilla y agregados
     trade_files = list(predictions_dir.glob("oos_trades_seed*.parquet"))
@@ -113,9 +108,10 @@ def main():
         except Exception as e:
             logger.warning(f"No se pudo parsear semilla del archivo {f.name}: {e}")
 
-    # Evaluar métricas por semilla
+    # Evaluar métricas por semilla y aplicar poda H1
     seed_metrics = []
     all_trades_list = []
+    approved_seeds = []
     
     for seed, files in seeds_dict.items():
         seed_dfs = []
@@ -133,7 +129,6 @@ def main():
                 
         if seed_dfs:
             df_seed_trades = pd.concat(seed_dfs).sort_index()
-            all_trades_list.append(df_seed_trades)
             
             n_trades = len(df_seed_trades)
             wr = df_seed_trades['is_win'].mean() if 'is_win' in df_seed_trades.columns and n_trades > 0 else 0.0
@@ -147,13 +142,37 @@ def main():
                     n_per_year = n_trades / (days / 365.25) if days > 0 else n_trades * 365.25
                     sharpe = (df_seed_trades['return_pct'].mean() / std_r) * (n_per_year ** 0.5)
             
+            # [H1] Poda de Semillas Tóxicas (Pre-Ensemble)
+            if sharpe >= 0.5:
+                all_trades_list.append(df_seed_trades)
+                approved_seeds.append(seed)
+                print(f"[H1] Semilla {seed} APROBADA (Sharpe: {sharpe:.4f} >= 0.5)")
+            else:
+                print(f"[H1] Semilla {seed} RECHAZADA por Toxicidad (Sharpe: {sharpe:.4f} < 0.5). Excluida del Soft Voting.")
+                logger.warning(f"[H1] Semilla {seed} podada por Sharpe < 0.5")
+            
             seed_metrics.append({
                 "Seed": seed,
                 "Trades": n_trades,
                 "Win Rate": wr,
                 "Sharpe Anualizado": sharpe,
-                "Retorno Medio (%)": df_seed_trades['return_pct'].mean() * 100 if 'return_pct' in df_seed_trades.columns else 0.0
+                "Retorno Medio (%)": df_seed_trades['return_pct'].mean() * 100 if 'return_pct' in df_seed_trades.columns else 0.0,
+                "Status": "APPROVED" if sharpe >= 0.5 else "REJECTED"
             })
+            
+    # 1. Agregar probabilidades de expertos vía Soft Voting (filtrando por approved_seeds)
+    if not approved_seeds:
+        print("[FIX-ENSEMBLE-EVAL] ERROR CRÍTICO: Ninguna semilla sobrevivió a la poda H1 (Sharpe >= 0.5).")
+        logger.error("[FIX-ENSEMBLE-EVAL] Ensamble colapsado. Cero semillas aprobadas.")
+        return 1
+        
+    df_ensemble_probs = aggregate_wfb_seeds(wfb_out_dir, master_probs_path, active_seeds=approved_seeds)
+    if df_ensemble_probs is not None:
+        print(f"[FIX-ENSEMBLE-EVAL] Probabilidades de Soft Voting agregadas exitosamente en {master_probs_path} ({len(df_ensemble_probs)} filas).")
+        logger.success(f"[FIX-ENSEMBLE-EVAL] Soft Voting consolidado en {master_probs_path.name}")
+    else:
+        print("[FIX-ENSEMBLE-EVAL] ADVERTENCIA: No se pudieron consolidar probabilidades Soft Voting.")
+        logger.warning("[FIX-ENSEMBLE-EVAL] Soft Voting no consolidado.")
             
     # 3. Consolidar el Portfolio del Ensamble Agregado (Soft Voting Portfolio)
     portfolio_metrics = {}
@@ -480,7 +499,7 @@ def main():
                 # por lo que evitamos matemáticamente la penalización de Comparaciones Múltiples (N=19) en el Deflated Sharpe Ratio.
                 os.environ["LUNA_N_SEEDS_TOTAL"] = "1"
                 print(f"[ENSEMBLE-GAUNTLET-01] [SOFT-VOTING] LUNA_N_SEEDS_TOTAL=1 (DSR correction eliminada por Soft Voting) "
-                      f"(DSR correction por {len(active_seeds)} seeds activas)")
+                      f"(DSR correction por {len(approved_seeds)} seeds activas)")
 
                 _ens_auditor = LunaStatisticalAuditor()
 
@@ -492,8 +511,8 @@ def main():
                 _ens_verdict = _ens_auditor.run_gauntlet(_df_ens_eval)
 
                 # Inyectar metadatos específicos del ensemble
-                _ens_verdict["ensemble_n_seeds"]    = len(active_seeds)
-                _ens_verdict["ensemble_seeds"]      = active_seeds
+                _ens_verdict["ensemble_n_seeds"]    = len(approved_seeds)
+                _ens_verdict["ensemble_seeds"]      = approved_seeds
                 _ens_verdict["ensemble_n_trades"]   = int(len(df_portfolio_final))
                 _ens_verdict["consensus_threshold"] = float(soft_voting_threshold)
                 _ens_verdict["run_id"] = os.environ.get("LUNA_RUN_ID", "ensemble_eval")
@@ -502,7 +521,7 @@ def main():
                 # (replicar la lógica de run_statistical_validation.py)
                 import math as _math_ens
                 import scipy.stats as _stats_ens
-                _n_seeds_ens = len(active_seeds)
+                _n_seeds_ens = len(approved_seeds)
                 _r5_factor_ens = _math_ens.sqrt(_math_ens.log(_n_seeds_ens)) if _n_seeds_ens > 1 else 1.0
                 _sr_crudo_ens = float(_ens_verdict.get("metrics", {}).get("sharpe_crudo", 0.0))
                 _skew_ens = float(_ens_verdict.get("statistical_audit", {}).get("skewness", 0.0))
@@ -630,10 +649,10 @@ def main():
     summary_md.append("")
     
     summary_md.append("## 2. Desglose de Métricas por Semilla (Seed)")
-    summary_md.append("| Semilla | Trades Totales | Win Rate | Sharpe Ratio | Retorno Medio por Trade |")
-    summary_md.append("| --- | --- | --- | --- | --- |")
+    summary_md.append("| Semilla | Trades Totales | Win Rate | Sharpe Ratio | Retorno Medio por Trade | Status |")
+    summary_md.append("| --- | --- | --- | --- | --- | --- |")
     for m in seed_metrics:
-        summary_md.append(f"| {m['Seed']} | {m['Trades']} | {m['Win Rate']*100:.2f}% | {m['Sharpe Anualizado']:.4f} | {m['Retorno Medio (%)']:.4f}% |")
+        summary_md.append(f"| {m['Seed']} | {m['Trades']} | {m['Win Rate']*100:.2f}% | {m['Sharpe Anualizado']:.4f} | {m['Retorno Medio (%)']:.4f}% | {m['Status']} |")
     summary_md.append("")
     
     summary_md.append("## 3. Diagnóstico y Robustez del Ensamble")
@@ -704,7 +723,7 @@ def main():
         )
         summary_md.append("")
         summary_md.append(
-            f"- **Seeds activas**: {_ens_verdict.get('ensemble_seeds', active_seeds)} "
+            f"- **Seeds activas (Aprobadas H1)**: {_ens_verdict.get('ensemble_seeds', approved_seeds)} "
             f"(N={_ens_verdict.get('ensemble_n_seeds','?')})"
         )
         summary_md.append(

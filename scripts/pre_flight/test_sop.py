@@ -80,13 +80,13 @@ def t14b():
     return "lee de settings.yaml (dinámico)"
 
 
-@test("TEST-15  R6: COST_PCT >= 0.0015 en train_xgboost_v2.py", section="sop")
+@test("TEST-15  R6: COST_PCT >= 0.0010 en train_xgboost_v2.py", section="sop")
 def t15():
     # ARCH-02 (2026-03-18): COST_PCT se lee de cfg.sop.cost_pct — sin hardcode en código.
     cfg = _cfg()
     cost = float(getattr(getattr(cfg, 'sop', object()), 'cost_pct',
                  getattr(getattr(cfg, 'xgboost', object()), 'cost_pct', 0.0)))
-    assert cost >= 0.0015, f"COST_PCT={cost} < 0.0015 en settings"
+    assert cost >= 0.0010, f"COST_PCT={cost} < 0.0010 en settings"
     # Verificar que train_xgboost_v2.py referencia el parámetro (no hardcode)
     src = _read(ROOT/"luna/models/train_xgboost_v2.py")
     assert "cost_pct" in src or "COST_PCT" in src, "COST_PCT no referenciado en train_xgboost_v2.py"

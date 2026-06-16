@@ -111,7 +111,7 @@ def t62():
     # ARCH-02: SEQ_LEN ya no es literal — se lee desde cfg.metalabeler.seq_len.
     # (A) Si hay literal: debe coincidir con cfg.
     # (B) Si hay patron ARCH-02 (getattr + seq_len): el valor es cfg_seq, OK.
-    # NOTA: no capturar 'COST_PCT, EMBARGO_H, SEQ_LEN = 0.0015, 96, 48' (tuple unpack ARCH-02)
+    # NOTA: no capturar 'COST_PCT, EMBARGO_H, SEQ_LEN = 0.0010, 96, 48' (tuple unpack ARCH-02)
     m = re.search(r"^\s*SEQ_LEN\s*=\s*(\d+)", src, re.MULTILINE)
     if m:
         code_seq = int(m.group(1))

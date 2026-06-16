@@ -59,7 +59,8 @@ ai_mining:
     hidden_size: 128
     horizon_hours: 24
     learning_rate: 0.001
-    max_features: 20
+    max_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) 20
     num_layers: 2
     patience: 7
     sequence_len: 168
@@ -159,11 +160,14 @@ fase2:
   use_lgbm_ensemble: false
   use_dtw_signal: false
   use_monetary_loss: false
-  use_ofi_features: true
+  use_ofi_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) true
   use_regime_agents: true
 features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   correlation_threshold: 0.7
   dsr_scan_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - FundingRate_Pct90d
   - genetic_rule_4
   - alpha_genetic_score
@@ -175,6 +179,7 @@ features:
   - btc_drawdown_from_ath
   - Puell_Multiple
   forward_max_features: 25
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) 25
   fracdiff_d_range:
   - 0.1
   - 1.0
@@ -211,6 +216,7 @@ features:
   stability_gap_penalty: -0.5
   sfi_macro_stable_boost: 0.25
   sfi_macro_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - M2_MoM_Chg
   - M2_YoY_Chg
   - Global_M2_Index
@@ -235,6 +241,7 @@ features:
   - DXY_HMM_interact
   sfi_macro_min_slots: 0
   sfi_onchain_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - MVRV_Proxy
   - SSR_ZScore
   - SSR
@@ -260,6 +267,7 @@ features:
   - mt_vol_realized_4bar
   sfi_onchain_min_slots: 4
   sfi_calendar_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - cal_halving_cycle_sin
   - cal_halving_cycle_cos
   - cal_days_to_next_halving
@@ -267,6 +275,7 @@ features:
   - cal_halving_cycle_pct
   sfi_calendar_min_slots: 1
   sfi_macro_stable_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - M2_MoM_Chg
   - M2_YoY_Chg
   - Global_M2_Index
@@ -355,6 +364,7 @@ hmm:
   post_ath_ath_min_periods: 360
   post_ath_confirm_h: 48
   candidate_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - mt_vol_realized_4bar
   - dv_dvol_raw
   - frac_diff_close
@@ -370,7 +380,7 @@ kelly_sizer:
   sl_ratio: 1.0
   probability_cap: 0.62
 lightgbm:
-  optuna_metric: dsr
+  optuna_metric: logloss
   optuna_search_space:
     bagging_fraction_max: 1.0
     bagging_fraction_min: 0.6
@@ -388,8 +398,8 @@ lightgbm:
     reg_alpha_min: 0.01
     reg_lambda_max: 10.0
     reg_lambda_min: 0.01
-    scale_pos_weight_max: 2.0
-    scale_pos_weight_min: 0.43
+    scale_pos_weight_max: 1.0
+    scale_pos_weight_min: 1.0
   optuna_trials: 100
 metalabeler:
   gradient_clip: 1.0
@@ -451,6 +461,7 @@ ood_guard:
   random_state: 42
   experimental_kl_gate: true
   structural_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - HMM_Regime
   - HMM_Semantic
 position_sizer:
@@ -509,7 +520,8 @@ stat:
   xgb_proba_std_min: 0.01
   lgbm_proba_std_min: 0.01
   hmm_min_active_states: 2
-  sfi_min_features: 5
+  sfi_min_features:
+  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) 5
   data_min_rows: 1000
   data_max_gap_h: 48
   signal_min_count_warn: 5
@@ -518,14 +530,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-07-31
+  hmm_train_end: 2024-12-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-08-31
-  holdout_start: 2025-08-01
-  train_end: 2025-05-31
+  holdout_end: 2025-01-31
+  holdout_start: 2025-01-01
+  train_end: 2024-10-31
   train_start: '2017-08-17'
-  validation_end: 2025-07-31
-  validation_start: 2025-06-01
+  validation_end: 2024-12-31
+  validation_start: 2024-11-01
 wfb:
   ensemble_voting_method: soft
   soft_voting_threshold: 0.55
@@ -683,8 +695,9 @@ xgboost:
   n_estimators_min_floor: 5
   min_viable_train_samples: 200
   bull_gate_min_dsr: 0.0
+  # Tabla de referencia temporal: ETAs para n=6/8/10 grupos
   n_purged_splits: 8
-  optuna_metric: brier
+  optuna_metric: logloss
   vertical_barrier_hours: 48
   dynamic_horizon_max_h: 168
   optuna_search_space:
@@ -718,7 +731,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 31683
+  optuna_seed: 42
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8

@@ -63,6 +63,7 @@ from xgboost import XGBClassifier
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+
 from luna.utils.encoding_fix import fix_stdout_encoding; fix_stdout_encoding()
 
 DATA_DIR     = PROJECT_ROOT / "data" / "features"
@@ -2636,9 +2637,50 @@ class FeatureSelectionPipelineE:
         except Exception as e:
             logger.warning(f"[C] No se pudo guardar _lag_cache.json: {e}")
         self.results["n_after_C"] = len(X_lagged.columns)
-        logger.info(f"[C] Total candidatos para SFI: {len(X_lagged.columns)} "
+        logger.info(f"[C] Total candidatos tras Lag Discovery: {len(X_lagged.columns)} "
                     f"({self.results['n_after_C'] - len(alpha_cols)} raw + "
                     f"{len(alpha_cols)} alpha signals)")
+
+        # ── [NUEVO] TRIBUNAL MCPT PRE-SFI ──────────────────────────────────────────────
+        from luna.utils.mcpt import evaluate_continuous_mcpt_vectorized, get_permutation
+        logger.info("[MCPT] Iniciando Tribunal MCPT Pre-SFI para purgar ruido estadístico...")
+        # 1. Extraer df_ohlc In-Sample
+        df_ohlc_is = df[['open', 'high', 'low', 'close']].copy()
+        
+        # 2. Filtrar columnas (Ignorar Pass-Through y Alpha Signals que tienen su propia validación)
+        mcpt_candidates = [c for c in X_lagged.columns if c not in PASSTHROUGH_FEATURES and c not in alpha_cols]
+        mcpt_genuine = []
+        mcpt_noise = []
+        
+        from tqdm import tqdm
+        logger.info(f"[MCPT] Generando 100 mundos sintéticos base (esto tomará ~10-15 segs)...")
+        r_target = np.log(df_ohlc_is['close']).diff().shift(-1).fillna(0).values
+        synthetic_targets = []
+        for _ in range(100):
+            perm_df = get_permutation(df_ohlc_is, start_index=100)
+            synthetic_targets.append(np.log(perm_df['close']).diff().shift(-1).fillna(0).values)
+        synthetic_targets = np.array(synthetic_targets)
+        
+        logger.info(f"[MCPT] Evaluando {len(mcpt_candidates)} features continuas contra mundos sintéticos (Umbral P-Value: 0.10)...")
+        # Umbral relajado a 0.10 a petición metodológica
+        for col in tqdm(mcpt_candidates, desc="MCPT Tribunal"):
+            feat_vals = X_lagged[col].fillna(0).values
+            is_genuine, pval = evaluate_continuous_mcpt_vectorized(feat_vals, r_target, synthetic_targets, pval_threshold=0.10)
+            if is_genuine:
+                mcpt_genuine.append(col)
+            else:
+                mcpt_noise.append(col)
+                
+        logger.success(f"[MCPT] Purga completada. Genuinas: {len(mcpt_genuine)} | Ruido Eliminado: {len(mcpt_noise)}")
+        print(f"[MCPT-PRE-SFI] Genuinas: {len(mcpt_genuine)} | Ruido Eliminado: {len(mcpt_noise)}")
+        
+        # 3. Ensamblar X_lagged depurado
+        survivors = mcpt_genuine + [c for c in X_lagged.columns if c in PASSTHROUGH_FEATURES or c in alpha_cols]
+        X_lagged = X_lagged[survivors]
+        
+        self.results["n_after_mcpt"] = len(X_lagged.columns)
+        logger.info(f"[MCPT] Total candidatos para SFI: {len(X_lagged.columns)}")
+        # ────────────────────────────────────────────────────────────────────────────────
 
         # â”€â”€ Etapa D.2: ValidaciÃ³n Adversaria Univariable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         adv_penalties = {c: 1.0 for c in X_lagged.columns}

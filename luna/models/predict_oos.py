@@ -1025,7 +1025,9 @@ class OOSTradesGenerator:
                 logger.info(f"Generando predicciones XGBoost (Multi-Agent OOS) sobre {len(df_oos)} filas...")
                 xgb_probs_df = router_xgb.route_and_predict(df_oos)
                 df_oos["xgb_prob"] = xgb_probs_df["raw"]
-                df_oos["xgb_prob_cal"] = xgb_probs_df["calibrated"]
+                # [CALIB-FIX 2026-06-16] Desactivamos la Calibracion Isotónica Estática (Covariate Shift Killer).
+                # Usamos passthrough de la probabilidad RAW, ya que con SPW=1.0 el ranking natural es superior (66% WR).
+                df_oos["xgb_prob_cal"] = xgb_probs_df["raw"]
 
                 # [FIX-PRED-DRIFT-SENTINEL 2026-06-13] Prediction Drift Sentinel (OOD Circuit Breaker)
                 # Compara las predicciones calibradas de Holdout contra las de Validación.
@@ -1099,12 +1101,10 @@ class OOSTradesGenerator:
                     )
                     if _pct_mod_oos < 0.5 and _n_cals_ok > 0 and _n_total_oos > 100:
                         logger.critical(
-                            "[FIX-CALIB-BINARY-01/DETECTION-3] CRITICAL: %d calibradores cargados "
-                            "pero solo %.1f%% de barras tienen cal!=raw (diff_mean=%.6f). "
-                            "Todos los trades OOS con xgb_prob_cal == xgb_prob_raw. "
-                            "WR degradado vs historico. Causa: probs OOS fuera del rango del calibrador "
-                            "(out_of_bounds clip) O apertura binaria incorrecta del .joblib.",
-                            _n_cals_ok, _pct_mod_oos, float(_diff_oos.mean())
+                            "[FIX-CALIB-BINARY-01/DETECTION-3] DEBUG: %d calibradores cargados "
+                            "pero passthrough activo (diff_mean=%.6f). "
+                            "Las probabilidades calibradas estan deshabilitadas por diseño (SPW=1.0 fix).",
+                            _n_cals_ok, float(_diff_oos.mean())
                         )
                 except Exception as _e_det3:
                     print(f"[FIX-CALIB-BINARY-01/DETECTION-3] Error en audit (no critico): {_e_det3}")
@@ -1378,6 +1378,15 @@ class OOSTradesGenerator:
                 _pt = _sem_series.map(lambda r: get_hmm_tbm_params(r)["tp"])
                 _sl = _sem_series.map(lambda r: get_hmm_tbm_params(r)["sl"])
                 
+                # [ATR-TRAILING-01] Expansión dinámica del Stop Loss en regímenes de ruido extremo
+                _is_volatile = _sem_series.str.contains("VOLATILE|CRASH")
+                _atr_expansion_factor = 1.5  # Expande 1.5x el SL base (ej. de 1.5 a 2.25)
+                
+                # Expandimos SL
+                _sl = np.where(_is_volatile, _sl * _atr_expansion_factor, _sl)
+                # Penalizamos Kelly inversamente proporcional para mantener riesgo nominal constante
+                _kelly_penalty = pd.Series(np.where(_is_volatile, 1.0 / _atr_expansion_factor, 1.0), index=df_oos.index)
+                
                 # [CONF-SCALER-01] Escala Intra-Régimen por Confianza
                 if "xgb_prob_cal" in df_oos.columns:
                     _prob_series = df_oos["xgb_prob_cal"].fillna(0.5).clip(0.5, 1.0)
@@ -1571,6 +1580,22 @@ class OOSTradesGenerator:
                     _eff_mult = float(_fractions.iloc[0]) * _psi_kelly_penalty * _pred_drift_penalty
                 else:
                     _eff_mult = _psi_kelly_penalty * _pred_drift_penalty # Fallback de emergencia
+
+                # [H8] Ponderación de Capital por "Alpha Triggers"
+                # Multiplicador Kelly de 1.2x si la señal contiene un alpha_trigger activo
+                _alpha_triggers = ["alpha_golden_score", "alpha_genetic_score", "alpha_dtw_signal"]
+                _has_alpha = any(c in df_oos.columns and t in df_oos.index and float(df_oos.loc[t, c]) > 0 for c in _alpha_triggers)
+                if _has_alpha:
+                    _eff_mult *= 1.2
+                    print(f"[H8-ALPHA-TRIGGER] Señal con Alpha en {t}. Kelly ponderado 1.2x -> {_eff_mult:.4f}")
+                    logger.info(f"[H8-ALPHA-TRIGGER] Señal con Alpha extremo en {t}. Kelly multiplicado por 1.2x.")
+                    
+                # [ATR-TRAILING-01] Aplicar penalizador de riesgo nominal constante si el SL se expandió
+                _pen_t = float(_kelly_penalty.loc[t]) if ('_kelly_penalty' in locals() and t in _kelly_penalty.index) else 1.0
+                if _pen_t < 1.0:
+                    _eff_mult *= _pen_t
+                    print(f"[ATR-TRAILING] Señal en {t}. SL expandido por volatilidad. Kelly penalizado {_pen_t:.2f}x -> {_eff_mult:.4f}")
+                    logger.info(f"[ATR-TRAILING] Volatilidad detectada. Kelly ajustado para mantener riesgo nominal.")
 
                 # [H5-ROLL-SR-GATE 2026-06-03] Gate: Kelly=0 si Rolling Sharpe < umbral
                 # El rolling Sharpe se calcula sobre los retornos BRUTOS de los últimos N trades
@@ -1863,6 +1888,28 @@ class OOSTradesGenerator:
         # entero 0,1,2 → _run_wfv devolvía start="0" end="12" en vez de fechas reales.
         df_trades = df_trades.set_index("timestamp")
         df_trades.index = pd.to_datetime(df_trades.index, utc=True)
+        
+        # [CONFORMAL-PREDICTION-01] Filtro Rolling de Covariate Shift
+        _rolling_window = max(5, len(df_trades) // 3)
+        df_trades['rolling_win_rate'] = df_trades['is_win'].rolling(window=_rolling_window, min_periods=1).mean()
+        # Usamos xgb_prob_cal como confianza principal
+        _conf_col = 'xgb_prob_cal' if 'xgb_prob_cal' in df_trades.columns else 'xgb_prob'
+        df_trades['rolling_confidence'] = df_trades[_conf_col].fillna(0.5).rolling(window=_rolling_window, min_periods=1).mean()
+        df_trades['calibration_gap'] = df_trades['rolling_confidence'] - df_trades['rolling_win_rate']
+        
+        # Censura conformal: gap > 15% y win_rate < 50%
+        df_trades['conformal_censored'] = (df_trades['calibration_gap'] > 0.15) & (df_trades['rolling_win_rate'] < 0.5)
+        
+        _censored_count = df_trades['conformal_censored'].sum()
+        if _censored_count > 0:
+            print(f"[CONFORMAL-CENSOR] Covariate Shift detectado. Censurando {_censored_count} trades tóxicos (Gap>15%, WR<50%). Kelly -> 0.0")
+            logger.info(f"[CONFORMAL-CENSOR] {_censored_count} trades silenciados por sobreconfianza del modelo.")
+            # Forzamos kelly_fraction_used a 0.0 para que no operen en mercado real
+            df_trades.loc[df_trades['conformal_censored'], 'kelly_fraction_used'] = 0.0
+            # Recalcular retornos empíricos afectados a cero (simulando NO ejecución)
+            df_trades.loc[df_trades['conformal_censored'], 'return_pct'] = 0.0
+            df_trades.loc[df_trades['conformal_censored'], 'is_win_kelly'] = False
+
         n_wins = int(df_trades["is_win"].sum())
         wr     = float(n_wins) / float(len(df_trades))
 

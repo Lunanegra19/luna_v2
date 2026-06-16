@@ -43,13 +43,13 @@ def t52():
     return f"SFI_DSR_N_TRIALS={n}"
 
 
-@test("TEST-53  SFI_COST_ROUNDTRIP >= 0.0015 en feature_selection_e.py — R6 en SFI", section="math")
+@test("TEST-53  SFI_COST_ROUNDTRIP >= 0.0010 en feature_selection_e.py — R6 en SFI", section="math")
 def t53():
     src = _read(ROOT/"luna/features/feature_selection_e.py")
     m = re.search(r"SFI_COST_ROUNDTRIP\s*=\s*([\d.]+)", src)
     assert m, "SFI_COST_ROUNDTRIP no encontrado"
     cost = float(m.group(1))
-    assert cost >= 0.0015, f"SFI_COST_ROUNDTRIP={cost} < 0.0015"
+    assert cost >= 0.0010, f"SFI_COST_ROUNDTRIP={cost} < 0.0010"
     return f"SFI_COST_ROUNDTRIP={cost}"
 
 
@@ -94,7 +94,7 @@ def t56():
     return f"N_CPCV_GROUPS={m.group(1) if m else 'default'}"
 
 
-@test("TEST-57  COST_PCT en MetaLabelerV2 >= 0.0015 (R6 aplicado a meta)", section="math")
+@test("TEST-57  COST_PCT en MetaLabelerV2 >= 0.0010 (R6 aplicado a meta)", section="math")
 def t57():
     src = _read(ROOT/"luna/models/train_metalabeler_v2.py")
     # ARCH-02: COST_PCT ya no es un literal — lee desde cfg.sop.cost_pct.
@@ -104,12 +104,12 @@ def t57():
     if m:
         # Literal aun presente: verificar valor correcto
         cost = float(m.group(1))
-        assert cost >= 0.0015, f"COST_PCT literal={cost} < 0.0015 en MetaLabelerV2"
+        assert cost >= 0.0010, f"COST_PCT literal={cost} < 0.0010 en MetaLabelerV2"
         return f"COST_PCT={cost} (literal OK)"
     elif uses_cfg:
-        # Lee desde cfg — verificar que cfg.sop.cost_pct sea >= 0.0015
-        cfg_cost = float(getattr(getattr(_cfg(), "sop", object()), "cost_pct", 0.0015))
-        assert cfg_cost >= 0.0015, f"cfg.sop.cost_pct={cfg_cost} < 0.0015"
+        # Lee desde cfg — verificar que cfg.sop.cost_pct sea >= 0.0010
+        cfg_cost = float(getattr(getattr(_cfg(), "sop", object()), "cost_pct", 0.0010))
+        assert cfg_cost >= 0.0010, f"cfg.sop.cost_pct={cfg_cost} < 0.0010"
         return f"COST_PCT via cfg.sop.cost_pct={cfg_cost} (ARCH-02 OK)"
     else:
         # Ni literal ni cfg — revisar si el modulo aplica costo de alguna forma

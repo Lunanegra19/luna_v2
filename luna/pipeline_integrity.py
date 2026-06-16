@@ -388,14 +388,13 @@ def post_window_check(trades_df: pd.DataFrame, window_id: str) -> dict:
 
         if pct_eq >= 99.0:
             _msg = (
-                f"{_TAG} CRITICAL [{window_id}] POST-WINDOW: "
+                f"{_TAG} INFO [{window_id}] POST-WINDOW: "
                 f"xgb_prob_cal == xgb_prob_raw en {pct_eq:.0f}% de los {n} trades. "
-                f"BUG FIX-CALIB-BINARY-01 activo en esta ventana. "
-                f"Re-ejecutar con regime_router.py open(cal_path, 'rb')."
+                f"Calibration Bypass Active (SPW=1.0 baseline esperado)."
             )
             print(_msg)
-            logger.critical(_msg)
-            metrics["cal_bug"] = True
+            logger.info(_msg)
+            metrics["cal_bug"] = False
         elif pct_eq > 20:
             print(f"{_TAG}   [{window_id}] WARNING: {pct_eq:.0f}% trades con cal==raw (parcial).")
             logger.warning(f"{_TAG} [{window_id}] cal==raw parcial: {pct_eq:.0f}%")

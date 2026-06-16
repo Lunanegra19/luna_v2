@@ -1473,6 +1473,15 @@ class SignalFilter:
                     n_normal = n_blocked - n_forced
                     logger.info("  [H3] Filtro HMM flexible: {} bloqueadas by 4_BEAR_FORCED | {} bloqueadas by config (no {})", n_forced, n_normal, _hmm_allowed_labels)
         
+        # [H5] Censura Absoluta HMM `2_CALM_RANGE` (No-Fallback)
+        if _hmm_col_to_use and _hmm_col_to_use in df_oos.columns:
+            _is_calm_range = df_oos[_hmm_col_to_use].astype(str).str.contains("2_CALM_RANGE", case=False, na=False)
+            hmm_mask = hmm_mask & (~_is_calm_range)
+            n_h5_blocked = int(_is_calm_range.sum())
+            if n_h5_blocked > 0:
+                print(f"[H5-CENSURA] {n_h5_blocked} señales anuladas por disyuntor absoluto (Régimen 2_CALM_RANGE).")
+                logger.warning(f"[H5-CENSURA] {n_h5_blocked} señales bloqueadas (Régimen 2_CALM_RANGE).")
+                
         return hmm_mask
 
     def apply_macro_gate(self, df_oos: pd.DataFrame, direction: str = "long") -> pd.Series:
@@ -1981,6 +1990,27 @@ class SignalFilter:
 
         signal_mask = cum_mask
         n_xgb = int(xgb_mask.sum())
+        
+        # [H3] Doctrina "Sniper Anomaly" (Fast-Track)
+        # Rescata señales si KL <= Q25 y XGB >= Q50 (rolling causal para evitar look-ahead bias)
+        if "ood_kl_distance" in df_oos.columns and "xgb_prob" in df_oos.columns:
+            _kl_q25 = df_oos["ood_kl_distance"].rolling(window=720, min_periods=24).quantile(0.25)
+            _xgb_q50 = df_oos["xgb_prob"].rolling(window=720, min_periods=24).quantile(0.50)
+            
+            # Fillna fallback to global static in case rolling hasn't warmed up yet
+            _kl_q25 = _kl_q25.fillna(df_oos["ood_kl_distance"].quantile(0.25))
+            _xgb_q50 = _xgb_q50.fillna(df_oos["xgb_prob"].quantile(0.50))
+            
+            _is_sniper = (df_oos["ood_kl_distance"] <= _kl_q25) & (df_oos["xgb_prob"] >= _xgb_q50)
+            
+            _n_sniper = int(_is_sniper.sum())
+            if _n_sniper > 0:
+                _rescued = int((_is_sniper & ~signal_mask).sum())
+                if _rescued > 0:
+                    signal_mask = signal_mask | _is_sniper
+                    print(f"[H3-SNIPER] Doctrina Fast-Track activada: {_n_sniper} señales de anomalía y alta convicción. {_rescued} trades rescatados.")
+                    logger.success(f"[H3-SNIPER] {_rescued} trades rescatados del funnel (KL <= Q25 y XGB >= Q50).")
+
         n_signals = int(signal_mask.sum())
 
         if n_xgb > 0:

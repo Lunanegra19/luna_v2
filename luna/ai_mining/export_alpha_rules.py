@@ -48,7 +48,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 # Parsers de reportes
 # ─────────────────────────────────────────────────────────────────────────────
 
-def parse_golden_rules(report_path: Path) -> list[dict]:
+def parse_golden_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list[dict]:
     """
     Extrae Golden Rules de master_pattern_report.md.
     Tabla esperada: | Condicion Exacta | Régimen | Win Rate | Expected Value | N |
@@ -98,6 +98,16 @@ def parse_golden_rules(report_path: Path) -> list[dict]:
             logger.warning(f"A-07: expresion pandas_eval unsafe descartada: {pandas_eval[:80]}")
             continue
 
+        # Tribunal MCPT (Filtro Anti Curve-Fitting)
+        if df_mcpt is not None and not df_mcpt.empty:
+            from luna.utils.mcpt import evaluate_rule_mcpt
+            is_genuine, pval = evaluate_rule_mcpt(pandas_eval, df_mcpt, n_perms=50, pval_threshold=0.05)
+            if not is_genuine:
+                logger.info(f"[MCPT TRIBUNAL] ❌ Golden Rule RECHAZADA (Curve-Fitting, P-Value={pval:.4f}): {pandas_eval}")
+                continue
+            else:
+                logger.info(f"[MCPT TRIBUNAL] ✅ Golden Rule APROBADA (Genuina, P-Value={pval:.4f}): {pandas_eval}")
+
         rules.append({
             "type":         "golden_storm",
             "pandas_eval":  pandas_eval,
@@ -111,7 +121,7 @@ def parse_golden_rules(report_path: Path) -> list[dict]:
     return rules
 
 
-def parse_genetic_rules(report_path: Path) -> list[dict]:
+def parse_genetic_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list[dict]:
     """
     Extrae Genetic Rules de deep_discovery_report.md.
     Tabla: | Regla Logica | Win Rate | EV% | N |
@@ -186,6 +196,16 @@ def parse_genetic_rules(report_path: Path) -> list[dict]:
                 ev = float(re.sub(r"[^0-9.-]", "", cols[2]))
             except (ValueError, IndexError):
                 wr, ev = 0.0, 0.0
+
+            # Tribunal MCPT (Filtro Anti Curve-Fitting)
+            if df_mcpt is not None and not df_mcpt.empty:
+                from luna.utils.mcpt import evaluate_rule_mcpt
+                is_genuine, pval = evaluate_rule_mcpt(pandas_eval, df_mcpt, n_perms=50, pval_threshold=0.05)
+                if not is_genuine:
+                    logger.info(f"[MCPT TRIBUNAL] ❌ Genetic Rule RECHAZADA (Curve-Fitting, P-Value={pval:.4f}): {pandas_eval}")
+                    continue
+                else:
+                    logger.info(f"[MCPT TRIBUNAL] ✅ Genetic Rule APROBADA (Genuina, P-Value={pval:.4f}): {pandas_eval}")
 
             rules.append({
                 "type":        "genetic_rule",
@@ -620,9 +640,23 @@ def main() -> None:
     logger.info("Export Alpha Rules — INICIO")
     logger.info("=" * 60)
 
+    # Cargar datos para Tribunal MCPT (ultimas 5000 barras para agilizar)
+    try:
+        from luna.utils.mcpt import evaluate_rule_mcpt
+        features_path = PROJECT_ROOT / "data" / "features" / "features_train.parquet"
+        if features_path.exists():
+            df_mcpt = pd.read_parquet(features_path).tail(5000).copy()
+            logger.info(f"✅ Cargado dataset MCPT para tribunal anti curve-fitting: {len(df_mcpt)} filas.")
+        else:
+            df_mcpt = pd.DataFrame()
+            logger.warning("No se encontro features_train.parquet. Tribunal MCPT desactivado.")
+    except Exception as e:
+        df_mcpt = pd.DataFrame()
+        logger.warning(f"Error cargando dataset para MCPT: {e}")
+
     # Leer reportes de todos los engines
-    golden_rules  = parse_golden_rules(REPORTS_DIR / "master_pattern_report.md")
-    genetic_rules = parse_genetic_rules(REPORTS_DIR / "deep_discovery_report.md")
+    golden_rules  = parse_golden_rules(REPORTS_DIR / "master_pattern_report.md", df_mcpt=df_mcpt)
+    genetic_rules = parse_genetic_rules(REPORTS_DIR / "deep_discovery_report.md", df_mcpt=df_mcpt)
     causal_vars   = parse_causal_vars(REPORTS_DIR / "advanced_engine_report.md")
     dtw_bull_prob = parse_dtw_bull_prob(REPORTS_DIR / "deep_discovery_report.md")
     tribe_bias    = parse_tribe_bias(REPORTS_DIR / "cluster_pattern_report.md")

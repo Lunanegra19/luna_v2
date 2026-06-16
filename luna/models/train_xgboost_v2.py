@@ -1812,18 +1812,14 @@ class XGBoostTrainer:
         try:
             _spw_pos   = int((self.y == 1).sum())
             _spw_neg   = int((self.y == 0).sum())
-            _spw_ideal = _spw_neg / max(_spw_pos, 1)
-            self._spw_ideal = _spw_ideal
-            self._spw_min = max(0.1,  _spw_ideal * 0.5)
-            self._spw_max = min(2.0,  _spw_ideal * 2.5)  # SOP_LIMIT=2.0
+            # [SPW-FIX 2026-06-16] Bloqueamos scale_pos_weight en 1.0 absoluto para preservar el edge de XGBoost
+            # y evitar que Optuna destruya el ranking natural de las probabilidades penalizando la clase mayoritaria.
+            self._spw_ideal = 1.0
+            self._spw_min = 1.0
+            self._spw_max = 1.0
             
-            # [FIX-SPW-CRASH] Evitar low > high si min > 2.0
-            if self._spw_min >= self._spw_max:
-                self._spw_min = max(0.1, self._spw_max * 0.5)
-                
             logger.info(
-                f"[SPW-AUTO-01] pos={_spw_pos} neg={_spw_neg} ideal={_spw_ideal:.3f} "
-                f"-> range=[{self._spw_min:.2f}, {self._spw_max:.2f}] (SOP_LIMIT=2.0)"
+                f"[SPW-FIX] pos={_spw_pos} neg={_spw_neg} | SPW bloqueado a 1.0 absoluto para prevenir Asfixia de Edge"
             )
         except Exception as _e_spw:
             logger.warning("[SPW-AUTO-01] Calculo automatico fallido ({}) â€” usando YAML settings.", _e_spw)

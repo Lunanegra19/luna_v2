@@ -51,6 +51,11 @@ for f in sorted(DATA.glob('oos_trades_seed*.parquet')):
     d['_seed'] = int(f.stem.split('seed')[1])
     dfs.append(d)
 
+if not dfs:
+    print("[LOAD] No se encontraron archivos de trades en data/predictions/. Abortando ejecución de CVD-01.")
+    import sys
+    sys.exit(0)
+
 df = pd.concat(dfs, ignore_index=True)
 df['ret100'] = df['return_raw'] * 100
 # Usar wfb_window como _window canonico
@@ -595,8 +600,105 @@ for comp, val in results.items():
     fmt_result(comp, val)
 
 print()
+# ─── 13. ARCHITECTURAL SHAP (NUEVO) ──────────────────────────────────────
+print()
+print(SEP)
+print("COMPONENTE 13: Architectural SHAP (Shapley Values de Teoría de Juegos)")
+print("Hipótesis: Atribución justa del Edge (Sharpe Ratio) a cada filtro")
+print(SEP)
+
+import itertools
+import math
+
+if 'xgb_prob_cal' in df.columns and 'meta_v2_prob' in df.columns and 'ood_kl_distance' in df.columns:
+    _xgb_strict = df['xgb_prob_cal'] >= df['xgb_prob_cal'].quantile(0.75)
+    _meta_strict = df['meta_v2_prob'] >= 0.65
+    _ood_strict = df['ood_kl_distance'] <= df['ood_kl_distance'].quantile(0.50)
+    
+    components = {
+        'XGB_Strict': _xgb_strict,
+        'Meta_Strict': _meta_strict,
+        'OOD_Strict': _ood_strict
+    }
+    
+    # Evaluar Sharpe de todas las coaliciones
+    comp_names = list(components.keys())
+    coalition_sharpes = {}
+    
+    for r in range(len(comp_names) + 1):
+        for subset in itertools.combinations(comp_names, r):
+            if len(subset) == 0:
+                mask = pd.Series(True, index=df.index)
+            else:
+                mask = pd.Series(True, index=df.index)
+                for name in subset:
+                    mask = mask & components[name]
+            sub_df = df[mask]
+            m = metricas_fin(sub_df)
+            coalition_sharpes[subset] = m['sharpe'] if not np.isnan(m['sharpe']) else 0.0
+
+    print("  [SHAP] Calculando Marginal Contributions...")
+    n = len(comp_names)
+    shap_values = {c: 0.0 for c in comp_names}
+    
+    for c in comp_names:
+        for subset in coalition_sharpes.keys():
+            if c not in subset:
+                subset_with_c = tuple(sorted(list(subset) + [c]))
+                subset_without = tuple(sorted(list(subset)))
+                
+                weight = (math.factorial(len(subset)) * math.factorial(n - 1 - len(subset))) / math.factorial(n)
+                marginal = coalition_sharpes[subset_with_c] - coalition_sharpes.get(subset_without, 0.0)
+                shap_values[c] += weight * marginal
+                
+    print(f"  {'Filtro Estricto':<20} {'Shapley Value (Delta Sharpe)':>30}")
+    print("  " + DASH)
+    for c, v in sorted(shap_values.items(), key=lambda x: x[1], reverse=True):
+        status = "✅ Aporta" if v > 0 else "❌ Destruye/Redundante"
+        print(f"  {c:<20} {v:>20.4f}  {status}")
+else:
+    print("  Faltan columnas necesarias para Architectural SHAP.")
+
+# ─── 14. MARKOV CHAIN HEALTH MONITOR (NUEVO) ──────────────────────────────
+print()
+print(SEP)
+print("COMPONENTE 14: Markov Health Monitor (Degradación de Secuencias Win/Loss)")
+print("Hipótesis: Detectar bucles absorbentes de pérdidas (Drawdown Trap)")
+print(SEP)
+
+if len(df) > 10:
+    df_sorted = df.sort_values('entry_time').reset_index(drop=True)
+    states = df_sorted['is_win'].astype(int).values
+    
+    # Matriz de Transicion Empirica (0=Loss, 1=Win)
+    T = np.zeros((2, 2))
+    for i in range(len(states) - 1):
+        T[states[i], states[i+1]] += 1
+        
+    row_sums = T.sum(axis=1)
+    # Evitar division por cero
+    P = np.divide(T, row_sums[:, np.newaxis], out=np.zeros_like(T), where=row_sums[:, np.newaxis]!=0)
+    
+    print("  Matriz de Transición Empírica (P):")
+    print(f"    Loss -> Loss: {P[0,0]:.2%}   |   Loss -> Win: {P[0,1]:.2%}")
+    print(f"    Win  -> Loss: {P[1,0]:.2%}   |   Win  -> Win: {P[1,1]:.2%}")
+    
+    # Probabilidad Teórica de Loss Independiente (Coin Toss Random)
+    p_loss_random = 1.0 - df['is_win'].mean()
+    
+    if P[0,0] > p_loss_random * 1.2:
+        print(f"\n  ❌ ALERTA MARKOV: 'Loss->Loss' ({P[0,0]:.2%}) es >20% superior al riesgo base ({p_loss_random:.2%}).")
+        print("     El sistema ha entrado en un Estado Absorbente de Drawdown temporal (Autocorrelación de pérdidas).")
+    else:
+        print(f"\n  ✅ SALUD MARKOV: Transiciones sanas. Sin asfixia estructural.")
+else:
+    print("  Trades insuficientes para Markov.")
+
+print()
 print("  MEJORAS INTEGRADAS EN ESTE REPORTE [CVD-MEJORA 2026-06-11]:")
 print("  [CVD-MEJORA-01] metricas_fin(): Sharpe/MaxDD/Calmar disponibles en BASELINE y secciones")
 print("  [CVD-MEJORA-02] MetaLabeler sim con Ret_total + Sharpe + impacto por ventana")
 print("  [CVD-MEJORA-03] Componente 9: combinacion XGBoost+KL Score (Hipotesis H3)")
-print("[CVD-MEJORA] Dashboard CVD-01 completado. Mejoras: MEJORA-01 MEJORA-02 MEJORA-03")
+print("  [CVD-MEJORA-04] Componente 13: Architectural SHAP (Game Theory Edge Attribution)")
+print("  [CVD-MEJORA-05] Componente 14: Markov Health Monitor (Win/Loss Transitions)")
+print("[CVD-MEJORA] Dashboard CVD-01 completado. Mejoras: MEJORA-01 MEJORA-02 MEJORA-03 SHAP MARKOV")
