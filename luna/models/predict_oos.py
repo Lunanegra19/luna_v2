@@ -788,7 +788,7 @@ class OOSTradesGenerator:
             # [FIX-SPLIT-PRED-01] Hacer ratio de split temporal train/val de fallback configurable
             try:
                 from config.settings import cfg as _cfg_sp
-                _val_ratio = float(float(_cfg_sp.metalabeler.val_split_ratio))
+                _val_ratio = float(_cfg_sp.metalabeler.val_split_ratio)
                 _train_ratio = 1.0 - _val_ratio
                 print(f"[FIX-SPLIT-PRED-01] Fallback split temporal cargado: train_ratio={_train_ratio:.2f} (val_ratio={_val_ratio:.2f})")
             except Exception as _e_pred_sp:
@@ -1027,8 +1027,8 @@ class OOSTradesGenerator:
                                 _pred_max_psi = 0.20
                                 if _cfg_xgb is not None:
                                     try:
-                                        _pred_min_psi = float(int(_cfg_xgb.wfb.pred_drift_min_psi))
-                                        _pred_max_psi = float(int(_cfg_xgb.wfb.pred_drift_max_psi))
+                                        _pred_min_psi = float(_cfg_xgb.wfb.pred_drift_min_psi)
+                                        _pred_max_psi = float(_cfg_xgb.wfb.pred_drift_max_psi)
                                     except Exception as _e_cfg:
                                         pass
                                 
@@ -1272,7 +1272,7 @@ class OOSTradesGenerator:
             # Leer seed desde settings para construir key estable
             try:
                 from config.settings import cfg as _cfg_fnl
-                _optuna_seed_fnl = int(int(_cfg_fnl.xgboost.optuna_seed))
+                _optuna_seed_fnl = int(_cfg_fnl.xgboost.optuna_seed)
             except Exception:
                 _optuna_seed_fnl = 0
 
@@ -1430,9 +1430,9 @@ class OOSTradesGenerator:
             # No-Fallback estricto: parametro critico de riesgo, ausencia -> RuntimeError
             try:
                 from config.settings import cfg as _cfg_h5
-                _h5_enabled   = bool(int(_cfg_h5.position_sizer.roll_sr_gate_enabled))
-                _h5_window    = int(int(_cfg_h5.position_sizer.roll_sr_window))
-                _h5_threshold = float(int(_cfg_h5.position_sizer.roll_sr_threshold))
+                _h5_enabled   = bool(_cfg_h5.position_sizer.roll_sr_gate_enabled)
+                _h5_window    = int(_cfg_h5.position_sizer.roll_sr_window)
+                _h5_threshold = float(_cfg_h5.position_sizer.roll_sr_threshold)
                 if _h5_enabled is None or _h5_window is None or _h5_threshold is None:
                     raise KeyError("Parametros H5 incompletos en position_sizer")
                 print(f"[H5-ROLL-SR-GATE] Cargado: enabled={_h5_enabled} window={_h5_window} threshold={_h5_threshold}")
@@ -2040,7 +2040,7 @@ class OOSTradesGenerator:
                 _ood_thresh = 0.95 
                 try:
                     from config.settings import cfg as _cfg_ood
-                    _ood_thresh = float(int(_cfg_ood.xgboost.ood_kl_threshold))
+                    _ood_thresh = float(_cfg_ood.xgboost.ood_kl_threshold)
                 except Exception:
                     pass
                 raw_probs_df["is_ood_outlier"] = df_oos_base["ood_kl_distance"] > _ood_thresh

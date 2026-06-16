@@ -31,13 +31,13 @@ def calculate_online_threshold(
     """
     try:
         from config.settings import cfg as _cfg
-        _lin_decay = bool(bool(_cfg.xgboost.linear_decay_pt))
-        _pt_decay_frac = float(int(_cfg.xgboost.pt_decay_fraction))
+        _lin_decay = bool(_cfg.xgboost.linear_decay_pt)
+        _pt_decay_frac = float(_cfg.xgboost.pt_decay_fraction)
         # [FIX-A] leer cost_pct de cfg si no fue pasado como argumento
         if cost_pct_meta is None:
             cost_pct_meta = float(_cfg.sop.cost_pct)
         # [FIX-A] n_target desde metalabeler.meta_min_trades (ya existe en settings)
-        _n_target_cfg = int(int(_cfg.metalabeler.meta_min_trades))
+        _n_target_cfg = int(_cfg.metalabeler.meta_min_trades)
     except Exception as e:
         if "cost_pct" in str(e) or cost_pct_meta is None:
             raise RuntimeError(f"Falta cfg.sop.cost_pct en settings.yaml. Política No-Fallback (SOP R6): {e}")

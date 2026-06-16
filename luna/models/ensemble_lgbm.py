@@ -168,7 +168,7 @@ try:
 
 
 
-    OPTUNA_TRIALS = int(int(_cfg_xgb.xgboost.optuna_trials))
+    OPTUNA_TRIALS = int(_cfg_xgb.xgboost.optuna_trials)
 
 
 
@@ -189,8 +189,8 @@ try:
 
 
 
-    PURGE_H       = int(int(_cfg_xgb.sop.purge_hours))
-    EMBARGO_H     = int(int(_cfg_xgb.sop.embargo_hours))
+    PURGE_H       = int(_cfg_xgb.sop.purge_hours)
+    EMBARGO_H     = int(_cfg_xgb.sop.embargo_hours)
 
 
 
@@ -662,7 +662,7 @@ class LGBMTrainer:
             from config.settings import cfg as _cfg_rw
             _t_mode = str(_cfg_rw.wfb.training_mode)
             if _t_mode == 'rolling':
-                _rw_years = int(int(_cfg_rw.wfb.rolling_window_years))
+                _rw_years = int(_cfg_rw.wfb.rolling_window_years)
                 _train_end_str = _cfg_rw.temporal_splits.train_end
                 _train_end_dt = pd.to_datetime(_train_end_str, utc=True)
                 _rolling_start = _train_end_dt - pd.DateOffset(years=_rw_years)
@@ -770,7 +770,7 @@ class LGBMTrainer:
 
 
 
-                    _vbh_mvr = int(int(_cfg_mvr.xgboost.vertical_barrier_hours))
+                    _vbh_mvr = int(_cfg_mvr.xgboost.vertical_barrier_hours)
 
 
 
@@ -1357,7 +1357,7 @@ class LGBMTrainer:
 
 
 
-            _min_ret = float(float(_cfg.lightgbm.tbm_min_return))
+            _min_ret = float(_cfg.lightgbm.tbm_min_return)
 
 
 
@@ -1405,7 +1405,7 @@ class LGBMTrainer:
 
 
 
-            _event_sampling_h = int(int(_cfg.lightgbm.event_sampling_hours))
+            _event_sampling_h = int(_cfg.lightgbm.event_sampling_hours)
 
 
 
@@ -1441,12 +1441,12 @@ class LGBMTrainer:
 
 
 
-        _vbh = int(int(_cfg.lightgbm.vertical_barrier_hours)) if hasattr(_cfg, 'xgboost') else 96
+        _vbh = int(_cfg.lightgbm.vertical_barrier_hours) if hasattr(_cfg, 'xgboost') else 96
         _dyn_min = int(bool(_cfg.lightgbm.dynamic_horizon_min_h)) if hasattr(_cfg, 'xgboost') else 48
         # Vincular el techo maximo de la barrera dinamica al EMBARGO_H del SOP
         _dyn_max = EMBARGO_H
-        _lin_decay = bool(bool(_cfg.lightgbm.linear_decay_pt)) if hasattr(_cfg, 'xgboost') else False
-        _pt_decay_frac = float(int(_cfg.lightgbm.pt_decay_fraction)) if hasattr(_cfg, 'xgboost') else 0.75
+        _lin_decay = bool(_cfg.lightgbm.linear_decay_pt) if hasattr(_cfg, 'xgboost') else False
+        _pt_decay_frac = float(_cfg.lightgbm.pt_decay_fraction) if hasattr(_cfg, 'xgboost') else 0.75
 
         _side_val = -1.0 if self.native_direction == "short" else 1.0
         _sides_series = pd.Series(_side_val, index=events_idx)
@@ -1642,7 +1642,7 @@ class LGBMTrainer:
         # ── [FIX-PBO-01] Submuestreo de trayectorias superpuestas (Anti-Overlap) ──
         try:
             from config.settings import cfg as _cfg_tbm
-            _sampling_h = int(int(_cfg_tbm.xgboost.event_sampling_hours))
+            _sampling_h = int(_cfg_tbm.xgboost.event_sampling_hours)
         except Exception:
             _sampling_h = 12
 
@@ -2288,7 +2288,7 @@ class LGBMTrainer:
 
 
 
-            _alpha = float(float(_cfg_sw.xgboost.weight_decay_alpha))
+            _alpha = float(_cfg_sw.xgboost.weight_decay_alpha)
 
 
 
@@ -2388,7 +2388,7 @@ class LGBMTrainer:
 
 
 
-            gamma = float(int(_cfg_fl.xgboost.focal_loss_gamma))
+            gamma = float(_cfg_fl.xgboost.focal_loss_gamma)
 
 
 
@@ -2635,7 +2635,7 @@ class LGBMTrainer:
 
 
 
-            use_monetary_loss = bool(bool(_cfg_opts.fase2.use_monetary_loss))
+            use_monetary_loss = bool(_cfg_opts.fase2.use_monetary_loss)
 
 
 
@@ -2819,7 +2819,7 @@ class LGBMTrainer:
 
 
 
-                    _samp_h = int(int(_cfg_tmp.xgboost.event_sampling_hours))
+                    _samp_h = int(_cfg_tmp.xgboost.event_sampling_hours)
 
 
 
@@ -2904,7 +2904,7 @@ class LGBMTrainer:
             from sklearn.metrics import brier_score_loss, log_loss
             try:
                 # [FIX-B1-EMBARGO] Mismo namespace fix: cfg.lightgbm (no cfg.lgbm)
-                _purge_gap = int(int(_cfg_metric.lightgbm.purge_hours))
+                _purge_gap = int(_cfg_metric.lightgbm.purge_hours)
             except Exception:
                 _purge_gap = 96
 
@@ -3197,7 +3197,7 @@ class LGBMTrainer:
 
 
 
-            _optuna_seed = int(int(_cfg_xgb.xgboost.optuna_seed))
+            _optuna_seed = int(_cfg_xgb.xgboost.optuna_seed)
 
 
 
@@ -4693,7 +4693,7 @@ class LGBMTrainer:
             # [FIX-LGBM-FOCAL-NS-01] Leer de sección 'lightgbm', NO de 'xgboost'
             use_focal_loss = bool(int(float(_cfg_opts.lightgbm).use_focal_loss))
 
-            use_monetary_loss = bool(bool(_cfg_opts.fase2.use_monetary_loss))
+            use_monetary_loss = bool(_cfg_opts.fase2.use_monetary_loss)
 
 
 
@@ -4851,7 +4851,7 @@ class LGBMTrainer:
 
 
 
-            _alpha_log = float(float(_cfg_log.xgboost.weight_decay_alpha))
+            _alpha_log = float(_cfg_log.xgboost.weight_decay_alpha)
 
 
 

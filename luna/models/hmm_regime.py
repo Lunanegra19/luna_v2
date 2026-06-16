@@ -44,8 +44,8 @@ from luna.utils.debug_guards import vlog, timeit, check_df_sanity, check_numeric
 # desincronizados de la sección hmm: en settings.yaml.
 try:
     from config.settings import cfg as _cfg_hmm
-    N_REGIMES             = int(int(_cfg_hmm.hmm.n_states))
-    WINDOWS_OOS           = int(int(_cfg_hmm.hmm.oos_window_hours))
+    N_REGIMES             = int(_cfg_hmm.hmm.n_states)
+    WINDOWS_OOS           = int(_cfg_hmm.hmm.oos_window_hours)
     MIN_STATE_DURATION_H  = int(float(_cfg_hmm.hmm.min_state_duration_hours))  # floor MEJORA-HMM-DURATION-01
 except Exception:
     N_REGIMES             = 4    # fallback si settings no disponible
@@ -163,7 +163,7 @@ class HMMRegimeModel:
         _is_wfb_mode = _os_hmm.environ.get("LUNA_RUN_ID", "").startswith("WFB_")
         try:
             from config.settings import cfg as _cfg_g2
-            _extend = bool(int(getattr(_cfg_g2.hmm), 'hmm_extend_to_holdout', False))
+            _extend = bool(getattr(_cfg_g2.hmm, 'hmm_extend_to_holdout', False))
         except Exception:
             _extend = False
 
@@ -201,8 +201,8 @@ class HMMRegimeModel:
         # DIFERENTE de hmm_extend_to_holdout (LAB-03): validation NO es holdout.
         try:
             from config.settings import cfg as _cfg_m69
-            _hmm_end_str = int(getattr(_cfg_m69.temporal_splits), 'hmm_train_end', None)
-            _train_end_str = int(getattr(_cfg_m69.temporal_splits), 'train_end', None)
+            _hmm_end_str = getattr(_cfg_m69.temporal_splits, 'hmm_train_end', None)
+            _train_end_str = getattr(_cfg_m69.temporal_splits, 'train_end', None)
             if _hmm_end_str and _train_end_str and str(_hmm_end_str) > str(_train_end_str):
                 val_path = self.root / "data" / "features" / "features_validation.parquet"
                 if val_path.exists():
@@ -234,7 +234,7 @@ class HMMRegimeModel:
         # NOTA: se aplica DESPUÉS de M-69/G2 para no interferir con la extensión al validation.
         try:
             from config.settings import cfg as _cfg_hmm_start
-            _hmm_start_str = int(getattr(_cfg_hmm_start.temporal_splits), 'hmm_train_start', None)
+            _hmm_start_str = getattr(_cfg_hmm_start.temporal_splits, 'hmm_train_start', None)
             if _hmm_start_str:
                 _hmm_start_ts = pd.Timestamp(str(_hmm_start_str), tz='UTC')
                 _n_before_start = len(df)
@@ -454,7 +454,7 @@ class HMMRegimeModel:
             from luna.utils.encoding_fix import fix_stdout_encoding; fix_stdout_encoding()
             try:
                 from config.settings import cfg
-                _extend = bool(int(getattr(cfg.hmm), 'hmm_extend_to_holdout', False))
+                _extend = bool(getattr(cfg.hmm, 'hmm_extend_to_holdout', False))
                 if _extend and hasattr(self, 'raw_df') and self.raw_df is not None:
                     train_cutoff = str(self.raw_df.index.max().date())
                     logger.info(
@@ -462,12 +462,12 @@ class HMMRegimeModel:
                         f"{train_cutoff}"
                     )
                 else:
-                    _hmm_end = int(cfg.temporal_splits.hmm_train_end)
+                    _hmm_end = getattr(cfg.temporal_splits, 'hmm_train_end', None)
                     if _hmm_end:
                         train_cutoff = _hmm_end
                         logger.info(f"[M-69] Usando hmm_train_end de settings: {train_cutoff} para HMM")
                     else:
-                        train_cutoff = int(cfg.temporal_splits.train_end)
+                        train_cutoff = getattr(cfg.temporal_splits, 'train_end', None)
             except Exception as e:
                 logger.warning(f"No se pudo leer settings para train_cutoff: {e}")
                 train_cutoff = "2024-06-30"
@@ -518,7 +518,7 @@ class HMMRegimeModel:
 
         best_score, best_model = -np.inf, None
         try:
-            _n_init = int(int(_cfg_hmm.hmm.n_init))
+            _n_init = int(_cfg_hmm.hmm.n_init)
         except Exception:
             _n_init = 10
 
@@ -559,7 +559,7 @@ class HMMRegimeModel:
                         logger.warning(f"[HMM-WARM-START] Fallo al cargar modelo previo: {e}")
 
         try:
-            _n_init = int(int(_cfg_hmm.hmm.n_init))
+            _n_init = int(_cfg_hmm.hmm.n_init)
         except Exception:
             _n_init = 10
         for _seed in range(_n_init):
@@ -777,7 +777,7 @@ class HMMRegimeModel:
         if n_states_candidates is None:
             try:
                 from config.settings import cfg as _c
-                _cands = int(getattr(_c._roadmap), 'hmm', None)
+                _cands = getattr(_c._roadmap, 'hmm', None)
                 if _cands and hasattr(_cands, 'n_states_candidates'):
                     n_states_candidates = list(_cands.n_states_candidates)
                 else:
@@ -1165,7 +1165,7 @@ class HMMRegimeModel:
                 # EMPIRICO: MI(HMM, fwd_24H)=0.00090 < SOP-R9=0.005 siempre.
                 # MI(HMM, fwd_720H)=0.00588 supera SOP-R9=0.005.
                 # Los regimenes HMM son macro (escala mensual). 24H genera violacion estructural permanente.
-                _mi_horizon = int(int(_cfg_hmm.hmm.mi_horizon_hours))
+                _mi_horizon = int(_cfg_hmm.hmm.mi_horizon_hours)
                 fwd_ret_sign = (train_mask_df['close'].pct_change(_mi_horizon).shift(-_mi_horizon) > 0).astype(int)
                 print(f'[FIX-HMM-MI-HORIZON-01] MI calculada con horizonte={_mi_horizon}H (empirico supera SOP-R9=0.005)')  # RULE[fixbugsprints.md]
                 _mi_df = pd.DataFrame({
@@ -1174,7 +1174,7 @@ class HMMRegimeModel:
                 }).dropna()  # dropna conjunto -- garantiza alineacion perfecta 1:1
                 if len(_mi_df) > 100:
                     mi = mutual_info_score(_mi_df['state'].astype(int), _mi_df['target'].astype(int))
-                    min_mi = float(int(_cfg_hmm.hmm.min_mi))
+                    min_mi = float(_cfg_hmm.hmm.min_mi)
                     self._mi_pre_shield = mi  # [FIX-HMM-MI-PRESHIELD-01] guardar para contexto post-Shield
                     mi_flag = " BAJO (<0.005)" if mi < min_mi else " OK"
                     # [FIX-HMM-MI-PRESHIELD-01 2026-06-02] Pre-Shield MI es siempre menor que post-Shield.
@@ -1213,7 +1213,7 @@ class HMMRegimeModel:
             from sklearn.metrics import mutual_info_score
             if 'close' in train_mask_df.columns:
                 # [FIX-HMM-MI-HORIZON-01] Usar mismo horizonte 720H para MI post-Shield
-                _mi_horizon2 = int(int(_cfg_hmm.hmm.mi_horizon_hours))
+                _mi_horizon2 = int(_cfg_hmm.hmm.mi_horizon_hours)
                 fwd_ret_sign = (train_mask_df['close'].pct_change(_mi_horizon2).shift(-_mi_horizon2) > 0).astype(int)
                 print(f'[FIX-HMM-MI-HORIZON-01] MI post-Shield horizonte={_mi_horizon2}H')  # RULE[fixbugsprints.md]
                 # Map categories to integer indices for mutual_info_score
@@ -1222,7 +1222,7 @@ class HMMRegimeModel:
                 if len(_mi_df) > 100:
                     mi2 = mutual_info_score(_mi_df['s'], _mi_df['t'])
                     # [FIX-HMM-MI-CRITICAL 2026-05-30] Post-Shield MI check tambien a CRITICAL
-                    min_mi2 = float(int(_cfg_hmm.hmm.min_mi))
+                    min_mi2 = float(_cfg_hmm.hmm.min_mi)
                     if mi2 < min_mi2:
                         if mi2 < mi:
                             logger.critical(
@@ -1281,11 +1281,11 @@ class HMMRegimeModel:
             # actual aunque BTC caiga -35%. Este gate detecta correcciones fuertes desde
             # el ATH local de los ultimos 90 dias, independientemente de medias historicas.
             # Validado W1-W5: activa 239h en W5 (crash Feb-2026), 0h en bulls W2/W3.
-            _c1_dd_thresh   = float(int(_cfg_hmm.hmm.post_ath_dd_threshold))
-            _c1_mom_thresh  = float(int(_cfg_hmm.hmm.post_ath_mom_threshold))
-            _c1_ath_window  = int(int(_cfg_hmm.hmm.post_ath_ath_window_h))  # 90d
-            _c1_ath_minper  = int(int(_cfg_hmm.hmm.post_ath_ath_min_periods))   # 30d
-            _c1_confirm     = int(int(_cfg_hmm.hmm.post_ath_confirm_h))
+            _c1_dd_thresh   = float(_cfg_hmm.hmm.post_ath_dd_threshold)
+            _c1_mom_thresh  = float(_cfg_hmm.hmm.post_ath_mom_threshold)
+            _c1_ath_window  = int(_cfg_hmm.hmm.post_ath_ath_window_h)  # 90d
+            _c1_ath_minper  = int(_cfg_hmm.hmm.post_ath_ath_min_periods)   # 30d
+            _c1_confirm     = int(_cfg_hmm.hmm.post_ath_confirm_h)
 
             ath_90d = close.rolling(_c1_ath_window, min_periods=_c1_ath_minper).max()
             dd_from_ath = (close / ath_90d) - 1.0  # siempre <= 0
@@ -1379,13 +1379,13 @@ class HMMRegimeModel:
             # [FIX-HMM-SHIELD-03 2026-06-07] MI-guard activo para TODO el escudo.
             # Evita fallos críticos SOP-R9 desactivando escudos heurísticos si 
             # destruyen la información mutua validada por el HMM no supervisado.
-            _min_mi_shield = float(int(_cfg_hmm.hmm.min_mi))
+            _min_mi_shield = float(_cfg_hmm.hmm.min_mi)
             _shield_enabled = True
             _post_ath_enabled = True
             try:
                 from sklearn.metrics import mutual_info_score as _mis
                 if 'close' in df_input.columns:
-                    _mi_guard_horizon = int(int(_cfg_hmm.hmm.mi_horizon_hours))
+                    _mi_guard_horizon = int(_cfg_hmm.hmm.mi_horizon_hours)
                     _fwd_sign = (df_input['close'].pct_change(_mi_guard_horizon).shift(-_mi_guard_horizon) > 0).astype(int)
                     print(f'[FIX-HMM-MI-HORIZON-01] MI-guard shield horizonte={_mi_guard_horizon}H')  # RULE[fixbugsprints.md]
                     
@@ -1677,7 +1677,7 @@ class HMMRegimeModel:
                     _jsd2 = float(_jsd_fn(_freq_is, _freq_oos) ** 2)
                 try:
                     from config.settings import cfg as _cfg_hmm_drift
-                    _jsd_thr = float(int(getattr(_cfg_hmm_drift.hmm), 'drift_alert_jsd', 0.15))
+                    _jsd_thr = float(getattr(_cfg_hmm_drift.hmm, 'drift_alert_jsd', 0.15))
                 except Exception:
                     _jsd_thr = 0.15
 

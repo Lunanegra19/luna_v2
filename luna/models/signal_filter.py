@@ -628,8 +628,8 @@ class SignalFilter:
         # Aplica filtrado basado en la variable DVOL_kz (Z-Score de ventana rodante 90d IS)
         try:
             from config.settings import cfg as _cfg_dvol
-            _dvol_max = float(int(_cfg_dvol.ood_guard.guardian_dvol_max_z))
-            _dvol_min = float(int(_cfg_dvol.ood_guard.guardian_dvol_min_z))
+            _dvol_max = float(_cfg_dvol.ood_guard.guardian_dvol_max_z)
+            _dvol_min = float(_cfg_dvol.ood_guard.guardian_dvol_min_z)
         except Exception:
             _dvol_max, _dvol_min = 1.5, -1.0
             
@@ -898,11 +898,11 @@ class SignalFilter:
                             try:
                                 from luna.labeling.online_recalibrator import calculate_online_threshold
                                 from config.settings import cfg as _cfg_xgb
-                                _pt_mult = float(float(_cfg_xgb.xgboost.pt_mult_min))
-                                _sl_mult = float(float(_cfg_xgb.xgboost.sl_mult_min))
-                                _tbm_min = float(float(_cfg_xgb.xgboost.tbm_min_return))
-                                _vb_min = int(int(_cfg_xgb.xgboost.vertical_barrier_min_hours))
-                                _vb_max = int(int(_cfg_xgb.xgboost.vertical_barrier_hours))
+                                _pt_mult = float(_cfg_xgb.xgboost.pt_mult_min)
+                                _sl_mult = float(_cfg_xgb.xgboost.sl_mult_min)
+                                _tbm_min = float(_cfg_xgb.xgboost.tbm_min_return)
+                                _vb_min = int(_cfg_xgb.xgboost.vertical_barrier_min_hours)
+                                _vb_max = int(_cfg_xgb.xgboost.vertical_barrier_hours)
                                 
                                 # Avanzar en pasos de 15 días (quincenal) usando 30 días previos
                                 _step_days = 15
@@ -1869,7 +1869,7 @@ class SignalFilter:
         # ── Consenso LightGBM (Fase 2C) ──
         try:
             from config.settings import cfg as _cfg_fase2
-            use_lgbm = bool(bool(_cfg_fase2.fase2.use_lgbm_ensemble))
+            use_lgbm = bool(_cfg_fase2.fase2.use_lgbm_ensemble)
         except Exception:
             use_lgbm = False
             
@@ -1923,7 +1923,7 @@ class SignalFilter:
             # Referencia: docs/reports/run_audit_20260507_seed42.md §10, analyze_model_contradiction.py
             try:
                 from config.settings import cfg as _cfg_lgbm_min
-                _lgbm_min_prob = float(int(_cfg_lgbm_min.fase2.lgbm_signal_min_prob))
+                _lgbm_min_prob = float(_cfg_lgbm_min.fase2.lgbm_signal_min_prob)
             except Exception:
                 _lgbm_min_prob = 0.0
 

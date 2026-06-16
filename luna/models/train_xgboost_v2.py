@@ -108,7 +108,7 @@ try:
     if int(_cfg_xgb.xgboost.calibration_min_samples_isotonic) < 1000:
         raise ValueError(f"calibration_min_samples_isotonic must be >= 1000 in Luna v2 to prevent calibration collapse.")
         
-    if float(_cfg_xgb.xgboost.calibration_fallback_method) is None:
+    if getattr(_cfg_xgb.xgboost, "calibration_fallback_method", None) is None:
         raise AttributeError("settings.yaml missing 'xgboost.calibration_fallback_method'")
     if getattr(_cfg_xgb.xgboost, "calibration_fallback_method") != "sigmoid":
         raise ValueError("calibration_fallback_method must be 'sigmoid' in Luna v2 Platt scaling fallback.")
@@ -123,12 +123,12 @@ try:
     if int(_cfg_xgb.xgboost.embargo_min_hours) is None:
         raise AttributeError("settings.yaml missing 'xgboost.embargo_min_hours'")
         
-    OPTUNA_TRIALS = int(int(_cfg_xgb.xgboost.optuna_trials))
+    OPTUNA_TRIALS = int(_cfg_xgb.xgboost.optuna_trials)
     _cpcv_n = int(_cfg_xgb.sop.cpcv_groups) \
                or int(_cfg_xgb.xgboost.n_purged_splits)
     CPCV_GROUPS   = int(_cpcv_n)
-    PURGE_H       = int(int(_cfg_xgb.sop.purge_hours))
-    EMBARGO_H     = int(int(_cfg_xgb.sop.embargo_hours))
+    PURGE_H       = int(_cfg_xgb.sop.purge_hours)
+    EMBARGO_H     = int(_cfg_xgb.sop.embargo_hours)
     COST_PCT      = float(_cfg_xgb.sop.cost_pct)
     
     print("[LUNA-V2-CONFIG] STRICT CONF VALIDATION: Passed! All settings.yaml keys validated as critical and compliant.")
@@ -347,7 +347,7 @@ class XGBoostTrainer:
             from config.settings import cfg as _cfg_rw
             _t_mode = str(_cfg_rw.wfb.training_mode)
             if _t_mode == 'rolling':
-                _rw_years = int(int(_cfg_rw.wfb.rolling_window_years))
+                _rw_years = int(_cfg_rw.wfb.rolling_window_years)
                 _train_end_str = _cfg_rw.temporal_splits.train_end
                 _train_end_dt = pd.to_datetime(_train_end_str, utc=True)
                 _rolling_start = _train_end_dt - pd.DateOffset(years=_rw_years)
@@ -395,7 +395,7 @@ class XGBoostTrainer:
             if "close" in df.columns:
                 try:
                     from config.settings import cfg as _cfg_mvr
-                    _vbh_mvr = int(int(_cfg_mvr.xgboost.vertical_barrier_hours))  # [FIX-01] fallback unificado a 72H (igual que predict_oos y settings.yaml)
+                    _vbh_mvr = int(_cfg_mvr.xgboost.vertical_barrier_hours)  # [FIX-01] fallback unificado a 72H (igual que predict_oos y settings.yaml)
                 except Exception:
                     _vbh_mvr = 72  # [FIX-01] Antes era 96H → inconsistente con predict_oos (168H) y settings.yaml (72H)
                     print(f"[FIX-01] WARN: No se pudo leer xgboost.vertical_barrier_hours de cfg. Usando fallback={_vbh_mvr}H")  # debug
@@ -445,7 +445,7 @@ class XGBoostTrainer:
         # como features calculadas antes del SFI.
         try:
             from config.settings import cfg as _cfg_timing
-            _bypass_sfi = bool(int(int(_cfg_timing.features).timing_features_bypass_sfi))
+            _bypass_sfi = bool(getattr(_cfg_timing.features, "timing_features_bypass_sfi", True))
         except Exception:
             _bypass_sfi = True
 
@@ -638,7 +638,7 @@ class XGBoostTrainer:
             from config.settings import cfg as _cfg
             _pt      = float(_cfg.xgboost.pt_mult_min)
             _sl      = float(_cfg.xgboost.sl_mult_min)
-            _min_ret = float(float(_cfg.xgboost.tbm_min_return))
+            _min_ret = float(_cfg.xgboost.tbm_min_return)
             logger.info(f"TBM XGBoost: pt_mult={_pt}, sl_mult={_sl}, min_return={_min_ret} (de settings.yaml)")
         except Exception:
             _pt, _sl, _min_ret = 2.0, 1.0, 0.005
@@ -654,7 +654,7 @@ class XGBoostTrainer:
         # Garantía causal: self.regime_name es el agente IS actual, sin look-ahead.
         if self.regime_name is not None:
             try:
-                _regime_profiles_raw = int(_cfg.xgboost.regime_tbm_profiles)
+                _regime_profiles_raw = getattr(_cfg.xgboost, "regime_tbm_profiles", None)
                 if _regime_profiles_raw is not None:
                     # [TBM-REGIME-01 FIX] _Namespace recursivo → convertir a dict plano con vars()
                     # sin esto, la iteración y .get() fallan silenciosamente → fallback a global
@@ -704,9 +704,9 @@ class XGBoostTrainer:
         # pero nunca activada hasta ahora). event_sampling_hours>1 reduce el
         # solapamiento entre labels TBM al muestrear eventos cada N horas.
         try:
-            _dynamic_barrier = bool(int(_cfg.xgboost) and
-                                    bool(_cfg.xgboost.dynamic_barrier))
-            _event_sampling_h = int(int(_cfg.xgboost.event_sampling_hours))
+            _dynamic_barrier = bool(hasattr(_cfg, "xgboost") and
+                                    bool(getattr(_cfg.xgboost, "dynamic_barrier", False)))
+            _event_sampling_h = int(getattr(_cfg.xgboost, "event_sampling_hours", 1))
         except Exception:
             _dynamic_barrier, _event_sampling_h = False, 1
 
@@ -730,8 +730,8 @@ class XGBoostTrainer:
             _dyn_max = int(_cfg.xgboost.dynamic_horizon_max_h)
         except Exception as e:
             raise RuntimeError(f"Faltan parametros de horizonte TBM en settings.yaml (SOP No-Fallback): {e}")
-        _lin_decay = bool(bool(_cfg.xgboost.linear_decay_pt)) if hasattr(_cfg, 'xgboost') else False
-        _pt_decay_frac = float(int(_cfg.xgboost.pt_decay_fraction)) if hasattr(_cfg, 'xgboost') else 0.75
+        _lin_decay = bool(_cfg.xgboost.linear_decay_pt) if hasattr(_cfg, 'xgboost') else False
+        _pt_decay_frac = float(_cfg.xgboost.pt_decay_fraction) if hasattr(_cfg, 'xgboost') else 0.75
         
         _side_val = -1.0 if self.native_direction == "short" else 1.0
         _sides_series = pd.Series(_side_val, index=events_idx)
@@ -1154,12 +1154,12 @@ class XGBoostTrainer:
             # Si es un agente de régimen específico, el decaimiento temporal destruye su
             # memoria de estados pasados. Usamos hmm_weight_decay (por defecto 0.0).
             if getattr(self, 'regime_name', None) is not None and getattr(self, '_universal_mode', False) is False:
-                _alpha = float(float(_cfg_sw.xgboost.hmm_weight_decay))
+                _alpha = float(_cfg_sw.xgboost.hmm_weight_decay)
                 if not getattr(self.__class__, '_hmm_decay_logged', False):
                     logger.info(f"[FIX-HMM-AMNESIA] Agente '{self.regime_name}': desactivando decaimiento temporal (alpha={_alpha}) para proteger memoria de Markov.")
                     self.__class__._hmm_decay_logged = True
             else:
-                _alpha = float(float(_cfg_sw.xgboost.weight_decay_alpha))
+                _alpha = float(_cfg_sw.xgboost.weight_decay_alpha)
         except Exception:
             _train_end_year = ts.year.max()
             _alpha = 0.5
@@ -1191,7 +1191,7 @@ class XGBoostTrainer:
         if gamma is None:
             try:
                 from config.settings import cfg as _cfg_fl
-                gamma = float(int(_cfg_fl.xgboost.focal_loss_gamma))
+                gamma = float(_cfg_fl.xgboost.focal_loss_gamma)
             except Exception:
                 gamma = 2.0
 
@@ -1362,8 +1362,8 @@ class XGBoostTrainer:
         use_monetary_loss = False
         try:
             from config.settings import cfg as _cfg_opts
-            use_focal_loss = bool(bool(_cfg_opts.xgboost.use_focal_loss))
-            use_monetary_loss = bool(bool(_cfg_opts.fase2.use_monetary_loss))
+            use_focal_loss = bool(_cfg_opts.xgboost.use_focal_loss)
+            use_monetary_loss = bool(_cfg_opts.fase2.use_monetary_loss)
         except Exception:
             pass
 
@@ -1377,8 +1377,8 @@ class XGBoostTrainer:
             # Se lee el rango desde settings.yaml → optuna_search_space.focal_loss_gamma_min/max
             # Si el rango no existe en settings, usa default [0.5, 4.0] (rango empírico seguro).
             try:
-                _fl_gamma_min = float(float(_cfg_opts.xgboost.optuna_search_space.focal_loss_gamma_min))
-                _fl_gamma_max = float(float(_cfg_opts.xgboost.optuna_search_space.focal_loss_gamma_max))
+                _fl_gamma_min = float(_cfg_opts.xgboost.optuna_search_space.focal_loss_gamma_min)
+                _fl_gamma_max = float(_cfg_opts.xgboost.optuna_search_space.focal_loss_gamma_max)
             except Exception:
                 _fl_gamma_min, _fl_gamma_max = 0.5, 4.0
             _fl_gamma = trial.suggest_float('focal_loss_gamma', _fl_gamma_min, _fl_gamma_max)
@@ -1487,7 +1487,7 @@ class XGBoostTrainer:
             # El Brier principal no cambia (no usa threshold).
             try:
                 from config.settings import cfg as _cfg_04a
-                _optuna_deploy_thr = float(int(_cfg_04a.xgboost.threshold_sweep_min))
+                _optuna_deploy_thr = float(_cfg_04a.xgboost.threshold_sweep_min)
             except Exception:
                 _optuna_deploy_thr = 0.45  # fallback conservador
             if not getattr(self, '_arch04_printed', False):
@@ -1752,7 +1752,7 @@ class XGBoostTrainer:
         else:
             try:
                 from config.settings import cfg as _cfg_xgb
-                _optuna_seed = int(int(_cfg_xgb.xgboost.optuna_seed))
+                _optuna_seed = int(_cfg_xgb.xgboost.optuna_seed)
                 print(f"[FIX-RANDOM-STATE-01] TPESampler seed={_optuna_seed} (desde cfg)")  # RULE[fixbugsprints.md]
             except Exception:
                 _optuna_seed = 42
@@ -1774,7 +1774,7 @@ class XGBoostTrainer:
         # [P4-WARM-START] Encolar parámetros de W_t-1 (conocimiento previo)
         try:
             from config.settings import cfg as _cfg_ws
-            _ws_enabled = bool(int(_cfg_ws.xgboost.warm_start_enabled))
+            _ws_enabled = bool(_cfg_ws.xgboost.warm_start_enabled)
         except Exception:
             _ws_enabled = False
 
@@ -1913,7 +1913,7 @@ class XGBoostTrainer:
         # y filtramos los primeros 'holdout_calib_months' meses del set de holdout para calibrar.
         # Caso contrario, caemos a features_validation.parquet.
         try:
-            holdout_calib_months = int(int(_cfg_xgb.xgboost.holdout_calib_months))
+            holdout_calib_months = int(_cfg_xgb.xgboost.holdout_calib_months)
         except Exception:
             holdout_calib_months = 0
 
@@ -2085,7 +2085,7 @@ class XGBoostTrainer:
             _pt_c = float(float(cal_cfg.pt_mult_min))
             _sl_c = float(float(cal_cfg.sl_mult_min))
             try:
-                _regime_profiles = int(cal_cfg.regime_tbm_profiles)
+                _regime_profiles = getattr(cal_cfg, "regime_tbm_profiles", None)
                 if _regime_profiles is not None and self.regime_name is not None:
                     _rkey = str(self.regime_name).lower()
                     for _pk in vars(_regime_profiles).keys():
@@ -2389,7 +2389,7 @@ class XGBoostTrainer:
         # El floor de 100 garantiza un mínimo institucional de complejidad.
         try:
             from config.settings import cfg as _cfg_nest
-            _nest_floor = int(int(_cfg_nest.xgboost.n_estimators_min_floor))
+            _nest_floor = int(_cfg_nest.xgboost.n_estimators_min_floor)
         except Exception:
             _nest_floor = 100
         _best_iter_raw = int(_best_iter)
@@ -2410,8 +2410,8 @@ class XGBoostTrainer:
         use_monetary_loss = False
         try:
             from config.settings import cfg as _cfg_opts
-            use_focal_loss = bool(bool(_cfg_opts.xgboost.use_focal_loss))
-            use_monetary_loss = bool(bool(_cfg_opts.fase2.use_monetary_loss))
+            use_focal_loss = bool(_cfg_opts.xgboost.use_focal_loss)
+            use_monetary_loss = bool(_cfg_opts.fase2.use_monetary_loss)
         except Exception:
             pass
 
@@ -2538,7 +2538,7 @@ class XGBoostTrainer:
             )
         try:
             from config.settings import cfg as _cfg_log
-            _alpha_log = float(float(_cfg_log.xgboost.weight_decay_alpha))
+            _alpha_log = float(_cfg_log.xgboost.weight_decay_alpha)
         except Exception:
             _alpha_log = 0.5
         logger.info("[R20-B/ARCH-02] sample_weight activo: decaimiento exp(alpha={:.2f}) desde train_end", _alpha_log)
@@ -2738,7 +2738,7 @@ class XGBoostTrainer:
             _regime_str_gate = str(self.regime_name).lower() if self.regime_name else ""
             try:
                 from config.settings import cfg as _cfg_brier
-                _stat_brier = int(_cfg_brier.stat)
+                _stat_brier = getattr(_cfg_brier, 'stat', None)
                 if _stat_brier is None:
                     raise KeyError("seccion 'stat' ausente en settings.yaml")
                 if not hasattr(_stat_brier, 'brier_margin_range'):

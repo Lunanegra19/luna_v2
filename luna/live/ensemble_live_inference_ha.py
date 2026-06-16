@@ -663,9 +663,9 @@ class LunaEnsembleLiveInference:
                     try:
                         from config.settings import cfg as _cfg_meta
                         if hmm_semantic.startswith("1_BULL_TREND") and meta_dir == "long":
-                            meta_threshold = float(int(_cfg_meta.metalabeler.meta_v2_min_prob_bull_long))
+                            meta_threshold = float(_cfg_meta.metalabeler.meta_v2_min_prob_bull_long)
                         else:
-                            meta_threshold = float(float(_cfg_meta.metalabeler.meta_v2_min_prob))
+                            meta_threshold = float(_cfg_meta.metalabeler.meta_v2_min_prob)
                     except Exception:
                         meta_threshold = 0.38  # Fallback documentado en docs/parametros_fijos.md
                         

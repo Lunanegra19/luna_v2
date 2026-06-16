@@ -389,6 +389,21 @@ def main():
         print(f"[STATIC-VALIDATOR] WARN: error durante validación estática ({_val_err}). Continuando.")
     # ─────────────────────────────────────────────────────────────────────────
 
+    # 🛡️ GATE: Parameter Duplicity Check (SOP No-Fallback Silencioso) 🛡️
+    try:
+        import sys, subprocess
+        _dupe_checker_path = _ROOT / "tools" / "diagnostics" / "yaml_dupe_check.py"
+        if _dupe_checker_path.exists():
+            _dupe_res = subprocess.run([sys.executable, str(_dupe_checker_path), str(_ROOT / "config" / "settings.yaml")], capture_output=True, text=True)
+            if "BLOQUEADO" in _dupe_res.stdout:
+                print(_dupe_res.stdout)
+                sys.exit(1)
+            elif _dupe_res.returncode != 0:
+                print(f"[DUPE-CHECK] Error ejecutando yaml_dupe_check: {_dupe_res.stderr}")
+    except Exception as e:
+        print(f"[DUPE-CHECK] Fallo silencioso al intentar leer duplicados: {e}")
+    # ---------------------------------------------------------------------------------------------------------
+    
     # ── GATE: Pre-Flight Check (leakage estadístico, SOP Iron Rules) ──────────
     # Complementa el validador estático: detecta anti-patrones de causalidad
     # (shift negativo, scaler.fit sobre X_all, KFold sin Purge, etc.)

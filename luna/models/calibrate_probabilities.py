@@ -747,10 +747,10 @@ class MetaLabelerV2Calibrator:
         try:
             # Parametros del sweep desde settings.yaml
             from config.settings import cfg as _cfg_meta_cal
-            _mt_min    = float(float(_cfg_meta_cal.metalabeler.meta_sweep_min))
-            _mt_max    = float(float(_cfg_meta_cal.metalabeler.meta_sweep_max))
-            _mt_step   = float(float(_cfg_meta_cal.metalabeler.meta_sweep_step))
-            _mt_min_tr = int(int(_cfg_meta_cal.metalabeler.meta_min_trades))
+            _mt_min    = float(_cfg_meta_cal.metalabeler.meta_sweep_min)
+            _mt_max    = float(_cfg_meta_cal.metalabeler.meta_sweep_max)
+            _mt_step   = float(_cfg_meta_cal.metalabeler.meta_sweep_step)
+            _mt_min_tr = int(_cfg_meta_cal.metalabeler.meta_min_trades)
             _xgb_opt_t_global = float(xgb_sig.get("optimal_threshold", 0.50))
             _xgb_opt_t_regime = xgb_sig.get("optimal_threshold_per_regime", {})
             try:
@@ -792,8 +792,8 @@ class MetaLabelerV2Calibrator:
                 # Para el EV usamos win/loss rate directo (mas estable con pocos datos)
                 _best_meta_ev    = -np.inf
                 _best_meta_score = -np.inf
-                _best_meta_t     = float(float(_cfg_meta_cal.metalabeler.meta_filter_threshold))
-                _n_target_meta   = int(int(_cfg_meta_cal.sop.min_trades))
+                _best_meta_t     = float(_cfg_meta_cal.metalabeler.meta_filter_threshold)
+                _n_target_meta   = int(_cfg_meta_cal.sop.min_trades)
                 _meta_log        = []
 
                 for _mt in np.arange(_mt_min, _mt_max + _mt_step / 2, _mt_step):
@@ -909,7 +909,7 @@ class MetaLabelerV2Calibrator:
                     _y_xgb = y_seq[_xgb_mask_cal]
                     _best_meta_ev = -np.inf
                     _best_meta_score = -np.inf
-                    _best_meta_t = float(float(_cfg_meta_cal.metalabeler.meta_filter_threshold))
+                    _best_meta_t = float(_cfg_meta_cal.metalabeler.meta_filter_threshold)
                     _n_target_meta = max(5, _n_xgb_pass)
                     for _mt in np.arange(_mt_min, _mt_max + _mt_step / 2, _mt_step):
                         _mask_mt = _cal_probs_xgb > _mt
@@ -963,7 +963,7 @@ class MetaLabelerV2Calibrator:
         if _meta_thresh_final is None:
             try:
                 from config.settings import cfg as _cfg_mt_fb
-                _meta_thresh_final = float(float(_cfg_mt_fb.metalabeler.meta_filter_threshold))
+                _meta_thresh_final = float(_cfg_mt_fb.metalabeler.meta_filter_threshold)
             except Exception:
                 _meta_thresh_final = 0.40
             logger.info(
@@ -978,8 +978,8 @@ class MetaLabelerV2Calibrator:
         try:
             from config.settings import cfg as _cfg_dynmeta_cal
             _thresh_mode_cal   = str(int(_cfg_dynmeta_cal.metalabeler.meta_v2_threshold_mode)).lower()
-            _edge_pct_cal      = float(float(_cfg_dynmeta_cal.metalabeler.meta_v2_dynamic_edge_pct))
-            _floor_abs_cal     = float(float(_cfg_dynmeta_cal.metalabeler.meta_v2_min_prob))
+            _edge_pct_cal      = float(_cfg_dynmeta_cal.metalabeler.meta_v2_dynamic_edge_pct)
+            _floor_abs_cal     = float(_cfg_dynmeta_cal.metalabeler.meta_v2_min_prob)
         except Exception:
             _thresh_mode_cal = 'fixed'
             _edge_pct_cal, _floor_abs_cal = 0.05, 0.38

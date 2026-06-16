@@ -668,8 +668,8 @@ class FeaturePipeline:
         try:
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
             from config.settings import cfg as _cfg_kz
-            _kz_q = float(int(getattr(_cfg_kz.features), 'kalman_q', 1e-4))
-            _kz_r = float(int(getattr(_cfg_kz.features), 'kalman_r', 0.1))
+            _kz_q = float(getattr(_cfg_kz.features, 'kalman_q', 1e-4))
+            _kz_r = float(getattr(_cfg_kz.features, 'kalman_r', 0.1))
         except Exception:
             _kz_q, _kz_r = 1e-4, 0.1
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
@@ -1428,7 +1428,7 @@ class FeaturePipeline:
                 # Leer span de suavizado desde settings (default 24h)
                 try:
                     from config.settings import cfg as _cfg_hmm_v
-                    _vel_span = int(int(_cfg_hmm_v.xgboost.hmm_velocity_ewm_span))
+                    _vel_span = int(_cfg_hmm_v.xgboost.hmm_velocity_ewm_span)
                 except Exception:
                     _vel_span = 24
 
@@ -2133,7 +2133,7 @@ class FeaturePipeline:
         # Paso 7C: Order Flow Imbalance (OFI) - Fase 2D
         try:
             from config.settings import cfg as _cfg
-            if int(_cfg.fase2) and bool(_cfg.fase2.use_ofi_features):
+            if hasattr(_cfg, 'fase2') and bool(getattr(_cfg.fase2, 'use_ofi_features', False)):
                 from luna.features.ofi_features import add_ofi_features
                 _n_before = df.shape[1]
                 df = add_ofi_features(df)
@@ -2150,8 +2150,8 @@ class FeaturePipeline:
         try:
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
             from config.settings import cfg as _cfg_kz
-            _kz_q = float(int(getattr(_cfg_kz.features), 'kalman_q', 1e-4))
-            _kz_r = float(int(getattr(_cfg_kz.features), 'kalman_r', 0.1))
+            _kz_q = float(getattr(_cfg_kz.features, 'kalman_q', 1e-4))
+            _kz_r = float(getattr(_cfg_kz.features, 'kalman_r', 0.1))
             _n_before = df.shape[1]
             _kalman = KalmanZScoreNormalizer(process_noise=_kz_q, obs_noise=_kz_r)
             df = _kalman.transform_df(df, columns=KALMAN_COLUMNS, suffix="_kz")
