@@ -445,6 +445,8 @@ ood_guard:
   min_std_ratio: 0.05
   min_unique_in_train: 5
   min_unique_values: 3
+  guardian_dvol_max_z: 1.5
+  guardian_dvol_min_z: -1.0
   n_estimators: 200
   random_state: 42
   experimental_kl_gate: true
@@ -474,7 +476,7 @@ project:
   version: 1.0.0
 sop:
   annual_factor: 93.6
-  cost_pct: 0.0025
+  cost_pct: 0.001
   cost_spot_taker_rt: 0.002
   cost_perp_taker_rt: 0.001
   cost_perp_maker_rt: 0.0004
@@ -516,14 +518,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-09-30
+  hmm_train_end: 2025-07-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-12-31
-  holdout_start: 2025-10-01
-  train_end: 2025-07-31
+  holdout_end: 2025-08-31
+  holdout_start: 2025-08-01
+  train_end: 2025-05-31
   train_start: '2017-08-17'
-  validation_end: 2025-09-30
-  validation_start: 2025-08-01
+  validation_end: 2025-07-31
+  validation_start: 2025-06-01
 wfb:
   ensemble_voting_method: soft
   soft_voting_threshold: 0.55
@@ -570,36 +572,96 @@ wfb:
   val_samples_per_regime: 300
   validation_mode: regime_stratified
   windows:
-  - holdout_end: '2025-03-31'
+  - holdout_end: '2025-01-31'
     holdout_start: '2025-01-01'
     id: W1
     train_end: '2024-10-31'
     val_end: '2024-12-31'
     val_start: '2024-11-01'
-  - holdout_end: '2025-06-30'
-    holdout_start: '2025-04-01'
+  - holdout_end: '2025-02-28'
+    holdout_start: '2025-02-01'
     id: W2
+    train_end: '2024-11-30'
+    val_end: '2025-01-31'
+    val_start: '2024-12-01'
+  - holdout_end: '2025-03-31'
+    holdout_start: '2025-03-01'
+    id: W3
+    train_end: '2024-12-31'
+    val_end: '2025-02-28'
+    val_start: '2025-01-01'
+  - holdout_end: '2025-04-30'
+    holdout_start: '2025-04-01'
+    id: W4
     train_end: '2025-01-31'
     val_end: '2025-03-31'
     val_start: '2025-02-01'
-  - holdout_end: '2025-09-30'
+  - holdout_end: '2025-05-31'
+    holdout_start: '2025-05-01'
+    id: W5
+    train_end: '2025-02-28'
+    val_end: '2025-04-30'
+    val_start: '2025-03-01'
+  - holdout_end: '2025-06-30'
+    holdout_start: '2025-06-01'
+    id: W6
+    train_end: '2025-03-31'
+    val_end: '2025-05-31'
+    val_start: '2025-04-01'
+  - holdout_end: '2025-07-31'
     holdout_start: '2025-07-01'
-    id: W3
+    id: W7
     train_end: '2025-04-30'
     val_end: '2025-06-30'
     val_start: '2025-05-01'
-  - holdout_end: '2025-12-31'
+  - holdout_end: '2025-08-31'
+    holdout_start: '2025-08-01'
+    id: W8
+    train_end: '2025-05-31'
+    val_end: '2025-07-31'
+    val_start: '2025-06-01'
+  - holdout_end: '2025-09-30'
+    holdout_start: '2025-09-01'
+    id: W9
+    train_end: '2025-06-30'
+    val_end: '2025-08-31'
+    val_start: '2025-07-01'
+  - holdout_end: '2025-10-31'
     holdout_start: '2025-10-01'
-    id: W4
+    id: W10
     train_end: '2025-07-31'
     val_end: '2025-09-30'
     val_start: '2025-08-01'
-  - holdout_end: '2026-03-31'
+  - holdout_end: '2025-11-30'
+    holdout_start: '2025-11-01'
+    id: W11
+    train_end: '2025-08-31'
+    val_end: '2025-10-31'
+    val_start: '2025-09-01'
+  - holdout_end: '2025-12-31'
+    holdout_start: '2025-12-01'
+    id: W12
+    train_end: '2025-09-30'
+    val_end: '2025-11-30'
+    val_start: '2025-10-01'
+  - holdout_end: '2026-01-31'
     holdout_start: '2026-01-01'
-    id: W5
+    id: W13
     train_end: '2025-10-31'
     val_end: '2025-12-31'
     val_start: '2025-11-01'
+  - holdout_end: '2026-02-28'
+    holdout_start: '2026-02-01'
+    id: W14
+    train_end: '2025-11-30'
+    val_end: '2026-01-31'
+    val_start: '2025-12-01'
+  - holdout_end: '2026-03-31'
+    holdout_start: '2026-03-01'
+    id: W15
+    train_end: '2025-12-31'
+    val_end: '2026-02-28'
+    val_start: '2026-01-01'
 xgboost:
   ev_tolerance_pct: 0.01
   optuna_trials: 100
@@ -656,7 +718,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 25307
+  optuna_seed: 31683
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8

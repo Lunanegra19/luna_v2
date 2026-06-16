@@ -16,7 +16,7 @@ Cualquier cambio de código, entrenamiento de modelos, orquestación de backtest
 | **R3** | **Cuarentena (Embargo)** | Embargo temporal `>= 1x` horizonte máximo de barrera (mínimo 96H en general, aunque WFB Soft Embargo permite reducir a 24H solo en señales con consenso de ensemble). |
 | **R4** | **Triple Frontera** | El conjunto de prueba Holdout 2025+ se toca **UNA SOLA VEZ** al final. Queda prohibido cualquier ajuste o recalibración post-holdout. |
 | **R5** | **Comparaciones Múltiples** | Reportar siempre el DSR (Deflated Sharpe Ratio) mediante el validador estadístico, no el Sharpe Ratio bruto para evitar overfitting. |
-| **R6** | **Costos Realistas** | Incluir costos de transacción realistas: mínimo de **`0.25%` round-trip** para operativas Spot (Only Long) en OKX, contemplando fees y slippage real de la plataforma. |
+| **R6** | **Costos Realistas** | Incluir costos de transacción realistas: mínimo de **`0.10%` round-trip** para operativas de Futuros en OKX, contemplando fees y slippage real de la plataforma. |
 | **R7** | **FracDiff Dinámico** | Recalcular dinámicamente el orden de diferenciación fraccionaria `d` en cada ventana Walk-Forward. Prohibido usar un valor estático. |
 | **R8** | **Significancia Estadística** | Se requiere un mínimo de **30 trades** para migrar de shadow trading a paper trading, y un mínimo de **100 trades** para inferencia estadística confiable. |
 | **R9** | **Validación HMM** | La información mutua entre estados HMM y retornos futuros debe ser `> 0.005`, con una duración de estados promedio `> 120H` para evitar ruido de micro-regímenes. |

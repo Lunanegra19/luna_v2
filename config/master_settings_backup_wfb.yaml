@@ -27,18 +27,13 @@ _roadmap:
   xgboost:
     stacking_fallback_dsr_threshold: 0.4
 execution:
-  # [P3-FUTURES-2026-06-12] Migracion de Spot a Futuros Perpetuos OKX (USDT-margined)
-  # Para volver a Spot: symbol = BTC/USDT, instrument_type = spot
-  # Para Futuros Perps: symbol = BTC/USDT:USDT, instrument_type = swap
-  symbol: BTC/USDT:USDT            # Instrumento activo de trading (Futuros Perpetuos USDT-margined)
-  instrument_type: swap             # [spot|swap] — determina la ruta de fees y de posicion
-  use_hybrid_execution: true        # [P2] Activar Limit Maker con Order Chasing + Fallback Market
-  hybrid_order_timeout_s: 30        # Timeout en segundos antes de caer a Market
-  funding_drag_enabled: true        # [SOP-R14] Descontar Funding Rate del P&L en posicion abierta
-  funding_rate_8h: 0.0001           # Tasa base de funding cada 8H (0.01%) — 0.03% por trade 24H hold
-  # [FIX-HOLDING-CAP 2026-06-14] Limita simulacion OOS a este limite en horas para cortar Zombie Trades
+  symbol: BTC/USDT:USDT
+  instrument_type: swap
+  use_hybrid_execution: true
+  hybrid_order_timeout_s: 30
+  funding_drag_enabled: true
+  funding_rate_8h: 0.0001
   execution_holding_cap_h: 24
-
 ai_mining:
   advanced:
     granger_maxlag: 13
@@ -450,6 +445,8 @@ ood_guard:
   min_std_ratio: 0.05
   min_unique_in_train: 5
   min_unique_values: 3
+  guardian_dvol_max_z: 1.5
+  guardian_dvol_min_z: -1.0
   n_estimators: 200
   random_state: 42
   experimental_kl_gate: true
@@ -471,7 +468,6 @@ position_sizer:
   roll_sr_gate_enabled: false
   roll_sr_window: 10
   roll_sr_threshold: 0.0
-  # [FIX-CONCURRENCY-CAP 2026-06-14] Control de posiciones simultaneas
   max_concurrent_trades: 1
   dynamic_concurrency_enabled: false
 project:
@@ -480,14 +476,11 @@ project:
   version: 1.0.0
 sop:
   annual_factor: 93.6
-  cost_pct: 0.0025             # TRAINING: Spot Taker conservador — NO tocar sin re-train
-
-  # [P3-FEES-2026-06-12] Fees de produccion (solo MFT y simulaciones OOS)
-  cost_spot_taker_rt: 0.0020   # OKX Spot Taker (0.10% * 2)
-  cost_perp_taker_rt: 0.0010   # OKX Futuros Taker (0.05% * 2)
-  cost_perp_maker_rt: 0.0004   # OKX Futuros Maker (0.02% * 2) — ACTIVO EN PRODUCCION
-  funding_rate_24h: 0.0003     # Funding 24H hold (3 pagos de 8H a 0.01%)
-
+  cost_pct: 0.0025
+  cost_spot_taker_rt: 0.002
+  cost_perp_taker_rt: 0.001
+  cost_perp_maker_rt: 0.0004
+  funding_rate_24h: 0.0003
   cpcv_groups: 10
   embargo_hours: 0
   purge_hours: 96
@@ -502,7 +495,6 @@ stat:
   min_trades: 30
   n_trials_total: 100
   pbo_n_blocks: 7
-  # [FIX-DSR-TRANS-STD 2026-06-14] Varianza transversal para Expected Maximum Sharpe
   dsr_transversal_std: 1.0
   total_return_cap: 1000000.0
   wfv_max_std_dsr: 0.3
@@ -526,16 +518,16 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-03-31
+  hmm_train_end: 2025-09-30
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-06-30
-  holdout_start: 2025-04-01
-  train_end: 2025-01-31
+  holdout_end: 2025-12-31
+  holdout_start: 2025-10-01
+  train_end: 2025-07-31
   train_start: '2017-08-17'
-  validation_end: 2025-03-31
-  validation_start: 2025-02-01
+  validation_end: 2025-09-30
+  validation_start: 2025-08-01
 wfb:
-  ensemble_voting_method: soft  # [hard|soft]
+  ensemble_voting_method: soft
   soft_voting_threshold: 0.55
   ensemble_consensus_threshold: 4
   consensus_bucket_hours: 2
@@ -580,36 +572,96 @@ wfb:
   val_samples_per_regime: 300
   validation_mode: regime_stratified
   windows:
-  - holdout_end: '2025-03-31'
+  - holdout_end: '2025-01-31'
     holdout_start: '2025-01-01'
     id: W1
     train_end: '2024-10-31'
     val_end: '2024-12-31'
     val_start: '2024-11-01'
-  - holdout_end: '2025-06-30'
-    holdout_start: '2025-04-01'
+  - holdout_end: '2025-02-28'
+    holdout_start: '2025-02-01'
     id: W2
+    train_end: '2024-11-30'
+    val_end: '2025-01-31'
+    val_start: '2024-12-01'
+  - holdout_end: '2025-03-31'
+    holdout_start: '2025-03-01'
+    id: W3
+    train_end: '2024-12-31'
+    val_end: '2025-02-28'
+    val_start: '2025-01-01'
+  - holdout_end: '2025-04-30'
+    holdout_start: '2025-04-01'
+    id: W4
     train_end: '2025-01-31'
     val_end: '2025-03-31'
     val_start: '2025-02-01'
-  - holdout_end: '2025-09-30'
+  - holdout_end: '2025-05-31'
+    holdout_start: '2025-05-01'
+    id: W5
+    train_end: '2025-02-28'
+    val_end: '2025-04-30'
+    val_start: '2025-03-01'
+  - holdout_end: '2025-06-30'
+    holdout_start: '2025-06-01'
+    id: W6
+    train_end: '2025-03-31'
+    val_end: '2025-05-31'
+    val_start: '2025-04-01'
+  - holdout_end: '2025-07-31'
     holdout_start: '2025-07-01'
-    id: W3
+    id: W7
     train_end: '2025-04-30'
     val_end: '2025-06-30'
     val_start: '2025-05-01'
-  - holdout_end: '2025-12-31'
+  - holdout_end: '2025-08-31'
+    holdout_start: '2025-08-01'
+    id: W8
+    train_end: '2025-05-31'
+    val_end: '2025-07-31'
+    val_start: '2025-06-01'
+  - holdout_end: '2025-09-30'
+    holdout_start: '2025-09-01'
+    id: W9
+    train_end: '2025-06-30'
+    val_end: '2025-08-31'
+    val_start: '2025-07-01'
+  - holdout_end: '2025-10-31'
     holdout_start: '2025-10-01'
-    id: W4
+    id: W10
     train_end: '2025-07-31'
     val_end: '2025-09-30'
     val_start: '2025-08-01'
-  - holdout_end: '2026-03-31'
+  - holdout_end: '2025-11-30'
+    holdout_start: '2025-11-01'
+    id: W11
+    train_end: '2025-08-31'
+    val_end: '2025-10-31'
+    val_start: '2025-09-01'
+  - holdout_end: '2025-12-31'
+    holdout_start: '2025-12-01'
+    id: W12
+    train_end: '2025-09-30'
+    val_end: '2025-11-30'
+    val_start: '2025-10-01'
+  - holdout_end: '2026-01-31'
     holdout_start: '2026-01-01'
-    id: W5
+    id: W13
     train_end: '2025-10-31'
     val_end: '2025-12-31'
     val_start: '2025-11-01'
+  - holdout_end: '2026-02-28'
+    holdout_start: '2026-02-01'
+    id: W14
+    train_end: '2025-11-30'
+    val_end: '2026-01-31'
+    val_start: '2025-12-01'
+  - holdout_end: '2026-03-31'
+    holdout_start: '2026-03-01'
+    id: W15
+    train_end: '2025-12-31'
+    val_end: '2026-02-28'
+    val_start: '2026-01-01'
 xgboost:
   ev_tolerance_pct: 0.01
   optuna_trials: 100
@@ -626,8 +678,7 @@ xgboost:
   focal_loss_gamma: 2.0
   hmm_velocity_ewm_span: 24
   holdout_calib_months: 0
-  # [FIX-CALIB-BINARY-01 2026-06-14] Prevenir crasheo de Calibrador
-  guardian_rank_order_min_samples: 100    # minimo de muestras IS para aplicar Guardian Rank Order
+  guardian_rank_order_min_samples: 100
   linear_decay_pt: false
   n_estimators_min_floor: 5
   min_viable_train_samples: 200
@@ -667,7 +718,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 42
+  optuna_seed: 27493
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8

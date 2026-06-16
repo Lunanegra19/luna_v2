@@ -626,6 +626,28 @@ class SignalFilter:
         else:
             logger.info("  OOD Guard: modelo no encontrado — omitiendo")
             
+        # [FASE 4: DVOL Guardian - Zero Look-Ahead Bias]
+        # Aplica filtrado basado en la variable DVOL_kz (Z-Score de ventana rodante 90d IS)
+        try:
+            from config.settings import cfg as _cfg_dvol
+            _dvol_max = float(getattr(_cfg_dvol.ood_guard, "guardian_dvol_max_z", 1.5))
+            _dvol_min = float(getattr(_cfg_dvol.ood_guard, "guardian_dvol_min_z", -1.0))
+        except Exception:
+            _dvol_max, _dvol_min = 1.5, -1.0
+            
+        if "DVOL_kz" in df_oos.columns:
+            dvol_series = df_oos["DVOL_kz"]
+            _dvol_mask = (dvol_series >= _dvol_min) & (dvol_series <= _dvol_max)
+            _n_blocked_dvol = len(df_oos) - _dvol_mask.sum()
+            if _n_blocked_dvol > 0:
+                logger.info(
+                    "  [DVOL-GUARDIAN] Bloqueadas {} barras por Volatilidad Extrema o Muerta "
+                    "(DVOL_kz fuera de [{:.2f}, {:.2f}])",
+                    _n_blocked_dvol, _dvol_min, _dvol_max
+                )
+                print(f"[DVOL-GUARDIAN] Bloqueadas {_n_blocked_dvol} barras por Volatilidad Extrema o Muerta.")
+            ood_mask = ood_mask & _dvol_mask
+
         return ood_mask
 
     def apply_metalabeler(self, df_oos: pd.DataFrame, available_feats: list, direction: str = "long") -> pd.Series:

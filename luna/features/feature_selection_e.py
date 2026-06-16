@@ -1364,9 +1364,43 @@ class SFI_CPCV:
         )
         return freq_scores
 
+    def _adversarial_z_filter(self, X: pd.DataFrame) -> List[str]:
+        """
+        Fase 0 Z-Filter: Descarta variables propensas a Covariate Shift (Z > 2.0)
+        partiendo cronológicamente el dataset In-Sample en dos mitades.
+        ESTRICTAMENTE In-Sample, cero Look-Ahead bias.
+        """
+        cols_to_drop = []
+        if len(X) < 1000:
+            return cols_to_drop
+            
+        mid = len(X) // 2
+        X_first = X.iloc[:mid]
+        X_second = X.iloc[mid:]
+        
+        # Evitar ciclos circulares o imports que rompan
+        for col in X.columns:
+            if col in ALPHA_SIGNALS or col in PASSTHROUGH_FEATURES:
+                continue
+            
+            s1 = X_first[col]
+            s2 = X_second[col]
+            
+            mu_1, std_1 = s1.mean(), s1.std()
+            mu_2 = s2.mean()
+            
+            if pd.isna(mu_1) or pd.isna(mu_2) or pd.isna(std_1) or std_1 == 0:
+                continue
+                
+            z_shift = abs((mu_2 - mu_1) / std_1)
+            
+            if z_shift > 2.0:
+                cols_to_drop.append(col)
+                logger.info(f"[Z-FILTER] Purgada '{col}' por Covariate Shift extremo (Z={z_shift:.2f})")
+                
+        return cols_to_drop
 
     def evaluate(self, X: pd.DataFrame, y: pd.Series,
-
                  prices: pd.Series,
                  adf_penalties: Optional[Dict[str, float]] = None,
                  adv_penalties: Optional[Dict[str, float]] = None) -> List[str]:
@@ -1431,11 +1465,19 @@ class SFI_CPCV:
             return []
 
         X_a = X.loc[common_idx]
+        
+        # [FASE 0 Z-FILTER]: Eliminar variables inestables (Covariate Shift)
+        cols_to_drop = self._adversarial_z_filter(X_a)
+        if cols_to_drop:
+            X_a = X_a.drop(columns=cols_to_drop)
+            logger.info(f"[ADVERSARIAL Z-FILTER] {len(cols_to_drop)} variables eliminadas por Covariate Shift extremo.")
+            print(f"[ADVERSARIAL Z-FILTER] {len(cols_to_drop)} variables eliminadas por Covariate Shift extremo.")
+
         y_a = y.loc[common_idx].values
         p_a = prices.loc[common_idx].values
         ts_a = pd.Series(common_idx)
 
-        total = len(X.columns)
+        total = len(X_a.columns)
         from joblib import Parallel, delayed
         import time
 
@@ -1558,7 +1600,7 @@ class SFI_CPCV:
             return res_tuple
 
         with ThreadPoolExecutor(max_workers=8) as executor:
-            _raw_results = list(executor.map(_thread_worker, enumerate(X.columns)))
+            _raw_results = list(executor.map(_thread_worker, enumerate(X_a.columns)))
             
         for res_tuple in _raw_results:
             col_ret, i_ret, res, stab_info, t0, mask_cond, adjusted_dsr, adjusted_mean_sharpe = res_tuple
