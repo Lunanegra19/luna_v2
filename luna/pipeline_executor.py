@@ -1337,7 +1337,7 @@ class LunaPipelineExecutor:
         _use_lgbm = self.options.get("use_lgbm_ensemble", False)
         try:
             from config.settings import cfg as _cfg_lgbm
-            _use_lgbm = bool(int(bool(_cfg_lgbm.fase2).use_lgbm_ensemble))
+            _use_lgbm = bool(_cfg_lgbm.fase2.use_lgbm_ensemble) if _cfg_lgbm.fase2 else False
         except Exception:
             pass
         if _use_lgbm:
@@ -1417,7 +1417,7 @@ class LunaPipelineExecutor:
             if _sig_path.exists():
                 with open(_sig_path, "r", encoding="utf-8") as _sf:
                     _sig = json.load(_sf)
-                _cal_thresh = float(_sig.get("threshold", _sig.get("calibrated_threshold", 0.0)))
+                _cal_thresh = float(_sig.get("threshold", _sig["calibrated_threshold"]))
                 # [FIX-06] Extraída como constante nombrada para eliminar magic number duplicado
                 _XGB_BASELINE_DEFAULT = 0.38  # baseline institucional (fallback si settings no disponible)
                 _base_thresh = _XGB_BASELINE_DEFAULT

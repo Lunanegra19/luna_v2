@@ -231,7 +231,7 @@ def t117():
 def t118():
     """Valida que el multiplicador del Stop Loss no baje de 1.5, para evitar salidas en ruido."""
     cfg = _cfg()
-    sl_min = float(getattr(cfg, "sl_mult_min", 1.5))
+    sl_min = float(cfg.xgboost.sl_mult_min)
     assert sl_min >= 1.5, f"sl_mult_min es {sl_min}, DEBE ser >= 1.5 (un SL muy ajustado destruye el win rate)"
     return f"sl_mult_min={sl_min} >= 1.5"
 

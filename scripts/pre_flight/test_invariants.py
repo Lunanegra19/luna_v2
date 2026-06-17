@@ -319,7 +319,7 @@ def t126():
     # 4. Verificar que weight_decay_alpha es leido en la funcion
     assert "weight_decay_alpha" in src, (
         "ARCH-02: weight_decay_alpha no se lee en train_xgboost_v2.py. "
-        "Anadir: _alpha = float(getattr(_cfg_sw.xgboost, 'weight_decay_alpha', 0.5))"
+        "Anadir: _alpha = float(_cfg_sw.xgboost.weight_decay_alpha)"
     )
 
     return (

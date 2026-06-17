@@ -140,12 +140,12 @@ print("=" * 70)
 # Leer la métrica actual de settings
 try:
     from config.settings import cfg
-    opt_metric = getattr(cfg.xgboost, "optuna_metric", "unknown")
-    sweep_min = getattr(cfg.xgboost, "threshold_sweep_min", None)
-    sweep_max = getattr(cfg.xgboost, "threshold_sweep_max", None)
-    sweep_step = getattr(cfg.xgboost, "threshold_sweep_step", None)
-    min_density = getattr(cfg.xgboost, "threshold_min_density_pct", None)
-    min_trades = getattr(cfg.xgboost, "threshold_min_trades", None)
+    opt_metric = cfg.xgboost.optuna_metric
+    sweep_min = cfg.xgboost.threshold_sweep_min
+    sweep_max = cfg.xgboost.threshold_sweep_max
+    sweep_step = cfg.xgboost.threshold_sweep_step
+    min_density = cfg.xgboost.threshold_min_density_pct
+    min_trades = cfg.xgboost.threshold_min_trades
     print(f"\n  optuna_metric:          {opt_metric}")
     print(f"  threshold_sweep_min:    {sweep_min}")
     print(f"  threshold_sweep_max:    {sweep_max}")
@@ -232,7 +232,7 @@ else:
         try:
             from config.settings import cfg as _cfg
             windows = _cfg.wfb.windows if hasattr(_cfg.wfb, 'windows') else []
-            rwy = getattr(_cfg.wfb, 'rolling_window_years', 5)
+            rwy = _cfg.wfb.rolling_window_years
 
             df_ft = pd.read_parquet(feats_train, columns=list(global_feats)[:10] if global_feats else None)
             print(f"\n  features_train.parquet: {len(df_ft)} barras ({df_ft.index.min().year}-{df_ft.index.max().year})")

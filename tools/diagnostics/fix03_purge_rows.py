@@ -17,7 +17,7 @@ NEW = b"""            total_rows = len(df_clean)
             # Ahora: int(vertical_barrier_hours * 1.5) proporcional al horizonte real del TBM
             try:
                 from config.settings import cfg as _cfg_pr
-                _vbh_pr = int(getattr(_cfg_pr.xgboost, 'vertical_barrier_hours', 72))
+                _vbh_pr = int(_cfg_pr.xgboost.vertical_barrier_hours)
             except Exception:
                 _vbh_pr = 72
                 print('[FIX-03] WARN: No se pudo leer vertical_barrier_hours. Usando fallback vbh=72H')

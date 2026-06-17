@@ -31,7 +31,7 @@ class LiveOperationalAuditor:
         # Leer límites operativos institucionalizados de settings.yaml
         # No-Fallback Silencioso: Lanzar KeyError si faltan parámetros clave
         try:
-            self.max_drift_minutes = float(getattr(cfg.stat, "data_max_gap_h", 48.0)) * 60.0 # Umbral máximo de retraso
+            self.max_drift_minutes = float(cfg.stat.data_max_gap_h) * 60.0 # Umbral máximo de retraso
             # Por seguridad, si data_max_gap_h es grande, limitamos a 90 minutos para ticks vivos
             self.max_drift_minutes = min(90.0, self.max_drift_minutes)
             
@@ -44,7 +44,7 @@ class LiveOperationalAuditor:
 
             # Límite de latencia del ciclo (No-Fallback Silencioso con valor seguro por defecto)
             try:
-                self.max_latency_seconds = float(getattr(cfg.stat, "max_latency_seconds", 120.0))
+                self.max_latency_seconds = float(cfg.stat.max_latency_seconds)
             except Exception:
                 self.max_latency_seconds = 120.0
                 

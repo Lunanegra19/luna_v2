@@ -237,9 +237,9 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
     # SOLUCIÓN: excluir features con >NaN_THRESHOLD% NaN en training antes del fit del scaler.
     try:
         from config.settings import cfg as _cfg_ae_nan
-        _nan_thr = float(int(getattr(_cfg_ae_nan.autoencoder), 'nan_threshold_pct', 0.40))
-    except Exception:
-        _nan_thr = 0.40  # 40% máximo NaN permitido en IS para incluir en AE
+        _nan_thr = float(_cfg_ae_nan.autoencoder.ae_nan_threshold_pct)
+    except Exception as e:
+        raise RuntimeError(f"Falta cfg.autoencoder.ae_nan_threshold_pct (SOP No-Fallback): {e}")
 
     _train_mask_nan = df.index <= pd.to_datetime(train_end_date, utc=True)
     _df_train_nan   = df.loc[_train_mask_nan, feature_cols]

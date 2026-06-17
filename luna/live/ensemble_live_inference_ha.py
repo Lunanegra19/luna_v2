@@ -72,7 +72,7 @@ class EnsembleRegimeRouter(RegimeRouter):
                         with open(sig_path, 'r') as f:
                             sig = json.load(f)
                             self.signatures[agent_name] = sig
-                            self.calibrations[agent_name] = sig.get('optimal_threshold', 0.5)
+                            self.calibrations[agent_name] = float(sig['optimal_threshold'])
                             
                         is_mock = False
                         try:

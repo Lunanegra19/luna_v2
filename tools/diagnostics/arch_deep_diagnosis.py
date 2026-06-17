@@ -25,10 +25,10 @@ feats_path = ROOT / "data" / "features" / "features_train.parquet"
 df = pd.read_parquet(feats_path)
 
 from config.settings import cfg
-pt_m   = float(getattr(cfg.xgboost, "pt_mult_min", 1.8))
-sl_m   = float(getattr(cfg.xgboost, "sl_mult_min", 1.5))
-vbar   = int(getattr(cfg.xgboost, "vertical_barrier_hours", 72))
-tbm_mr = float(getattr(cfg.xgboost, "tbm_min_return", 0.003))
+pt_m   = float(cfg.xgboost.pt_mult_min)
+sl_m   = float(cfg.xgboost.sl_mult_min)
+vbar   = int(cfg.xgboost.vertical_barrier_hours)
+tbm_mr = float(cfg.xgboost.tbm_min_return)
 cost   = 0.15
 
 print(f"\nConfig TBM actual: pt={pt_m}x, sl={sl_m}x, vbar={vbar}H, min_return={tbm_mr:.4f}")
@@ -85,13 +85,13 @@ print("\n" + "=" * 65)
 print("ARCH-04: OPTUNA METRIC — Brier vs DSR, threshold 0.5 vs deploy")
 print("=" * 65)
 
-opt_metric   = getattr(cfg.xgboost, "optuna_metric", "unknown")
-sw_min       = getattr(cfg.xgboost, "threshold_sweep_min", 0.45)
-sw_max       = getattr(cfg.xgboost, "threshold_sweep_max", 0.72)
-xgb_signal   = getattr(cfg.xgboost, "xgb_signal_threshold", 0.48)
-xgb_min_sig  = getattr(cfg.xgboost, "xgb_min_signals_threshold", 0.45)
-min_density  = getattr(cfg.xgboost, "threshold_min_density_pct", 0.15)
-min_trades   = getattr(cfg.xgboost, "threshold_min_trades", 20)
+opt_metric   = cfg.xgboost.optuna_metric
+sw_min       = cfg.xgboost.threshold_sweep_min
+sw_max       = cfg.xgboost.threshold_sweep_max
+xgb_signal   = cfg.xgboost.xgb_signal_threshold
+xgb_min_sig  = cfg.xgboost.xgb_min_signals_threshold
+min_density  = cfg.xgboost.threshold_min_density_pct
+min_trades   = cfg.xgboost.threshold_min_trades
 
 print(f"\nSettings actuales:")
 print(f"  optuna_metric:           {opt_metric}")
@@ -165,7 +165,7 @@ if sel_path.exists():
         df_full = df.dropna(subset=["target"])
         feat_list = [x for x in global_feats if x in df_full.columns][:12]
         windows_cfg = cfg.wfb.windows if hasattr(cfg.wfb, "windows") else []
-        rwy = getattr(cfg.wfb, "rolling_window_years", 5)
+        rwy = cfg.wfb.rolling_window_years
 
         print(f"\nCorrelación IS con target por ventana (rolling_window_years={rwy}y):")
         header = f"{'Feature':35s}"

@@ -515,14 +515,13 @@ def t85():
         "Anadir try/except que lea constantes desde config.settings."
     )
     # 2. La asignacion de nivel modulo usa getattr (no = int literal)
-    # Buscar la linea de CLUSTER_FIXED_N dentro del bloque try (con getattr)
-    assert "'sfi_n_clusters'" in src_sfi, (
+    assert "sfi_n_clusters" in src_sfi, (
         "ARCH-03 REGRESION: CLUSTER_FIXED_N no lee desde cfg.features.sfi_n_clusters. "
-        "Usar getattr(_cfg_sfi.features, 'sfi_n_clusters', 15)."
+        "Usar _cfg_sfi.features.sfi_n_clusters."
     )
-    assert "'sfi_n_estimators'" in src_sfi, (
+    assert "sfi_n_estimators" in src_sfi, (
         "ARCH-03 REGRESION: SFI_N_ESTIMATORS no lee desde cfg.features.sfi_n_estimators. "
-        "Usar getattr(_cfg_sfi.features, 'sfi_n_estimators', 200)."
+        "Usar _cfg_sfi.features.sfi_n_estimators."
     )
     # 3. settings.yaml tiene todos los parametros SFI migrados
     for key in ("sfi_n_clusters", "sfi_top_n", "sfi_n_groups", "sfi_n_estimators",

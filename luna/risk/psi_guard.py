@@ -135,23 +135,28 @@ class PSIGuard:
             with open(config_path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
 
-            wfb_cfg = cfg.get("wfb", {})
-            xgb_cfg = cfg.get("xgboost", {})
+            wfb_cfg = cfg["wfb"]
+            xgb_cfg = cfg["xgboost"]
             
             # [FIX-PSI-GUARD-01] Dynamic Cooldown based on vertical_barrier_hours
-            vbh = float(xgb_cfg.get("vertical_barrier_hours", 48))
+            vbh = float(xgb_cfg["vertical_barrier_hours"])
             _ewma_span = int(vbh * 2)  # Default: 2 * ATR barrier
             _cooldown = int(vbh * 4)   # Default: 4 * ATR barrier (Wait 4 bars to cool off)
 
             return cls(
-                alert_threshold=wfb_cfg.get("psi_alert_threshold", 0.25),
-                halt_threshold=wfb_cfg.get("psi_halt_threshold", 0.50),
-                ewma_span_hours=wfb_cfg.get("psi_ewma_span", _ewma_span),
-                cooldown_hours=wfb_cfg.get("psi_cooldown_hours", _cooldown),
+                alert_threshold=float(wfb_cfg["psi_alert_threshold"]),
+                halt_threshold=float(wfb_cfg["psi_halt_threshold"]),
+                ewma_span_hours=int(wfb_cfg.get("psi_ewma_span", _ewma_span)),
+                cooldown_hours=int(wfb_cfg.get("psi_cooldown_hours", _cooldown)),
             )
+        except KeyError as e:
+            msg = f"[PSI-GUARD] CRITICAL: Falta umbral de riesgo clave en settings.yaml: {e}"
+            logger.critical(msg)
+            raise RuntimeError(msg) from e
         except Exception as e:
-            logger.warning(f"[PSI-GUARD] No se pudo cargar config ({e}). Usando fallbacks dinámicos seguros.")
-            return cls()
+            msg = f"[PSI-GUARD] CRITICAL: No se pudo cargar config ({e}). No-Fallback policy enforcing exit."
+            logger.critical(msg)
+            raise RuntimeError(msg) from e
 
     # -----------------------------------------------------------------------
     # Cálculo de PSI

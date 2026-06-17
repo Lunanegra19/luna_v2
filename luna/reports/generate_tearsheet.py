@@ -1134,7 +1134,13 @@ class LunaTearSheet:
         thresh  = verdict.get("sop_thresholds", {})
         
         n_tr = metrics.get("total_trades", 0)
-        alpha = thresh.get("alpha_binomial", 0.05)  # [FIX-07] Fallback corregido 0.15→0.05 (α estándar 5%)
+        try:
+            alpha = float(thresh["alpha_binomial"])
+            min_dsr = float(thresh["min_dsr"])
+            max_pbo_pct = float(thresh["max_pbo_pct"])
+        except KeyError as _e:
+            raise RuntimeError(f"Falta llave crítica en sop_thresholds en verdict: {_e}") from _e
+
         print(f"[FIX-07] Audit gauges: alpha_binomial={alpha:.3f} (fuente: sop_thresholds={'alpha_binomial' in thresh})")
         min_wins = binom.ppf(1 - alpha, max(n_tr, 1), 0.5)
         min_wr = min_wins / max(n_tr, 1)
@@ -1142,19 +1148,19 @@ class LunaTearSheet:
         items = [
             # (label, value, threshold, scale_max, higher_better, display_val, display_thr)
             ("DSR",
-             float(audit.get("dsr", 0)), thresh.get("min_dsr", 0.75),
+             float(audit.get("dsr", 0)), min_dsr,
              1.0, True,
-             f"{audit.get('dsr', 0):.4f}", f">= {thresh.get('min_dsr', 0.75)}"),
+             f"{audit.get('dsr', 0):.4f}", f">= {min_dsr}"),
             ("WIN RATE",
              float(metrics.get("win_rate", 0)), min_wr,
              1.0, True,
              f"{metrics.get('win_rate', 0)*100:.1f}%", f"> {min_wr*100:.1f}%"),
             ("PBO",
              float(audit.get("estimated_pbo", 1.0)),
-             thresh.get("max_pbo_pct", 10) / 100,
+             max_pbo_pct / 100,
              1.0, False,
              f"{audit.get('estimated_pbo', 1.0)*100:.1f}%",
-             f"< {thresh.get('max_pbo_pct', 10):.0f}%"),
+             f"< {max_pbo_pct:.0f}%"),
         ]
 
         ax.set_xlim(-0.25, 1.20)

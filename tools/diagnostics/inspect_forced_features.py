@@ -57,13 +57,13 @@ GROUPS = {
 # ── Settings: cuotas y listas esperadas ──────────────────────────────────────
 try:
     from config.settings import cfg
-    sfi_macro    = list(getattr(cfg.features, "sfi_macro_features",   []))
-    sfi_onchain  = list(getattr(cfg.features, "sfi_onchain_features", []))
-    sfi_calendar = list(getattr(cfg.features, "sfi_calendar_features", []))
-    sfi_boost    = list(getattr(cfg.features, "sfi_macro_stable_features", []))
-    macro_slots  = int(getattr(cfg.features, "sfi_macro_min_slots",   3))
-    onchain_slots= int(getattr(cfg.features, "sfi_onchain_min_slots", 1))
-    cal_slots    = int(getattr(cfg.features, "sfi_calendar_min_slots",1))
+    sfi_macro    = list(cfg.features.sfi_macro_features)
+    sfi_onchain  = list(cfg.features.sfi_onchain_features)
+    sfi_calendar = list(cfg.features.sfi_calendar_features)
+    sfi_boost    = list(cfg.features.sfi_macro_stable_features)
+    macro_slots  = int(cfg.features.sfi_macro_min_slots)
+    onchain_slots= int(cfg.features.sfi_onchain_min_slots)
+    cal_slots    = int(cfg.features.sfi_calendar_min_slots)
     print(f"[SFI-BALANCE-01] Cuotas: macro={macro_slots} onchain={onchain_slots} calendar={cal_slots}")
     print(f"[SFI] macro_features={len(sfi_macro)} | onchain_features={len(sfi_onchain)} | boost={len(sfi_boost)}")
 except Exception as e:

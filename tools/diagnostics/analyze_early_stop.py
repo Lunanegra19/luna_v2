@@ -24,7 +24,7 @@ else:
     bench = {'champion_score': 50.0}
 print()
 
-champion_score = bench.get('champion_score', 50.0)
+champion_score = bench.champion_score
 
 # 2. Early-stop logs
 early_stop_files = sorted(wfb_dir.glob('early_stop_seed*.json'))
@@ -32,7 +32,7 @@ print(f'Seeds con early-stop en la ultima run: {len(early_stop_files)}')
 for f in early_stop_files:
     with open(f) as fp:
         data = json.load(fp)
-    print(f'  {f.name}: ventanas evaluadas={data.get("windows_evaluated","?")} | razon={str(data.get("reason","?"))[:80]}')
+    print(f'  {f.name}: ventanas evaluadas={data.windows_evaluated} | razon={str(data.reason)[:80]}')
 print()
 
 # 3. Ventanas completadas por seed
@@ -63,8 +63,8 @@ print()
 # 4. Configuracion de ventanas
 with open(ROOT / 'config' / 'settings.yaml') as f:
     cfg = yaml.safe_load(f)
-windows_cfg    = cfg.get('wfb', {}).get('windows', [])
-prune_thr      = cfg.get('wfb', {}).get('prune_threshold', 0.95)
+windows_cfg    = cfg.wfb.windows
+prune_thr      = cfg.wfb.prune_threshold
 _N_WINDOWS_CFG = len(windows_cfg)
 
 print(f'settings.yaml:')
@@ -73,10 +73,10 @@ print(f'  wfb.prune_threshold: {prune_thr}')
 print()
 if windows_cfg:
     for i, w in enumerate(windows_cfg, 1):
-        is_s  = w.get('is_start', '?')
-        is_e  = w.get('is_end', '?')
-        oos_s = w.get('oos_start', '?')
-        oos_e = w.get('oos_end', '?')
+        is_s  = w.is_start
+        is_e  = w.is_end
+        oos_s = w.oos_start
+        oos_e = w.oos_end
         print(f'  W{i}: IS=[{is_s}→{is_e}] OOS=[{oos_s}→{oos_e}]')
 print()
 

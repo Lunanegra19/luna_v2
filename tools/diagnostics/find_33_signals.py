@@ -22,7 +22,7 @@ def find_signals():
     import yaml
     with open("g:/Mi unidad/ia/luna_v2/config/settings.yaml", "r") as f:
         settings = yaml.safe_load(f)
-    xgb_thr = settings.get('xgboost', {}).get('proba_threshold', 0.5)
+    xgb_thr = settings.xgboost.proba_threshold
     print(f"\nSettings xgboost proba_threshold: {xgb_thr}")
     
     # How many active bull rows cross this threshold?

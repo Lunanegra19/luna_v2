@@ -131,9 +131,9 @@ def main():
         if not active_seeds:
             raise KeyError("El parámetro 'wfb.active_seeds' no existe o está vacío en settings.yaml")
         
-        consensus_threshold = getattr(_cfg.wfb, "ensemble_consensus_threshold", 3)
-        soft_embargo_enabled = getattr(_cfg.wfb, "soft_embargo_enabled", True)
-        soft_embargo_hours = getattr(_cfg.wfb, "soft_embargo_hours", 24.0)
+        consensus_threshold = int(_cfg.wfb.ensemble_consensus_threshold)
+        soft_embargo_enabled = bool(_cfg.wfb.soft_embargo_enabled)
+        soft_embargo_hours = float(_cfg.wfb.soft_embargo_hours)
         
         # Imprimir para trazabilidad de logs (RULE[fixbugsprints.md])
         print(f"[SETTINGS-LOAD] Semillas activas leídas desde settings.yaml: {active_seeds}")

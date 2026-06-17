@@ -42,8 +42,8 @@ except ImportError:
     _cfg = _MockCfg()
     with open(_cfg_path, "r", encoding="utf-8") as _f:
         _yaml_data = yaml.safe_load(_f)
-        _cfg.stat = _yaml_data.get("stat", {})
-        _cfg.xgboost = _yaml_data.get("xgboost", {})
+        _cfg.stat = _yaml_data.stat
+        _cfg.xgboost = _yaml_data.xgboost
 
 # Forzar UTF-8 en stdout para evitar UnicodeEncodeError en Windows cp1252
 if sys.stdout.encoding.lower() != "utf-8":
@@ -53,26 +53,26 @@ if sys.stdout.encoding.lower() != "utf-8":
 # Configuración institucional (SOP thresholds)
 # ---------------------------------------------------------------------------
 # Leemos estricto desde settings.yaml (No-Fallback)
-_stat = getattr(_cfg, "stat", {}) if hasattr(_cfg, "stat") else getattr(_cfg, "gauntlet", {})
+_stat = _cfg.stat if hasattr(_cfg, "stat") else _cfg.gauntlet
 if isinstance(_stat, dict):
-    MIN_TRADES      = int(_stat.get("min_trades", 30))
-    MIN_DSR         = float(_stat.get("min_dsr", 0.75))
-    MAX_PBO_PCT     = float(_stat.get("max_pbo", 0.22)) * 100.0
-    MAX_DD_PCT      = float(_stat.get("max_drawdown", 0.60)) * 100.0
+    MIN_TRADES      = int(_stat.min_trades)
+    MIN_DSR         = float(_stat.min_dsr)
+    MAX_PBO_PCT     = float(_stat.max_pbo) * 100.0
+    MAX_DD_PCT      = float(_stat.max_drawdown) * 100.0
 else:
-    MIN_TRADES      = int(getattr(_stat, "min_trades", 30))
-    MIN_DSR         = float(getattr(_stat, "min_dsr", 0.75))
-    MAX_PBO_PCT     = float(getattr(_stat, "max_pbo", 0.22)) * 100.0
-    MAX_DD_PCT      = float(getattr(_stat, "max_drawdown", 0.60)) * 100.0
+    MIN_TRADES      = int(_stat.min_trades)
+    MIN_DSR         = float(_stat.min_dsr)
+    MAX_PBO_PCT     = float(_stat.max_pbo) * 100.0
+    MAX_DD_PCT      = float(_stat.max_drawdown) * 100.0
 
 # ---------------------------------------------------------------------------
 # Mapa de embargo por régimen (estado actual de producción)
 # ---------------------------------------------------------------------------
-_xgb = getattr(_cfg, "xgboost", {})
+_xgb = _cfg.xgboost
 if isinstance(_xgb, dict):
-    DEFAULT_WAIT_HOURS = float(_xgb.get("embargo_hours", 72.0))
+    DEFAULT_WAIT_HOURS = float(_xgb.embargo_hours)
 else:
-    DEFAULT_WAIT_HOURS = float(getattr(_xgb, "embargo_hours", 72.0))
+    DEFAULT_WAIT_HOURS = float(_xgb.embargo_hours)
 
 HMM_EMBARGO_PRODUCTION = {
     "1_BULL_TREND":        72.0,

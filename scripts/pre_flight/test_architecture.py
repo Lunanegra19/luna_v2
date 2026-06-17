@@ -76,8 +76,7 @@ def t28():
     # PURGE_H se lee de cfg dinámicamente — verificar cfg, no hardcode.
     # [Fase B.3 2026-03-27]: embargo reducido a 72H intencionalmente. Umbral minimo 24H.
     cfg = _cfg()
-    emb = int(getattr(getattr(cfg, 'sop', object()), 'embargo_hours',
-              getattr(cfg.temporal_splits, 'embargo_hours', 0)))
+    emb = int(cfg.sop.embargo_hours)
     assert emb >= 0, f"embargo_hours={emb} < 0H en settings"
     src = _read(ROOT/"luna/models/train_xgboost_v2.py")
     m = re.search(r"PURGE_H\s*=\s*(\d+)", src)

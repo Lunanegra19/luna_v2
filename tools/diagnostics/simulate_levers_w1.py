@@ -59,10 +59,10 @@ sig_bear  = load_sig("xgboost_meta_bear_long_signature.json")
 sig_meta  = load_sig("metalabeler_long_signature.json")
 sig_cal   = load_sig("calibrator_long_signature.json")
 
-CURR_THRESH_BULL  = sig_bull.get("optimal_threshold", 0.72)
-CURR_THRESH_RANGE = sig_range.get("optimal_threshold", 0.566)
-CURR_THRESH_BEAR  = sig_bear.get("optimal_threshold", 0.65)
-CURR_META_THRESH  = sig_cal.get("optimal_meta_threshold", 0.5235)
+CURR_THRESH_BULL  = sig_bull.optimal_threshold
+CURR_THRESH_RANGE = sig_range.optimal_threshold
+CURR_THRESH_BEAR  = sig_bear.optimal_threshold
+CURR_META_THRESH  = sig_cal.optimal_meta_threshold
 
 print(f"\n[SIM-LEVERS-W1] THRESHOLDS ACTUALES:")
 print(f"  Bull XGB:  {CURR_THRESH_BULL:.4f}")
@@ -85,8 +85,8 @@ except Exception as _e_load:
     meta_calib = None
 
 meta_cfg   = json.loads((MODELS_DIR / "metalabeler_v2_long_config.json").read_text())
-seq_len    = meta_cfg.get("seq_len", 48)
-seq_feats  = meta_cfg.get("seq_features", [])
+seq_len    = meta_cfg.seq_len
+seq_feats  = meta_cfg.seq_features
 
 # ── Función: aplicar embargo sobre una lista de señales ───────────────────
 def apply_embargo(signal_times, embargo_h):

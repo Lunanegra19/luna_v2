@@ -58,7 +58,7 @@ if bear_models_found:
             print(f'  n_features_in: {model.n_features_in_}')
         # Intentar predecir con datos sintéticos para ver si colapsa
         import numpy as np
-        n_feat = getattr(model, 'n_features_in_', 50)
+        n_feat = model.n_features_in_
         X_test = np.random.normal(0, 1, (100, n_feat))
         try:
             probs = model.predict_proba(X_test)[:, 1]

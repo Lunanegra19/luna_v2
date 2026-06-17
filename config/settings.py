@@ -60,11 +60,11 @@ def _unify_parameters(d: dict) -> dict:
     """
     try:
         # Extraer bloques
-        xgb = d.get("xgboost", {})
-        sop = d.get("sop", {})
-        stat = d.get("stat", {})
-        wfb = d.get("wfb", {})
-        ts = d.get("temporal_splits", {})
+        xgb = d["xgboost"]
+        sop = d["sop"]
+        stat = d["stat"]
+        wfb = d["wfb"]
+        ts = d["temporal_splits"]
 
         # 1. OPTUNA vs STATISTICAL TRIALS (Prevención BUG-01)
         if "optuna_trials" in xgb and "n_trials_total" in stat:
@@ -72,8 +72,8 @@ def _unify_parameters(d: dict) -> dict:
             stat["n_trials_total"] = xgb["optuna_trials"]
 
         # 2. BARRERAS vs PURGA (Prevención Data Leakage)
-        vbh = xgb.get("vertical_barrier_hours", 48)
-        dyn_max = xgb.get("dynamic_horizon_max_h", 168) if xgb.get("dynamic_barrier", True) else vbh
+        vbh = xgb["vertical_barrier_hours"]
+        dyn_max = xgb["dynamic_horizon_max_h"] if xgb["dynamic_barrier"] else vbh
         
         # Purga debe ser >= al horizonte máximo posible de un trade
         if "purge_hours" in sop:
@@ -86,16 +86,16 @@ def _unify_parameters(d: dict) -> dict:
 
         # 4. EMBARGO ESTRICTO (Regla R3: >= 1x horizonte máximo)
         # Solo lo forzamos si no estamos en 'soft_embargo'
-        soft_embargo = wfb.get("soft_embargo_enabled", False)
+        soft_embargo = wfb["soft_embargo_enabled"]
         if not soft_embargo:
             min_embargo = max(96, dyn_max)
             if "embargo_hours" in sop:
                 sop["embargo_hours"] = max(sop["embargo_hours"], min_embargo)
             if "embargo_hours" in ts:
-                ts["embargo_hours"] = max(ts.get("embargo_hours", 0), min_embargo)
+                ts["embargo_hours"] = max(ts["embargo_hours"], min_embargo)
 
         # 5. UMBRALES DE GAUNTLET Y VALIDACIÓN ESTADÍSTICA
-        gaunt = d.get("gauntlet", {})
+        gaunt = d["gauntlet"]
         
         # max_pbo: Gauntlet y Stat deben tener el mismo umbral de overfit
         if "max_pbo" in gaunt and "max_pbo" in stat:
@@ -107,8 +107,8 @@ def _unify_parameters(d: dict) -> dict:
             stat["min_dsr"] = gaunt["min_dsr"]
 
         # 6. KELLY SIZER vs POSITION SIZER (SOP R17: Fractional Kelly = 0.25)
-        pos_sizer = d.get("position_sizer", {})
-        kelly = d.get("kelly_sizer", {})
+        pos_sizer = d["position_sizer"]
+        kelly = d["kelly_sizer"]
         if "kelly_fraction" in pos_sizer and "kelly_fraction" in kelly:
             # Position sizer manda porque es el risk manager global
             kelly["kelly_fraction"] = pos_sizer["kelly_fraction"]
@@ -116,7 +116,7 @@ def _unify_parameters(d: dict) -> dict:
         # 7. COSTES DE TRANSACCIÓN E INFRICCIÓN (SOP R6)
         # costs.*_pct está en % absoluto (ej. 0.25 para 0.25%), mientras sop.cost_pct es decimal (0.0025)
         # Sincronizamos costs -> sop para que la API asuma el valor real 
-        costs_dict = d.get("costs", {})
+        costs_dict = d["costs"]
         if "round_trip_pct" in costs_dict and "cost_pct" in sop:
             # Unificamos a decimal si cost_pct != round_trip_pct / 100
             real_cost_rt = costs_dict["round_trip_pct"] / 100.0
@@ -131,13 +131,13 @@ def _unify_parameters(d: dict) -> dict:
             stat["brier_margin_range"] = stat["xgb_brier_hard_stop"] - stat["xgb_brier_warn"]
 
         # 9. DECAIMIENTO Y REGULARIZACIÓN
-        meta = d.get("metalabeler", {})
+        meta = d["metalabeler"]
         if "weight_decay_alpha" in xgb and "weight_decay_alpha" in meta:
             # Mismo decaimiento para todo el ensamble
             meta["weight_decay_alpha"] = xgb["weight_decay_alpha"]
             
         # 10. ESPACIOS DE BÚSQUEDA OPTUNA (LGBM y XGB deben tener mismos límites)
-        lgbm = d.get("lightgbm", {})
+        lgbm = d["lightgbm"]
         if "optuna_search_space" in xgb and "optuna_search_space" in lgbm:
             xgb_os = xgb["optuna_search_space"]
             lgbm_os = lgbm["optuna_search_space"]
@@ -146,8 +146,7 @@ def _unify_parameters(d: dict) -> dict:
                     lgbm_os[key] = xgb_os[key]
 
     except Exception as e:
-        import warnings
-        warnings.warn(f"Error unificando parámetros: {e}")
+        raise RuntimeError(f"[CRITICAL] Error unificando parámetros en settings.py. Política No-Fallback activa: {e}") from e
 
     return d
 

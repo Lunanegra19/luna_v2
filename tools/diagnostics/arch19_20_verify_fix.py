@@ -4,9 +4,9 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent.parent
 with open(ROOT / "config" / "settings.yaml", "r", encoding="utf-8") as f:
     cfg = yaml.safe_load(f)
-wfb = cfg.get("wfb", {})
-sop = cfg.get("sop", {})
-xgb = cfg.get("xgboost", {})
+wfb = cfg.wfb
+sop = cfg.sop
+xgb = cfg.xgboost
 print("[ARCH-19/20 + ARCH-10] VERIFICACION FINAL DE FIXES:")
 print(f"  rolling_window_years:      {wfb.get('rolling_window_years')}  (era 3, objetivo 5)")
 print(f"  training_mode:             {wfb.get('training_mode')}")
@@ -15,10 +15,10 @@ print(f"  xgboost.embargo_hours:     {xgb.get('embargo_hours')}  (era 24)")
 print(f"  xgboost.embargo_min_hours: {xgb.get('embargo_min_hours')} (era 48)")
 print(f"  xgboost.dynamic_barrier:   {xgb.get('dynamic_barrier')}")
 print()
-ok_rolling = wfb.get("rolling_window_years", 0) == 5
-ok_sop_embargo = sop.get("embargo_hours", 0) >= 96
-ok_xgb_embargo = xgb.get("embargo_hours", 0) >= 96
-ok_min_embargo = xgb.get("embargo_min_hours", 0) >= 96
+ok_rolling = wfb.rolling_window_years == 5
+ok_sop_embargo = sop.embargo_hours >= 96
+ok_xgb_embargo = xgb.embargo_hours >= 96
+ok_min_embargo = xgb.embargo_min_hours >= 96
 ok_dynamic = xgb.get("dynamic_barrier") is not None
 print(f"  rolling_window_years == 5:       {'OK' if ok_rolling else 'FALLO'}")
 print(f"  sop.embargo_hours >= 96H:        {'OK' if ok_sop_embargo else 'FALLO'}")

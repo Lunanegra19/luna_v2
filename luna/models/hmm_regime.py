@@ -1677,7 +1677,7 @@ class HMMRegimeModel:
                     _jsd2 = float(_jsd_fn(_freq_is, _freq_oos) ** 2)
                 try:
                     from config.settings import cfg as _cfg_hmm_drift
-                    _jsd_thr = float(getattr(_cfg_hmm_drift.hmm, 'drift_alert_jsd', 0.15))
+                    _jsd_thr = float(_cfg_hmm_drift.hmm.drift_alert_jsd)
                 except Exception:
                     _jsd_thr = 0.15
 

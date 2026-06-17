@@ -11,18 +11,6 @@ _roadmap:
     - 4
     - 5
   metalabeler:
-    nas_hidden_candidates:
-    - 16
-    - 32
-    - 64
-    nas_optuna_trials: 100
-    nas_seq_len_candidates:
-    - 24
-    - 48
-    - 72
-    - 96
-    - 144
-    - 192
     tft_fallback_wr_threshold: 0.58
   xgboost:
     stacking_fallback_dsr_threshold: 0.4
@@ -33,7 +21,12 @@ execution:
   hybrid_order_timeout_s: 30
   funding_drag_enabled: true
   funding_rate_8h: 0.0001
+autoencoder:
+  # [AE-NAN-FIX 2026-06-17] Tolerancia de NaN en AE obligatoria
+  ae_nan_threshold_pct: 0.1
 ai_mining:
+  # [FIX-SOP-FALLBACK-01] Parámetro de penalización Bailey 2014 para minería explícito
+  n_trials_penalty: 3.0
   advanced:
     granger_maxlag: 13
     isolation_contamination: 0.05
@@ -48,6 +41,7 @@ ai_mining:
     genetic_mutation_rate: 0.1
     genetic_n_generations: 20
     genetic_population: 60
+    genetic_tournament_k: 5
     genetic_max_coverage: 0.2
     genetic_min_hits: 500
     rfe_variance_threshold: 0.9
@@ -59,7 +53,6 @@ ai_mining:
     horizon_hours: 24
     learning_rate: 0.001
     max_features: 20
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
     num_layers: 2
     patience: 7
     sequence_len: 168
@@ -160,13 +153,16 @@ fase2:
   use_dtw_signal: false
   use_monetary_loss: false
   use_ofi_features: true
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   use_regime_agents: true
 features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
+  # [FIX-SOP-FALLBACK-02] Umbral estricto de pureza para Alpha Signals en SFI
+  sfi_max_alpha_ratio: 0.80
+  # Leyenda ARCH-03:
+  # TIPO-1: Variables técnicas y de precio directo.
+  # TIPO-2: Variables On-Chain y Macro (con lags defensivos).
+  # TIPO-3: Variables de Calendario y Estructurales (Halving, Ciclo).
   correlation_threshold: 0.7
   dsr_scan_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - FundingRate_Pct90d
   - genetic_rule_4
   - alpha_genetic_score
@@ -178,7 +174,6 @@ features:
   - btc_drawdown_from_ath
   - Puell_Multiple
   forward_max_features: 25
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix) 25
   fracdiff_d_range:
   - 0.1
   - 1.0
@@ -188,15 +183,20 @@ features:
   mt_alignment_sma_fast: 12
   mt_alignment_sma_slow: 36
   rolling_zscore_window: 90
+  # [KALMAN-FIX 2026-06-17] Parametros del filtro adaptativo
+  kalman_q: 1.0e-4
+  kalman_r: 0.1
   sfi_dsr_scan_top_n: 5
   sfi_holdout_max_nan_pct: 0.1
-  sfi_max_depth: 4
+  # [SFI-OPT 2026-06-17] Optimizacion univariante (Stumps) previene curve-fitting
+  sfi_max_depth: 2
   sfi_max_nan_pct: 0.85
   sfi_min_sharpe: 0.05
   sfi_n_clusters: 15
   sfi_n_clusters_max: 30
   sfi_n_clusters_min: 8
-  sfi_n_estimators: 200
+  # [SFI-OPT 2026-06-17] 40 arboles es el sweet spot para validacion 1D vs Target
+  sfi_n_estimators: 40
   sfi_n_groups: 6
   sfi_n_reps_per_cluster: 2
   sfi_top_n: 13
@@ -215,7 +215,6 @@ features:
   stability_gap_penalty: -0.5
   sfi_macro_stable_boost: 0.25
   sfi_macro_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - M2_MoM_Chg
   - M2_YoY_Chg
   - Global_M2_Index
@@ -240,7 +239,6 @@ features:
   - DXY_HMM_interact
   sfi_macro_min_slots: 0
   sfi_onchain_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - MVRV_Proxy
   - SSR_ZScore
   - SSR
@@ -266,7 +264,6 @@ features:
   - mt_vol_realized_4bar
   sfi_onchain_min_slots: 4
   sfi_calendar_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - cal_halving_cycle_sin
   - cal_halving_cycle_cos
   - cal_days_to_next_halving
@@ -274,7 +271,6 @@ features:
   - cal_halving_cycle_pct
   sfi_calendar_min_slots: 1
   sfi_macro_stable_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - M2_MoM_Chg
   - M2_YoY_Chg
   - Global_M2_Index
@@ -363,7 +359,6 @@ hmm:
   post_ath_ath_min_periods: 360
   post_ath_confirm_h: 48
   candidate_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - mt_vol_realized_4bar
   - dv_dvol_raw
   - frac_diff_close
@@ -401,6 +396,10 @@ lightgbm:
     scale_pos_weight_min: 1.0
   optuna_trials: 100
 metalabeler:
+  # [FIX-METALABELER-CRASH-01] Parametros estructurales obligatorios para MetaLabeler V2
+  val_split_ratio: 0.20
+  rf_max_depth_cap: 6
+  rf_min_leaf_base: 10
   gradient_clip: 1.0
   hmm_allowed_regimes:
   - 1_BULL_TREND
@@ -460,7 +459,6 @@ ood_guard:
   random_state: 42
   experimental_kl_gate: true
   structural_features:
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   - HMM_Regime
   - HMM_Semantic
 position_sizer:
@@ -492,7 +490,7 @@ sop:
   cost_perp_maker_rt: 0.0004
   funding_rate_24h: 0.0003
   cpcv_groups: 10
-  embargo_hours: 0
+  embargo_hours: 48
   purge_hours: 96
 stat:
   alpha_binomial: 0.2
@@ -520,7 +518,6 @@ stat:
   lgbm_proba_std_min: 0.01
   hmm_min_active_states: 2
   sfi_min_features: 5
-  # Leyenda clasificacion TIPO-1/2/3 ausente (fix)
   data_min_rows: 1000
   data_max_gap_h: 48
   signal_min_count_warn: 5
@@ -694,8 +691,11 @@ xgboost:
   n_estimators_min_floor: 5
   min_viable_train_samples: 200
   bull_gate_min_dsr: 0.0
-  # Tabla de referencia temporal: ETAs para n=6/8/10 grupos
   n_purged_splits: 8
+  # n_purged_splits Reference (CPCV):
+  # n=10 -> 45 paths
+  # n=8  -> 28 paths
+  # n=6  -> Baja Robustez (12.4H ETA)
   optuna_metric: logloss
   vertical_barrier_hours: 48
   dynamic_horizon_max_h: 168
@@ -730,7 +730,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 100
+  optuna_seed: 42
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -798,7 +798,3 @@ shap_audit:
   - gain
 tbm:
   use_confidence_scaler: false
-
-
-
-

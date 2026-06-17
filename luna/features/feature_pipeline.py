@@ -668,10 +668,10 @@ class FeaturePipeline:
         try:
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
             from config.settings import cfg as _cfg_kz
-            _kz_q = float(getattr(_cfg_kz.features, 'kalman_q', 1e-4))
-            _kz_r = float(getattr(_cfg_kz.features, 'kalman_r', 0.1))
-        except Exception:
-            _kz_q, _kz_r = 1e-4, 0.1
+            _kz_q = float(_cfg_kz.features.kalman_q)
+            _kz_r = float(_cfg_kz.features.kalman_r)
+        except Exception as e:
+            raise RuntimeError(f"Faltan parametros kalman en settings.yaml (SOP No-Fallback): {e}")
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
 
         _kalman = KalmanZScoreNormalizer(process_noise=_kz_q, obs_noise=_kz_r)
@@ -1754,7 +1754,7 @@ class FeaturePipeline:
             # FIX: zerear alpha_dtw_signal para que (a) no active el trigger y (b) XGBoost reciba 0
             try:
                 from config.settings import cfg as _cfg_dtw
-                _use_dtw = bool(int(getattr(_cfg_dtw.fase2), 'use_dtw_signal', True))
+                _use_dtw = bool(getattr(_cfg_dtw.fase2, 'use_dtw_signal', True)) if getattr(_cfg_dtw, 'fase2', None) else True
                 if not _use_dtw and 'alpha_dtw_signal' in df.columns:
                     _n_nonzero = (df['alpha_dtw_signal'] != 0).sum()
                     df['alpha_dtw_signal'] = 0.0
@@ -1796,7 +1796,7 @@ class FeaturePipeline:
         # Parámetros Base para SFI
         _pt = 1.5
         _sl = 1.5
-        _min_ret = float(getattr(cfg.sop, 'tbm_min_return', 0.005)) if hasattr(cfg, 'sop') else 0.005
+        _min_ret = float(cfg.xgboost.tbm_min_return)
         
         events_idx = df.index
         price_series = df["close"]
@@ -2150,8 +2150,8 @@ class FeaturePipeline:
         try:
             from luna.features.kalman_normalizer import KalmanZScoreNormalizer, KALMAN_COLUMNS
             from config.settings import cfg as _cfg_kz
-            _kz_q = float(getattr(_cfg_kz.features, 'kalman_q', 1e-4))
-            _kz_r = float(getattr(_cfg_kz.features, 'kalman_r', 0.1))
+            _kz_q = float(_cfg_kz.features.kalman_q)
+            _kz_r = float(_cfg_kz.features.kalman_r)
             _n_before = df.shape[1]
             _kalman = KalmanZScoreNormalizer(process_noise=_kz_q, obs_noise=_kz_r)
             df = _kalman.transform_df(df, columns=KALMAN_COLUMNS, suffix="_kz")
@@ -2231,10 +2231,10 @@ class FeaturePipeline:
             from luna.features.autoencoder_features import apply_autoencoder
             from config.settings import cfg as _cfg
             
-            _use_ae = bool(_cfg.fase2.use_autoencoder) if hasattr(_cfg, "fase2") else True
+            _use_ae = bool(getattr(_cfg.fase2, "use_autoencoder", True)) if getattr(_cfg, "fase2", None) else True
             if _use_ae:
                 _t_ae = _time.monotonic()
-                _train_end = int(_cfg.temporal_splits.train_end) # fallback warning
+                _train_end = str(getattr(_cfg.temporal_splits, 'train_end', '2024-10-31')) # fallback warning
                 # [FIX-AE-BOTTLENECK-01 2026-05-30] Bottleneck era 32 (8.6x compresion para 275 features
                 # -> MSE=0.1376 alto). Leemos de settings con default=64 (4.3x, ratio optimo ~n/4).
                 _ae_bottleneck = 64

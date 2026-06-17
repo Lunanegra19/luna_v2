@@ -45,28 +45,15 @@ REPORTS_DIR   = PROJECT_ROOT / "data" / "ai_mining" / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── Config AG (Fix F2-03: leer desde settings.yaml, fallback a hardcoded) ─────
-try:
-    from config.settings import cfg
-    _dd = cfg.ai_mining.deep_discovery
-    N_GENERATIONS    = int(getattr(_dd, "genetic_n_generations", 20))
-    # [FALLA-03-FIX 2026-05-30] Key correcto en settings.yaml es 'genetic_population'
-    POPULATION_SIZE  = int(getattr(_dd, "genetic_population", getattr(_dd, "genetic_population_size", 60)))
-    TOURNAMENT_K     = int(getattr(_dd, "genetic_tournament_k", 5))
-    MUTATION_RATE    = float(getattr(_dd, "genetic_mutation_rate", 0.25))
-    CROSSOVER_RATE   = float(getattr(_dd, "genetic_crossover_rate", 0.70))
-    # [FALLA-03-FIX] Cobertura máxima tolerada antes de penalizar fitness (evitar reglas triviales)
-    MAX_COVERAGE_PENALTY = float(getattr(_dd, "genetic_max_coverage", 0.20))
-    # [H10H11-FIX 2026-05-30] Mínimo hits absoluto para regla estadísticamente válida
-    # n=42 con WR=95% = memorización pura. n=500 garantiza ~0.8% del IS (63037 pts)
-    MIN_HITS_ABS     = int(getattr(_dd, "genetic_min_hits", 500))
-except Exception:
-    N_GENERATIONS    = 20
-    POPULATION_SIZE  = 60
-    TOURNAMENT_K     = 5
-    MUTATION_RATE    = 0.25   # fallback — overridden by settings.yaml (0.10)
-    CROSSOVER_RATE   = 0.70   # fallback
-    MAX_COVERAGE_PENALTY = 0.20  # fallback: penalizar reglas que activan >20% del dataset
-    MIN_HITS_ABS     = 500   # fallback mínimo hits absoluto
+from config.settings import cfg
+_dd = cfg.ai_mining.deep_discovery
+N_GENERATIONS    = int(_dd.genetic_n_generations)
+POPULATION_SIZE  = int(_dd.genetic_population)
+TOURNAMENT_K     = int(_dd.genetic_tournament_k)
+MUTATION_RATE    = float(_dd.genetic_mutation_rate)
+CROSSOVER_RATE   = float(_dd.genetic_crossover_rate)
+MAX_COVERAGE_PENALTY = float(_dd.genetic_max_coverage)
+MIN_HITS_ABS     = int(_dd.genetic_min_hits)
 MIN_OCCURRENCES  = 25     # mínimo hits para regla válida (legacy, reemplazado por MIN_HITS_ABS)
 MIN_WIN_RATE     = 0.56   # umbral genético (un poco más laxo que golden)
 MAX_CONDITIONS   = 4      # máximo condiciones por regla genética

@@ -19,7 +19,7 @@ print(f"Bloque encontrado en offset {idx}")
 NEW_BLOCK  = b"            # [FIX-HMM-SHIELD-01 2026-06-02] MI-guard activo: si post_ath_bear empeora la MI\r\n"
 NEW_BLOCK += b"            # por debajo del umbral SOP-R9 (min_mi=0.005), se desactiva post_ath_bear.\r\n"
 NEW_BLOCK += b"            # Primero combinamos sin post_ath, medimos MI; si baja, lo excluimos.\r\n"
-NEW_BLOCK += b"            _min_mi_shield = float(getattr(_cfg_hmm.hmm, 'min_mi', 0.005))\r\n"
+NEW_BLOCK += b"            _min_mi_shield = float(_cfg_hmm.hmm.min_mi)\r\n"
 NEW_BLOCK += b"            _post_ath_enabled = True\r\n"
 NEW_BLOCK += b"            try:\r\n"
 NEW_BLOCK += b"                from sklearn.metrics import mutual_info_score as _mis\r\n"

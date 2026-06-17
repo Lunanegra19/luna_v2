@@ -338,7 +338,11 @@ def main() -> int:
     _kurt        = verdict.get("statistical_audit", {}).get("kurtosis", 0.0)
     _n_obs       = verdict.get("statistical_audit", {}).get("n_obs_dsr", 1)
     _n_trials    = verdict.get("statistical_audit", {}).get("n_trials_dsr", 100)
-    _base_dsr_thr = verdict.get("sop_thresholds", {}).get("min_dsr", 0.75)
+    try:
+        from config.settings import cfg as _cfg_stat
+        _base_dsr_thr = float(_cfg_stat.stat.min_dsr)
+    except Exception as e:
+        raise RuntimeError(f"CRITICAL: Falta stat.min_dsr en settings: {e}")
     _dsr_real     = verdict.get("statistical_audit", {}).get("dsr", 0.0)
 
     if _n_seeds_total_r5 > 1:

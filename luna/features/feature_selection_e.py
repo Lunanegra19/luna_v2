@@ -2999,15 +2999,16 @@ class FeatureSelectionPipelineE:
                 )
             return feats
 
-        # Cargar las 3 whitelists desde settings (con fallback vacío = backward compatible)
+        # Cargar las 3 whitelists desde settings (Politica Institucional No-Fallback)
         try:
             from config.settings import cfg as _cfg_quota
-            _wl_macro    = set(int(_cfg_quota.features.sfi_macro_features) or [])
-            _wl_onchain  = set(int(_cfg_quota.features.sfi_onchain_features) or [])
-            _wl_calendar = set(int(_cfg_quota.features.sfi_calendar_features) or [])
+            _wl_macro    = set(getattr(_cfg_quota.features, 'sfi_macro_features', []))
+            _wl_onchain  = set(getattr(_cfg_quota.features, 'sfi_onchain_features', []))
+            _wl_calendar = set(getattr(_cfg_quota.features, 'sfi_calendar_features', []))
         except Exception as _eq:
-            logger.warning(f"[SFI-BALANCE-01] No se pudieron cargar whitelists de settings: {_eq}")
-            _wl_macro = _wl_onchain = _wl_calendar = set()
+            _err_msg = f"CRITICAL: Fallo cargando whitelists de settings.yaml (sfi_*_features). Politica No-Fallback: {_eq}"
+            logger.critical(_err_msg)
+            raise RuntimeError(_err_msg) from _eq
 
         # Aplicar las 3 cuotas en orden: macro → onchain → calendar
         # El orden importa: macro va primero porque tiene mayor cuota (3 slots).
@@ -3044,8 +3045,9 @@ class FeatureSelectionPipelineE:
             from config.settings import cfg as _cfg_g
             _sfi_min_features = int(_cfg_g.stat.sfi_min_features)
         except Exception as e:
-            logger.warning(f"[CRITICAL-SOP] Falta stat.sfi_min_features en settings.yaml, usando fallback 5: {e}")
-            _sfi_min_features = 5
+            _err_g = f"CRITICAL [GUARDIAN-10]: Falta stat.sfi_min_features en settings.yaml. Politica No-Fallback: {e}"
+            logger.critical(_err_g)
+            raise RuntimeError(_err_g) from e
             
         if len(final_features) < _sfi_min_features:
             logger.error(

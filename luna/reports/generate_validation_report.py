@@ -399,13 +399,13 @@ Resultado:
 
 | Metrica | Valor | Umbral SOP | Estado | Que Significa |
 |---------|-------|-----------|--------|---------------|
-| **Trades OOS** | {n_trades} | >= {thr.get('min_trades',100)} | {_pass(flg.get('pass_trades',False))} | Base estadistica para el test binomial |
+| **Trades OOS** | {n_trades} | >= {thr['min_trades']} | {_pass(flg.get('pass_trades',False))} | Base estadistica para el test binomial |
 | **Win Rate** | **{wr:.1f}%** | > 52% | {_pass(wr > 52)} | % de trades que tocaron PT antes que SL |
 | **Sharpe crudo** | **{sharpe:.4f}** | > 1.5 | {_pass(sharpe > 1.5)} | Retorno ajustado a riesgo anualizado |
-| **DSR** | **{dsr:.4f}** | >= {thr.get('min_dsr',0.75)} | {_pass(flg.get('pass_dsr',False))} | Prob. de que la senal sea real (Bailey & LdP) |
+| **DSR** | **{dsr:.4f}** | >= {thr['min_dsr']} | {_pass(flg.get('pass_dsr',False))} | Prob. de que la senal sea real (Bailey & LdP) |
 | **p-value binomial** | **{p_binom:.4e}** | <= 0.05 | {_pass(flg.get('pass_binomial',False))} | Prob. de obtener este WR por azar |
-| **PBO (CSCV)** | **{pbo:.1f}%** | <= {thr.get('max_pbo_pct',10):.0f}% | {_pass(flg.get('pass_pbo',False))} | % simulaciones donde hay overfitting IS->OOS |
-| **MaxDrawdown** | **{dd:.1f}%** | < {thr.get('max_drawdown_pct',60):.0f}% | {_pass(flg.get('pass_dd',False))} | Caida pico->valle en curva de equity |
+| **PBO (CSCV)** | **{pbo:.1f}%** | <= {float(thr['max_pbo_pct']):.0f}% | {_pass(flg.get('pass_pbo',False))} | % simulaciones donde hay overfitting IS->OOS |
+| **MaxDrawdown** | **{dd:.1f}%** | < {float(thr['max_drawdown_pct']):.0f}% | {_pass(flg.get('pass_dd',False))} | Caida pico->valle en curva de equity |
 | **Calmar Ratio** | **{calmar:.2f}** | — | — | Retorno / MaxDD |
 | **Total Return** | {ret:.1f}% | — | — | Ver §4 — artefacto del compounding |
 
@@ -421,12 +421,12 @@ Resultado:
 
 | Gate | Valor Actual | Umbral SOP | Gap para Aprobar |
 |------|-------------|-----------|------------------|
-| {"❌" if not flg.get("pass_trades") else "✅"} Trades | {n_trades} | >={thr.get("min_trades",100)} | {_gap(n_trades, thr.get("min_trades",100), "above")} |
+| {"❌" if not flg.get("pass_trades") else "✅"} Trades | {n_trades} | >={thr['min_trades']} | {_gap(n_trades, thr['min_trades'], "above")} |
 | {"❌" if wr <= 50 else "✅"} Win Rate | {wr:.1f}% | >50% | {_gap(wr, 50, "above")} |
-| {"❌" if not flg.get("pass_dsr") else "✅"} DSR | {dsr:.4f} | >={thr.get("min_dsr",0.75)} | {_gap(dsr, thr.get("min_dsr",0.75), "above")} |
+| {"❌" if not flg.get("pass_dsr") else "✅"} DSR | {dsr:.4f} | >={thr['min_dsr']} | {_gap(dsr, thr['min_dsr'], "above")} |
 | {"❌" if sharpe <= 1.5 else "✅"} Sharpe | {sharpe:.2f} | >1.5 | {_gap(sharpe, 1.5, "above")} |
-| {"❌" if not flg.get("pass_pbo") else "✅"} PBO | {pbo:.1f}% | <{thr.get("max_pbo_pct",10):.0f}% | {_gap(pbo, thr.get("max_pbo_pct",10), "below")} |
-| {"✅" if flg.get("pass_dd") else "❌"} Max DD | {dd:.1f}% | <{thr.get("max_drawdown_pct",60):.0f}% | {"✅ OK" if flg.get("pass_dd") else _gap(dd, thr.get("max_drawdown_pct",60), "below")} |
+| {"❌" if not flg.get("pass_pbo") else "✅"} PBO | {pbo:.1f}% | <{float(thr['max_pbo_pct']):.0f}% | {_gap(pbo, thr['max_pbo_pct'], "below")} |
+| {"✅" if flg.get("pass_dd") else "❌"} Max DD | {dd:.1f}% | <{float(thr['max_drawdown_pct']):.0f}% | {"✅ OK" if flg.get("pass_dd") else _gap(dd, thr['max_drawdown_pct'], "below")} |
 
 ### Walk-Forward Validation (WFV)
 
@@ -459,7 +459,7 @@ Proceso:
 
 Resultado: {pbo:.1f}% en 200 simulaciones
 Interpretacion: {"Degradacion IS->OOS en " + str(round(pbo)) + "% de simulaciones — re-entrenar con mas regularizacion." if pbo > 10 else "PBO dentro del umbral — sin sobreajuste detectado."}
-Limite SOP: {thr.get("max_pbo_pct",10):.0f}%  -> {"FALLA" if not flg.get("pass_pbo") else "PASA"}
+Limite SOP: {float(thr['max_pbo_pct']):.0f}%  -> {"FALLA" if not flg.get("pass_pbo") else "PASA"}
 ```
 
 ### p-binomial = {p_binom:.4e} — ?El WR es estadisticamente significativo?

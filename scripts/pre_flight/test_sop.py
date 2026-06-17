@@ -31,8 +31,7 @@ def t13():
     # [Fase B.3 2026-03-27]: umbral flexible — embargo debe ser >= 24H (minimo SOP teorico).
     # El SOP R3 exige embargo >= 1x VBH. Con VBH=72H el minimo es 72H.
     # Era 96H pero Fase B.3 lo redujo a 72H intencionalmente para mas rotacion de trades.
-    emb = int(getattr(getattr(cfg, 'sop', object()), 'embargo_hours',
-              getattr(cfg.temporal_splits, 'embargo_hours', 0)))
+    emb = int(cfg.sop.embargo_hours)
     assert emb >= 0, f"embargo_hours={emb} < 0H (SOP R3 relajado para Pyramiding Spot)"
     src = _read(ROOT/"luna/models/train_xgboost_v2.py")
     # EMBARGO_H se lee de cfg dinámicamente — verificar que el módulo lo referencia

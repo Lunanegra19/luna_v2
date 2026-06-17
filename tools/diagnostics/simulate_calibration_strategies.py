@@ -49,13 +49,13 @@ except ImportError:
     _cfg = _MockCfg()
     with open(_cfg_path, "r", encoding="utf-8") as _f:
         _yaml_data = yaml.safe_load(_f)
-        _cfg.stat = _yaml_data.get("stat", {})
+        _cfg.stat = _yaml_data.stat
 
-_stat = getattr(_cfg, "stat", {}) if hasattr(_cfg, "stat") else getattr(_cfg, "gauntlet", {})
+_stat = _cfg.stat if hasattr(_cfg, "stat") else _cfg.gauntlet
 if isinstance(_stat, dict):
-    MIN_TRADES = int(_stat.get("min_trades", 30))
+    MIN_TRADES = int(_stat.min_trades)
 else:
-    MIN_TRADES = int(getattr(_stat, "min_trades", 30))
+    MIN_TRADES = int(_stat.min_trades)
 
 # ── Ventanas disponibles ──────────────────────────────────────────────────────
 WINDOWS = ["W1", "W2", "W3", "W4", "W5"]
@@ -71,7 +71,7 @@ def load_model(agent: str):
     clf = xgb.XGBClassifier()
     clf.load_model(str(model_path))
     sig = json.loads(sig_path.read_text(encoding="utf-8")) if sig_path.exists() else {}
-    features = sig.get("features", [])
+    features = sig.features
     return clf, features
 
 
@@ -152,12 +152,12 @@ def simulate_agent(agent: str):
 
     sig = json.loads((MODELS_DIR / f"xgboost_meta_{agent}_long_signature.json")
                      .read_text(encoding="utf-8"))
-    threshold_actual = sig.get("optimal_threshold", 0.48)
-    cal_source_actual = sig.get("cal_source", "?")
+    threshold_actual = sig.optimal_threshold
+    cal_source_actual = sig.cal_source
 
     print(f"  Threshold REAL de la run: {threshold_actual:.3f}  (fuente: {cal_source_actual})")
-    print(f"  calibration_report: {len(sig.get('calibration_report', []))} entradas, "
-          f"EV>0: {sum(1 for r in sig.get('calibration_report', []) if r.get('ev', -1) > 0)}")
+    print(f"  calibration_report: {len(sig.calibration_report)} entradas, "
+          f"EV>0: {sum(1 for r in sig.calibration_report if r.ev > 0)}")
 
     results = {}
 
@@ -208,8 +208,8 @@ def simulate_agent(agent: str):
                 try:
                     s = json.loads(sig_path.read_text(encoding="utf-8"))
                     thr = s.get("optimal_threshold")
-                    ev_check = s.get("calibration_report", [])
-                    has_positive_ev = any(r.get("ev", -1) > 0 for r in ev_check)
+                    ev_check = s.calibration_report
+                    has_positive_ev = any(r.ev > 0 for r in ev_check)
                     if thr is not None and has_positive_ev:
                         wfb_thresholds.append(float(thr))
                 except Exception:

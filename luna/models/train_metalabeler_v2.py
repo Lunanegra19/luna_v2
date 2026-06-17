@@ -311,8 +311,8 @@ class MetaLabelerV2:
         
         # FIX-AUDIT-02: Erradicar fallback hardcodeado y leer desde config strict
         from config.settings import cfg as _cfg
-        _rf_max_depth_base = float(getattr(_cfg.metalabeler, "rf_max_depth_cap", 5.0))
-        _rf_min_leaf_base = float(getattr(_cfg.metalabeler, "rf_min_leaf_base", 30.0))
+        _rf_max_depth_base = float(_cfg.metalabeler.rf_max_depth_cap)
+        _rf_min_leaf_base = float(_cfg.metalabeler.rf_min_leaf_base)
         
         _effective_max_depth = int(min(_topo_max_depth, _rf_max_depth_base))
         _effective_min_leaf  = int(max(_topo_min_leaf, _rf_min_leaf_base))
@@ -321,10 +321,10 @@ class MetaLabelerV2:
             "[V2-FIX-3] Topology-Aware RF: n_samples={}, n_minority={} → "
             "max_depth={} (base={}), min_samples_leaf={} (base={})",
             _n_samples, _n_minority,
-            _effective_max_depth, getattr(self, '_rf_max_depth_base', 5),
-            _effective_min_leaf,  getattr(self, '_rf_min_leaf_base', 30)
+            _effective_max_depth, _rf_max_depth_base,
+            _effective_min_leaf,  _rf_min_leaf_base
         )
-        print(f"[BUG-FIX-LOG 2026-06-05] [V2-FIX-3] Topology-Aware RF: n_samples={_n_samples}, n_minority={_n_minority} -> max_depth={_effective_max_depth} (base={getattr(self, '_rf_max_depth_base', 5)}), min_samples_leaf={_effective_min_leaf} (base={getattr(self, '_rf_min_leaf_base', 30)})")
+        print(f"[BUG-FIX-LOG 2026-06-05] [V2-FIX-3] Topology-Aware RF: n_samples={_n_samples}, n_minority={_n_minority} -> max_depth={_effective_max_depth} (base={_rf_max_depth_base}), min_samples_leaf={_effective_min_leaf} (base={_rf_min_leaf_base})")
         # Re-instanciar RF con bounds topológicos
         from sklearn.ensemble import RandomForestClassifier as _RFC_topo
         self.rf.max_depth         = _effective_max_depth
@@ -338,7 +338,7 @@ class MetaLabelerV2:
         _n_losses = max(1, int((np.array(y) == 0).sum()))
         _imbalance_ratio = float(_n_losses) / _n_wins
         
-        _base_pt = getattr(self, '_base_pt_mult', 1.6)
+        _base_pt = float(_cfg.xgboost.pt_mult_min)
         
         # Ponderación Asimétrica Constante: dictada por la economía del Setup, NO por el desbalance.
         _empirical_weight = float(_base_pt)
@@ -500,7 +500,7 @@ class MetaLabelerV2:
         # SOP R3: embargo temporal crítico — política No-Fallback LOUD.
         try:
             from config.settings import cfg as _cfg_embargo_cv
-            _embargo_h_cv = int(getattr(_cfg_embargo_cv.sop, "embargo_hours", getattr(_cfg_embargo_cv.sop, "embargo_h", 96)))
+            _embargo_h_cv = int(_cfg_embargo_cv.sop.embargo_hours)
             _seq_len_cv   = int(_cfg_embargo_cv.metalabeler.seq_len)
             _embargo_h    = _embargo_h_cv + _seq_len_cv
             print(f"[FIX-EMBARGO-META-CV-01] MetaLabeler CV gap={_embargo_h}H (embargo={_embargo_h_cv}H + seq_len={_seq_len_cv}H)")  # RULE[fixbugsprints.md]
@@ -909,9 +909,9 @@ class MetaLabelerV2Trainer:
             _t_mode = str(_cfg_rw.wfb.training_mode)
             if _t_mode == 'rolling':
                 _rw_years = int(_cfg_rw.wfb.rolling_window_years)
-                _train_end_str = int(_cfg_rw.temporal_splits.train_end)
-                if _train_end_str:
-                    _train_end_dt = pd.to_datetime(_train_end_str, utc=True)
+                _train_end_val = str(_cfg_rw.temporal_splits.train_end)
+                if _train_end_val:
+                    _train_end_dt = pd.to_datetime(_train_end_val, utc=True)
                     _rolling_start = _train_end_dt - pd.DateOffset(years=_rw_years)
                     
                     if df.index.tz is None:
@@ -1466,7 +1466,7 @@ class MetaLabelerV2Trainer:
         # [FIX-SPLIT-ML-01] Hacer ratio de split temporal train/val configurable
         try:
             from config.settings import cfg as _cfg_ml
-            _val_ratio = float(getattr(_cfg_ml.metalabeler, "val_split_ratio", 0.20))
+            _val_ratio = float(_cfg_ml.metalabeler.val_split_ratio)
             _train_ratio = 1.0 - _val_ratio
             print(f"[FIX-SPLIT-ML-01] Split temporal cargado de config: train_ratio={_train_ratio:.2f} (val_ratio={_val_ratio:.2f})")  # debug
         except Exception as _e_ml_sp:

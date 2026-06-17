@@ -50,7 +50,7 @@ def _load_audit_params() -> dict:
     """
     try:
         from config.settings import cfg
-        audit_cfg = getattr(cfg, 'shap_audit', None)
+        audit_cfg = cfg.shap_audit
         if audit_cfg is None:
             # Fallback suave — la sección es nueva, puede no existir en runs antiguas
             logger.warning("[SHAP-AUDIT-01] Sección shap_audit no encontrada en settings.yaml — usando defaults")
@@ -63,11 +63,11 @@ def _load_audit_params() -> dict:
                 "enabled":                    True,
             }
         return {
-            "min_importance_threshold":   float(getattr(audit_cfg, 'min_importance_threshold',   0.02)),
-            "consecutive_windows_alert":  int(getattr(audit_cfg,   'consecutive_windows_alert',  3)),
-            "consecutive_windows_remove": int(getattr(audit_cfg,   'consecutive_windows_remove', 5)),
-            "importance_types":           list(getattr(audit_cfg,   'importance_types',           ['gain'])),
-            "enabled":                    bool(getattr(audit_cfg,   'enabled',                    True)),
+            "min_importance_threshold":   float(audit_cfg.min_importance_threshold),
+            "consecutive_windows_alert":  int(audit_cfg.consecutive_windows_alert),
+            "consecutive_windows_remove": int(audit_cfg.consecutive_windows_remove),
+            "importance_types":           list(audit_cfg.importance_types),
+            "enabled":                    bool(audit_cfg.enabled),
         }
     except Exception as e:
         logger.warning(f"[SHAP-AUDIT-01] Error leyendo params de settings: {e} — usando defaults")
@@ -89,9 +89,9 @@ def _load_forced_features() -> dict[str, list[str]]:
         from config.settings import cfg
         f = cfg.features
         return {
-            "macro":    list(getattr(f, 'sfi_macro_features',    []) or []),
-            "onchain":  list(getattr(f, 'sfi_onchain_features',  []) or []),
-            "calendar": list(getattr(f, 'sfi_calendar_features', []) or []),
+            "macro":    list(f.sfi_macro_features or []),
+            "onchain":  list(f.sfi_onchain_features or []),
+            "calendar": list(f.sfi_calendar_features or []),
         }
     except Exception as e:
         logger.warning(f"[SHAP-AUDIT-01] No se pudo cargar listas de forced features: {e}")
@@ -186,10 +186,10 @@ def _extract_importance_by_category(
     result = {}
 
     for sig in signatures:
-        agent = sig.get('_agent', 'unknown')
+        agent = sig._agent
         fi_dict = sig.get(fi_key, {})
-        selected_feats = sig.get('features', [])
-        dsr = sig.get('dsr_oos', float('nan'))
+        selected_feats = sig.features
+        dsr = sig.dsr_oos)
 
         if not fi_dict:
             continue
@@ -293,13 +293,13 @@ def _detect_alerts(history: dict, params: dict) -> list[dict]:
     threshold    = params['min_importance_threshold']
     n_alert      = params['consecutive_windows_alert']
     n_remove     = params['consecutive_windows_remove']
-    feat_stats   = history.get('feature_stats', {})
+    feat_stats   = history.feature_stats
 
     for feat_name, stats in feat_stats.items():
-        windows_below = stats.get('consecutive_windows_below_threshold', 0)
-        mean_fi       = stats.get('mean_importance_norm', 0.0)
-        category      = stats.get('category', 'unknown')
-        n_windows     = stats.get('n_windows_seen', 0)
+        windows_below = stats.consecutive_windows_below_threshold
+        mean_fi       = stats.mean_importance_norm
+        category      = stats.category
+        n_windows     = stats.n_windows_seen
 
         if n_windows < 2:
             continue  # No suficiente historial
@@ -368,7 +368,7 @@ def run_shap_audit(
     """
     params = _load_audit_params()
 
-    if not params.get('enabled', True):
+    if not params.enabled:
         logger.debug("[SHAP-AUDIT-01] Auditor desactivado en settings.yaml")
         return None
 
@@ -417,16 +417,16 @@ def run_shap_audit(
         for feat, fi_info in agent_data["forced"].items():
             fi_norm = fi_info['importance_norm']
             cat     = fi_info['category']
-            feat_base = fi_info.get('feat_base', feat)
-            is_active = fi_info.get('is_active', False)
+            feat_base = fi_info.feat_base
+            is_active = fi_info.is_active
             below_threshold = fi_norm < threshold and is_active
 
             window_entry["agents"][agent]["forced"][feat] = {
                 "importance_norm": fi_norm,
                 "importance_raw":  fi_info['importance_raw'],
                 "category":        cat,
-                "rank":            fi_info.get('rank', -1),
-                "rank_pct":        fi_info.get('rank_pct', 1.0),
+                "rank":            fi_info.rank,
+                "rank_pct":        fi_info.rank_pct,
                 "is_active":       is_active,
                 "below_threshold": below_threshold,
             }
@@ -541,9 +541,9 @@ def _generate_report(
         for feat, info in sorted(agent_data['forced'].items(),
                                   key=lambda x: -x[1]['importance_norm']):
             fi = info['importance_norm']
-            rank = info.get('rank', '?')
-            n_total = info.get('n_features_total', '?')
-            is_active = info.get('is_active', False)
+            rank = info.rank
+            n_total = info.n_features_total
+            is_active = info.is_active
             below = fi < threshold and is_active
             status = "(!) BAJO" if below else ("OK" if is_active else "no selec.")
             marker = " <" if below else ""
@@ -557,7 +557,7 @@ def _generate_report(
     lines.append("─" * 72)
     lines.append("HISTORIAL ACUMULADO POR FEATURE:")
     lines.append("")
-    fs = history.get('feature_stats', {})
+    fs = history.feature_stats
     if fs:
         lines.append(f"  {'Feature':<35} {'Cat':<10} {'Windows':>7} {'FI_mean':>8} {'Below%':>7} {'Consec.':>7}")
         lines.append(f"  {'─'*35} {'─'*10} {'─'*7} {'─'*8} {'─'*7} {'─'*7}")
@@ -607,7 +607,7 @@ def _print_summary(
     for agent, agent_data in audit_result.items():
         comp_mean = agent_data['competitive_mean']
         for feat, info in agent_data['forced'].items():
-            if not info.get('is_active', False):
+            if not info.is_active:
                 continue
             total_forced += 1
             fi = info['importance_norm']

@@ -13,11 +13,11 @@ df = pd.read_parquet('data/features/features_train.parquet')
 close = df['close']
 
 # Parámetros actuales del shield
-dd_thresh  = float(getattr(cfg.hmm, 'post_ath_dd_threshold',   -0.20))
-mom_thresh = float(getattr(cfg.hmm, 'post_ath_mom_threshold',  -0.05))
-ath_window = int(getattr(cfg.hmm,   'post_ath_ath_window_h',    720))
-ath_min    = int(getattr(cfg.hmm,   'post_ath_ath_min_periods', 360))
-confirm_h  = int(getattr(cfg.hmm,   'post_ath_confirm_h',        48))
+dd_thresh  = float(cfg.hmm.post_ath_dd_threshold)
+mom_thresh = float(cfg.hmm.post_ath_mom_threshold)
+ath_window = int(cfg.hmm.post_ath_ath_window_h)
+ath_min    = int(cfg.hmm.post_ath_ath_min_periods)
+confirm_h  = int(cfg.hmm.post_ath_confirm_h)
 
 print(f"Shield actual: dd_CUTOFF = {dd_thresh} | mom_CUTOFF = {mom_thresh} | ath_window={ath_window}H | confirm={confirm_h}H")
 

@@ -48,9 +48,9 @@ for sd in seed_dirs:
     for sig in sorted(sd.glob('xgboost_meta_*_long_signature.json')):
         try:
             data = json.loads(sig.read_text())
-            dsr_cpcv = float(data.get('dsr_cpcv_best', 0))
-            dsr_oos  = float(data.get('dsr_oos_telemetry', 0))
-            thresh   = float(data.get('optimal_threshold', 0.5))
+            dsr_cpcv = float(data.dsr_cpcv_best)
+            dsr_oos  = float(data.dsr_oos_telemetry)
+            thresh   = float(data.optimal_threshold)
             agent    = sig.stem.replace('xgboost_meta_','').replace('_signature','')
             dsr_rows.append({'seed': sd.name, 'agent': agent,
                              'dsr_cpcv': dsr_cpcv, 'dsr_oos': dsr_oos,

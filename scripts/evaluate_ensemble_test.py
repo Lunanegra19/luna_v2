@@ -299,11 +299,7 @@ def main():
             "3_CALM_BEAR_B":      168.0,
             "3_BEAR_CRASH_B":     168.0,
         }
-        _xgb = getattr(_cfg, "xgboost", {})
-        if isinstance(_xgb, dict):
-            DEFAULT_WAIT_HOURS = float(_xgb.get("embargo_hours", 72.0))
-        else:
-            DEFAULT_WAIT_HOURS = float(getattr(_xgb, "embargo_hours", 72.0))
+        DEFAULT_WAIT_HOURS = float(_cfg.sop.embargo_hours)
 
         # Simular portafolio unificado: agregar por bucket temporal (FIX-D4)
         # ANTES: groupby(index exacto) → un trade por timestamp exacto
@@ -549,7 +545,7 @@ def main():
                 _kurt_ens = float(_ens_verdict.get("statistical_audit", {}).get("kurtosis", 0.0))
                 _n_obs_ens = int(_ens_verdict.get("statistical_audit", {}).get("n_obs_dsr", 1))
                 _n_trials_ens = int(_ens_verdict.get("statistical_audit", {}).get("n_trials_dsr", 100))
-                _base_dsr_thr_ens = float(_ens_verdict.get("sop_thresholds", {}).get("min_dsr", 0.75))
+                _base_dsr_thr_ens = float(_cfg.stat.min_dsr)
                 _dsr_raw_ens = float(_ens_verdict.get("statistical_audit", {}).get("dsr", 0.0))
 
                 _var_sr_ens = (1.0 - (_skew_ens * _sr_crudo_ens) +
@@ -588,11 +584,8 @@ def main():
                           f"< {_base_dsr_thr_ens:.3f} — deploy_approved: True → False")
 
                 # ── [MCTB-02] Disyuntor Letal de Monte Carlo (Probability of Ruin) ──
-                try:
-                    from config.settings import cfg as _cfg_ens
-                    _base_por_thr_ens = float(getattr(_cfg_ens.stat, "max_por_x10", 10.0))
-                except Exception:
-                    _base_por_thr_ens = 10.0
+                from config.settings import cfg as _cfg_ens
+                _base_por_thr_ens = float(_cfg_ens.stat.max_por_x10)
 
                 _ens_verdict["summary"]["por_x10_pct"] = round(_por_x10, 2)
                 
@@ -718,14 +711,14 @@ def main():
         )
         summary_md.append(
             f"| DSR (raw) | {_ev_s.get('dsr','?')} | "
-            f">= {_ens_verdict.get('sop_thresholds', {}).get('min_dsr','?')} | "
+            f">= {_cfg.stat.min_dsr} | "
             f"{'✅' if _ev_f.get('pass_dsr') else '❌'} |"
         )
         summary_md.append(
             f"| DSR (adj R5, N={_ens_verdict.get('n_seeds_correction','?')}) | "
             f"{_ens_verdict.get('dsr_adjusted','?')} | "
             f">= {_ens_verdict.get('adjusted_dsr_threshold','?')} | "
-            f"{'✅' if _ens_verdict.get('dsr_adjusted', 0) >= _ens_verdict.get('adjusted_dsr_threshold', 0.75) else '❌'} |"
+            f"{'✅' if _ens_verdict.get('dsr_adjusted', 0) >= _ens_verdict['adjusted_dsr_threshold'] else '❌'} |"
         )
         summary_md.append(
             f"| PBO CSCV | {_ev_s.get('pbo_pct','?')}% | "
@@ -739,7 +732,7 @@ def main():
         )
         summary_md.append(
             f"| Binomial p | {_ev_s.get('binomial_p','?')} | "
-            f"< {_ens_verdict.get('sop_thresholds', {}).get('alpha_binomial', 0.20)} | "
+            f"< {_cfg.stat.alpha_binomial} | "
             f"{'✅' if _ev_f.get('pass_binomial') else '❌'} |"
         )
         summary_md.append("")

@@ -192,7 +192,12 @@ class MetaLabelerV2Calibrator:
 
         seq_len  = v2_config.get("seq_len", SEQ_LEN)
         hmm_ctx  = v2_config.get("hmm_context", False)
-        n_states = v2_config.get("hmm_n_states", HMM_N_STATES)
+        
+        try:
+            from config.settings import cfg
+            n_states = int(cfg.hmm.n_states)
+        except Exception as e:
+            raise RuntimeError(f"Fallo leyendo cfg.hmm.n_states: {e}")
 
         # 3. Cargar validation set
         df_val = pd.read_parquet(val_path)
@@ -321,7 +326,7 @@ class MetaLabelerV2Calibrator:
                     with open(p, "r") as f:
                         sig = json.load(f)
                         _all_regime_feats.extend(sig["features"])
-                        _thr = float(sig.get("optimal_threshold", 0.50))
+                        _thr = float(sig["optimal_threshold"])
                         _global_thresh_list.append(_thr)
                         # Asignamos el umbral al HMM_Regime, pero nota: Multi-Agent ahora separa long/short
                         # Calibrate probs hoy no distingue el umbral largo/corto, así que usaremos el mínimo o el promedio para el sweep global
@@ -335,9 +340,12 @@ class MetaLabelerV2Calibrator:
                                     _optimal_threshold_per_regime[key] = _thr
 
             xgb_features_all = list(dict.fromkeys(_all_regime_feats))
+            if not _global_thresh_list:
+                raise RuntimeError("CRITICAL: _global_thresh_list vacío. No se encontraron firmas XGBoost válidas con optimal_threshold.")
+            
             xgb_sig = {
                 "features": xgb_features_all,
-                "optimal_threshold": min(_global_thresh_list) if _global_thresh_list else 0.50,
+                "optimal_threshold": min(_global_thresh_list),
                 "optimal_threshold_per_regime": _optimal_threshold_per_regime
             }
         else:
@@ -370,7 +378,11 @@ class MetaLabelerV2Calibrator:
 
         # Convertir HMM_Regime a one-hot (HMM_OH_0..n_states) si el MetaLabeler usó HMM context
         if hmm_ctx and "HMM_Regime" in df_val.columns and not any(c.startswith("HMM_OH_") for c in df_val.columns):
-            n_states = v2_config.get("hmm_n_states", 4)
+            try:
+                from config.settings import cfg
+                n_states = int(cfg.hmm.n_states)
+            except Exception as e:
+                raise RuntimeError(f"Fallo leyendo cfg.hmm.n_states: {e}")
             n_states_total = n_states + 1  # Risk-Off Shield agrega estado n_states
             for s in range(n_states_total):
                 df_val[f"HMM_OH_{s}"] = (pd.to_numeric(df_val["HMM_Regime"], errors='coerce').fillna(-1).astype(int) == s).astype(float)
@@ -546,7 +558,7 @@ class MetaLabelerV2Calibrator:
         # FIX: cuando el pool XGBoost está vacío, calibrar sobre TODA la distribución RF (pass-through
         # isotónico), preservando la varianza discriminativa del MetaLabeler. El threshold XGBoost
         # sigue aplicándose al momento de DECISIÓN en generate_oos, no en calibración.
-        _xgb_opt_t_global = float(xgb_sig.get("optimal_threshold", 0.50))
+        _xgb_opt_t_global = float(xgb_sig["optimal_threshold"])
         _xgb_opt_t_regime = xgb_sig.get("optimal_threshold_per_regime", {})
         if "HMM_Regime" in df_val.columns:
             hmm_regimes_val = df_val["HMM_Regime"].iloc[_seq_indices_calib].fillna(-1).astype(int).values
@@ -751,7 +763,7 @@ class MetaLabelerV2Calibrator:
             _mt_max    = float(_cfg_meta_cal.metalabeler.meta_sweep_max)
             _mt_step   = float(_cfg_meta_cal.metalabeler.meta_sweep_step)
             _mt_min_tr = int(_cfg_meta_cal.metalabeler.meta_min_trades)
-            _xgb_opt_t_global = float(xgb_sig.get("optimal_threshold", 0.50))
+            _xgb_opt_t_global = float(xgb_sig["optimal_threshold"])
             _xgb_opt_t_regime = xgb_sig.get("optimal_threshold_per_regime", {})
             try:
                 COST_PCT_META = float(_cfg_meta_cal.sop.cost_pct)
@@ -793,7 +805,10 @@ class MetaLabelerV2Calibrator:
                 _best_meta_ev    = -np.inf
                 _best_meta_score = -np.inf
                 _best_meta_t     = float(_cfg_meta_cal.metalabeler.meta_filter_threshold)
-                _n_target_meta   = int(getattr(_cfg_meta_cal.sop, "min_trades", getattr(_cfg_meta_cal.wfb, "min_trades", 30)))
+                try:
+                    _n_target_meta   = int(_cfg_meta_cal.stat.min_trades)
+                except Exception as e_mt:
+                    raise RuntimeError(f"Falta stat.min_trades en settings.yaml. Política No-Fallback: {e_mt}") from e_mt
                 _meta_log        = []
 
                 for _mt in np.arange(_mt_min, _mt_max + _mt_step / 2, _mt_step):

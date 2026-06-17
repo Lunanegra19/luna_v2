@@ -2580,12 +2580,12 @@ class LGBMTrainer:
 
             # [FIX-1C] min_gain_to_split: ganancia mínima para aceptar un split (regularización estructural).
             # Default LightGBM=0.0 (acepta cualquier split). Rango [0,2] fuerza splits significativos.
-            'min_gain_to_split': trial.suggest_float('min_gain_to_split', getattr(sp, 'min_gain_to_split_min', 0.0), getattr(sp, 'min_gain_to_split_max', 2.0)),
+            'min_gain_to_split': trial.suggest_float('min_gain_to_split', float(sp.min_gain_to_split_min), float(sp.min_gain_to_split_max)),
 
 
 
             # [FIX-1C] max_bin: bins para discretizar features. Menos bins = menos overfitting OOS.
-            'max_bin': trial.suggest_int('max_bin', getattr(sp, 'max_bin_min', 63), getattr(sp, 'max_bin_max', 255)),
+            'max_bin': trial.suggest_int('max_bin', int(sp.max_bin_min), int(sp.max_bin_max)),
 
 
 
@@ -3892,15 +3892,15 @@ class LGBMTrainer:
 
 
 
-            _n_target = int(_cfg_xgb.sop.min_trades)
+            _n_target = int(_cfg_xgb.stat.min_trades)
 
 
 
-        except Exception:
+        except Exception as e:
 
 
 
-            _n_target = 100
+            raise RuntimeError(f"Falta stat.min_trades en settings.yaml. Política No-Fallback: {e}") from e
 
 
 

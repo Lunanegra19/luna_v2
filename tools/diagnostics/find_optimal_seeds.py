@@ -69,11 +69,11 @@ HMM_EMBARGO_MAP = {
     "3_BEAR_CRASH_B":     168.0,
 }
 try:
-    _xgb = getattr(_cfg, "xgboost", {})
+    _xgb = _cfg.xgboost
     if isinstance(_xgb, dict):
-        DEFAULT_WAIT_HOURS = float(_xgb.get("embargo_hours", 72.0))
+        DEFAULT_WAIT_HOURS = float(_xgb.embargo_hours)
     else:
-        DEFAULT_WAIT_HOURS = float(getattr(_xgb, "embargo_hours", 72.0))
+        DEFAULT_WAIT_HOURS = float(_xgb.embargo_hours)
 except Exception:
     DEFAULT_WAIT_HOURS = 72.0
 
@@ -147,8 +147,8 @@ def evaluate_combination(df_all, selected_seeds, select_size, leverage, soft_emb
     last_time = None
     
     for ts, row in df_portfolio.iterrows():
-        regime = str(row.get('hmm_regime', '1_BULL_TREND'))
-        consensus = int(row.get('consensus_count', threshold))
+        regime = str(row.hmm_regime)
+        consensus = int(row.consensus_count)
         
         # Consensus-Soft Embargo si hay una mayoría calificada (ej: consensus >= threshold + 1)
         if soft_embargo_enabled and consensus >= (threshold + 1):

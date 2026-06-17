@@ -102,7 +102,7 @@ class CustomSignalFilter(SignalFilter):
             _hmm_pkl = self.models_dir / "hmm_regime.pkl"
             if _hmm_pkl.exists():
                 _hmm_bundle = joblib.load(_hmm_pkl)
-                _state_map = _hmm_bundle.get("state_map", {})
+                _state_map = _hmm_bundle.state_map
                 if _state_map and "HMM_Regime" in df_oos.columns:
                     _regime_col = pd.to_numeric(df_oos["HMM_Regime"], errors='coerce').fillna(-1).astype(int)
                     _sem = _regime_col.map({k: v for k, v in _state_map.items()}).astype(str)
@@ -165,7 +165,7 @@ def run_window_simulation(window_id: str, seed: int = 42):
     
     with open(xgb_sig_path, "r", encoding="utf-8") as f:
         xgb_sig = json.load(f)
-    available_feats = xgb_sig.get("features", [])
+    available_feats = xgb_sig.features
     
     # 2.5 Cargar HMM dinámico si la cobertura es insuficiente (< 90%)
     # Esto replica exactamente el comportamiento del pipeline de producción predict_oos.py (FIX-HMM-OOS-COVERAGE-01)
@@ -193,7 +193,7 @@ def run_window_simulation(window_id: str, seed: int = 42):
     # 4. Cargar HMM bundle para state_map
     _hmm_pkl = models_dir / "hmm_regime.pkl"
     _hmm_bundle = joblib.load(_hmm_pkl)
-    _state_map = _hmm_bundle.get("state_map", {})
+    _state_map = _hmm_bundle.state_map
     
     # Asegurar columna HMM_Semantic si se predijo dinámicamente, o rellenar si no existe
     if "HMM_Semantic" not in df_oos.columns:
@@ -213,7 +213,7 @@ def run_window_simulation(window_id: str, seed: int = 42):
     if calib_sig_path.exists():
         with open(calib_sig_path) as csf:
             _cal_sig = json.load(csf)
-            baseline_CUTOFF = _cal_sig.get("optimal_meta_threshold", 0.55)
+            baseline_CUTOFF = _cal_sig.optimal_meta_threshold
     print(f"  [CONFIG] Umbral estático del Baseline calibrador: {baseline_threshold:.3f} (forzado a 0.55 para simular la línea base estática)")
     
     # Forzamos a 0.55 para simular el comportamiento estático original e ineficiente que tenía la run

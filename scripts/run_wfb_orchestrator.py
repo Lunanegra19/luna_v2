@@ -86,10 +86,9 @@ _RET_OPT = 0.01   # Retorno medio "perfecto" (1% por trade)
 try:
     import yaml as _yaml_pt
     _settings_pt = _yaml_pt.safe_load(open(_ROOT / "config" / "settings.yaml", encoding="utf-8"))
-    _PRUNE_LIMIT = float(_settings_pt.get("wfb", {}).get("prune_threshold", 0.95))
-except Exception:
-    _PRUNE_LIMIT = 0.95
-    print(f"[FIX-I] WARN: No se pudo leer wfb.prune_threshold de settings.yaml. Usando fallback={_PRUNE_LIMIT}")
+    _PRUNE_LIMIT = float(_settings_pt["wfb"]["prune_threshold"])
+except Exception as e:
+    raise RuntimeError(f"CRITICAL: Fallo leyendo wfb.prune_threshold de settings: {e}")
 print(f"[FIX-I] WFB Orchestrator: _PRUNE_LIMIT={_PRUNE_LIMIT} (early-stopping semillas)")
 
 # Número total de ventanas WFB
@@ -413,7 +412,7 @@ def main():
         _pf_path = _ROOT / "scripts" / "pre_flight_check.py"
         if _pf_path.exists():
             _pf_result = subprocess.run(
-                [sys.executable, str(_pf_path), "--section", "code,sop,architecture", "--fail-fast"],
+                [sys.executable, str(_pf_path), "--section", "code,sop,architecture,consistency,v5_bugs,invariants", "--fail-fast"],
                 capture_output=True, text=True, encoding="utf-8", errors="replace",
                 cwd=str(_ROOT)
             )

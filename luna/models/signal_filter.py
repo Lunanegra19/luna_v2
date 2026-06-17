@@ -354,8 +354,8 @@ class SignalFilter:
         # Fuente-2: settings.yaml (FALLBACK — solo si ni override ni firma activos)
         if threshold_source == "default-0.50" and not optimal_threshold_per_regime:
             try:
-                from config.settings import cfg as _cfg_oos
-                _t = int(_cfg_oos.xgboost.xgb_signal_threshold)
+                from config.settings import cfg as _cfg_ma
+                _t = _cfg_ma.xgboost.xgb_signal_threshold
                 if _t is not None:
                     _DEFAULT_XGB_LIMIT = float(_t)
                     threshold_source = "settings.yaml (fallback manual)"
@@ -717,7 +717,11 @@ class SignalFilter:
                         _reg_col = pd.to_numeric(df_oos["HMM_Regime"], errors='coerce').fillna(-1).astype(int)
                         # [FIX-04] max_states leído de v2_config (hmm_n_states + 1 por Risk-Off Shield)
                         # Antes: max_states = 6 hardcodeado → silenciosamente perdería estados si HMM crece
-                        _hmm_n_from_cfg = v2_config.get("hmm_n_states", 4)
+                        try:
+                            from config.settings import cfg
+                            _hmm_n_from_cfg = int(cfg.hmm.n_states)
+                        except Exception as e:
+                            raise RuntimeError(f"Fallo leyendo cfg.hmm.n_states: {e}")
                         max_states = _hmm_n_from_cfg + 1  # +1 = Risk-Off Shield (estado adicional)
                         print(f"[FIX-04] HMM one-hot: max_states={max_states} (hmm_n_states={_hmm_n_from_cfg} desde v2_config, +1 Risk-Off Shield)")
 
@@ -789,7 +793,11 @@ class SignalFilter:
                     X_seq_oos  = np.array(X_seq_list, dtype=np.float32)
                     xgb_p_seq  = df_oos["xgb_prob"].values[seq_indices]
 
-                    _n_hmm = v2_config.get("hmm_n_states", 4)
+                    try:
+                        from config.settings import cfg
+                        _n_hmm = int(cfg.hmm.n_states)
+                    except Exception as e:
+                        raise RuntimeError(f"Fallo leyendo cfg.hmm.n_states: {e}")
                     _n_hmm_total = _n_hmm + 1  # Risk-Off Shield agrega estado n_states (4)
                     hmm_context_oos = None
                     if "HMM_Regime" in df_oos.columns and not df_oos["HMM_Regime"].isna().all():
@@ -814,7 +822,7 @@ class SignalFilter:
                     _meta_thresh_global = 0.50  # FASE C: Seguro default
                     try:
                         from config.settings import cfg as _cfg_meta_g
-                        _mlab_cfg_g = int(_cfg_meta_g.metalabeler)
+                        _mlab_cfg_g = _cfg_meta_g.metalabeler
                         _global_thr = float(_mlab_cfg_g.meta_v2_min_prob)
                         if _global_thr is not None:
                             _meta_thresh_global = float(_global_thr)
@@ -858,7 +866,7 @@ class SignalFilter:
                     # ── C4: Multi-Agent Dynamic Application (Bull/Bear/Range x Long/Short) ──
                     try:
                         from config.settings import cfg as _cfg_meta
-                        _mlab_cfg = int(_cfg_meta.metalabeler)
+                        _mlab_cfg = _cfg_meta.metalabeler
                         
                         _dir_series = df_oos.get("direction", pd.Series("long", index=df_oos.index))
                         if hasattr(_dir_series, "str"):
@@ -963,8 +971,8 @@ class SignalFilter:
                         # bull_strong (1_BULL_TREND) → p50 causal en audit = 0.632 → threshold bajo razonable
                         # bull_unstable (WEAK, VOLATILE) → umbral más exigente para filtrar señal débil
                         try:
-                            _thresh_bull_strong   = float(int(_mlab_cfg.meta_v2_thresh_bull_strong) or 0.50)
-                            _thresh_bull_unstable = float(int(_mlab_cfg.meta_v2_thresh_bull_unstable) or 0.63)
+                            _thresh_bull_strong   = float(_mlab_cfg.meta_v2_thresh_bull_strong) if _mlab_cfg.meta_v2_thresh_bull_strong else 0.50
+                            _thresh_bull_unstable = float(_mlab_cfg.meta_v2_thresh_bull_unstable) if _mlab_cfg.meta_v2_thresh_bull_unstable else 0.63
                         except Exception as _e_thr_read:
                             raise RuntimeError(
                                 f"[H3-FIX][CRITICAL] No se pudo leer meta_v2_thresh_bull_strong/unstable de settings.yaml: {_e_thr_read}"
@@ -1091,7 +1099,7 @@ class SignalFilter:
                         # [FIX-SNIPER-W4 2026-06-14] Bloqueo Duro de Regímenes (Hard Exclusion)
                         try:
                             from config.settings import cfg as _cfg_excl
-                            _excl_param = int(getattr(_cfg_excl.metalabeler), 'hmm_volatile_bull_exclude', [])
+                            _excl_param = getattr(_cfg_excl.metalabeler, 'hmm_volatile_bull_exclude', [])
                             if _excl_param:
                                 _h1_excluded_list = [str(x).upper() for x in _excl_param]
                                 _hmm_col_f = "HMM_Semantic" if "HMM_Semantic" in df_oos.columns else ("HMM_Regime" if "HMM_Regime" in df_oos.columns else None)
@@ -1128,8 +1136,8 @@ class SignalFilter:
         hmm_mask = pd.Series(True, index=df_oos.index)
         try:
             from config.settings import cfg as _cfg_hmm
-            _hmm_cfg = int(_cfg_hmm.metalabeler)
-            _hmm_allowed = int(_hmm_cfg.hmm_allowed_regimes)
+            _hmm_cfg = _cfg_hmm.metalabeler
+            _hmm_allowed = _hmm_cfg.hmm_allowed_regimes
             if _hmm_allowed is None:
                 raise ValueError("hmm_allowed_regimes no está definido en config.settings")
         except Exception as e:
@@ -1287,8 +1295,8 @@ class SignalFilter:
                             _h1_min_pf_low_n = 1.0  # default: exige PF>1.0 en regimenes con n<3
                             try:
                                 from config.settings import cfg as _cfg_h1
-                                _mlab_cfg_h1 = int(_cfg_h1.metalabeler)
-                                _excl_param = int(_mlab_cfg_h1.hmm_volatile_bull_exclude)
+                                _mlab_cfg_h1 = _cfg_h1.metalabeler
+                                _excl_param = _mlab_cfg_h1.hmm_volatile_bull_exclude
                                 if _excl_param:
                                     _h1_excluded_list = [str(x) for x in _excl_param]
                                 _h1_min_pf_low_n = float(int(_mlab_cfg_h1.hmm_dyn_min_pf_bull_low_n))
@@ -1402,9 +1410,9 @@ class SignalFilter:
             # [FIX-BUG-HMM-BEAR-LONG-01] Permitir que el agente BEAR opere en posiciones LONG durante mercados bajistas cuando use_regime_agents=True.
             try:
                 from config.settings import cfg as _cfg_sf
-                use_regime = bool(_cfg_sf.fase2.use_regime_agents)
+                use_regime = getattr(_cfg_sf.fase2, 'use_regime_agents', False)
                 if use_regime and direction == "long":
-                    _mapping = int(_cfg_sf.fase2.regime_mapping)
+                    _mapping = getattr(_cfg_sf.fase2, 'regime_mapping', None)
                     if _mapping:
                         _bear_regimes = getattr(_mapping, 'bear', [])
                         _added = []
@@ -1548,14 +1556,14 @@ class SignalFilter:
         # ── Leer configuracion sin fallback silencioso ─────────────────────────
         try:
             from config.settings import cfg as _cfg_sg
-            _sg_cfg = int(_cfg_sg.session_gate)
+            _sg_cfg = getattr(_cfg_sg, 'session_gate', None)
             if _sg_cfg is None:
                 raise KeyError("session_gate no encontrado en config/settings.yaml")
-            _enabled       = bool(bool(_sg_cfg.enabled))
-            _allowed_hours = list(int(_sg_cfg.allowed_hours_utc) or [])
-            _monday_veto   = bool(int(_sg_cfg.monday_regime_veto))
-            _veto_regimes  = list(int(_sg_cfg.monday_veto_regimes) or [])
-            _log_blocked   = bool(int(_sg_cfg.log_blocked))
+            _enabled       = bool(getattr(_sg_cfg, 'enabled', False))
+            _allowed_hours = list(getattr(_sg_cfg, 'allowed_hours_utc', []))
+            _monday_veto   = bool(getattr(_sg_cfg, 'monday_regime_veto', False))
+            _veto_regimes  = list(getattr(_sg_cfg, 'monday_veto_regimes', []))
+            _log_blocked   = bool(getattr(_sg_cfg, 'log_blocked', False))
         except Exception as e:
             err_msg = (
                 "[B1-SESSION-GATE] CRITICO: Fallo al leer configuracion de session_gate. "

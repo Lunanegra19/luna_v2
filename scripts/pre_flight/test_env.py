@@ -517,7 +517,7 @@ def t80():
 
     barrier_val = list(unique_values)[0]
     cfg = _cfg()
-    emb = int(getattr(cfg.temporal_splits, "embargo_hours", 96))
+    emb = int(cfg.temporal_splits.embargo_hours)
     assert barrier_val >= emb // 2, (
         f"vertical_barrier_hours={barrier_val} < embargo/2={emb//2}. "
         f"La barrera vertical es mas corta que el embargo — riesgo de solapamiento."
@@ -561,8 +561,8 @@ def t82():
     sop.purge_hours y sop.embargo_hours (SOP R3 consistente).
     """
     cfg = _cfg()
-    expected_purge = int(getattr(cfg.sop, "purge_hours", 96))
-    expected_emb = int(getattr(cfg.sop, "embargo_hours", 72))
+    expected_purge = int(cfg.sop.purge_hours)
+    expected_emb = int(cfg.sop.embargo_hours)
 
     try:
         from luna.features.feature_selection_e import SFI_PURGE_H, SFI_EMBARGO_H
@@ -593,7 +593,7 @@ def t83():
     if not gaunt:
         return "gauntlet no en settings (ver TEST-63)"
 
-    min_dsr_cfg = float(getattr(gaunt, "min_dsr", 0.75))
+    min_dsr_cfg = float(gaunt.min_dsr)
 
     val_path = ROOT / "scripts/run_statistical_validation.py"
     if not val_path.exists():
@@ -1489,7 +1489,7 @@ def t102():
     """
     cfg2 = _cfg()
     sp = cfg2.temporal_splits
-    emb_h = int(getattr(sp, "embargo_hours", 96))
+    emb_h = int(sp.embargo_hours)
 
     df_tr  = _load_parquet("features_train.parquet")
     df_val = _load_parquet("features_validation.parquet")

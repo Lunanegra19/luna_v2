@@ -41,11 +41,11 @@ HMM_EMBARGO_PRODUCTION = {
 # Importar configuración institucional para DEFAULT_WAIT_HOURS
 try:
     from luna.core.config import settings as _cfg
-    _xgb = getattr(_cfg, "xgboost", {})
+    _xgb = _cfg.xgboost
     if isinstance(_xgb, dict):
-        DEFAULT_WAIT_HOURS = float(_xgb.get("embargo_hours", 72.0))
+        DEFAULT_WAIT_HOURS = float(_xgb.embargo_hours)
     else:
-        DEFAULT_WAIT_HOURS = float(getattr(_xgb, "embargo_hours", 72.0))
+        DEFAULT_WAIT_HOURS = float(_xgb.embargo_hours)
 except Exception:
     DEFAULT_WAIT_HOURS = 72.0
 

@@ -122,29 +122,34 @@ class WFBPhaseGate:
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
         # [FIX-E] DATA_MAX_NAN_PCT sobreescrito desde settings.yaml debug.nan_threshold_pct
-        # Política no-fallback: si settings falla, usar WARNING con valor conservador (5%)
-        # Gate G0: NaN excesivo no afecta el veredicto estadístico final, solo la calidad del dato.
         try:
             from config.settings import cfg as _cfg_pg
             _nan_thr = float(_cfg_pg.debug.nan_threshold_pct)
             self.DATA_MAX_NAN_PCT = _nan_thr / 100.0  # convertir % a fracción
             print(f"[FIX-E] PhaseGates G0: DATA_MAX_NAN_PCT={self.DATA_MAX_NAN_PCT:.3f} ({self.DATA_MAX_NAN_PCT*100:.1f}% NaN max)")
+        except AttributeError as _e_nan:
+            msg = f"[PhaseGates-G0] CRITICAL: Falta debug.nan_threshold_pct en settings.yaml: {_e_nan}"
+            logger.critical(msg)
+            raise RuntimeError(msg) from _e_nan
         except Exception as _e_nan:
-            self.DATA_MAX_NAN_PCT = 0.05  # 5% conservador (no 50% que era claramente incorrecto)
-            print(f"[FIX-E] WARNING: No se pudo leer debug.nan_threshold_pct ({_e_nan}). Usando 5% conservador — revisar settings.yaml")
-            logger.warning("[PhaseGates-G0] DATA_MAX_NAN_PCT fallback=5% — settings.yaml no disponible")
+            msg = f"[PhaseGates-G0] CRITICAL: No se pudo leer debug.nan_threshold_pct: {_e_nan}"
+            logger.critical(msg)
+            raise RuntimeError(msg) from _e_nan
 
         # [FIX-J] SFI_MAX_ALPHA_RATIO sobreescrito desde settings.yaml features.sfi_max_alpha_ratio
-        # Política: si settings falla → WARNING con fallback 0.60 (valor validado). No es gate de trading.
         try:
             from config.settings import cfg as _cfg_pg
-            _alpha_ratio = float(getattr(_cfg_pg.features, 'sfi_max_alpha_ratio', 0.60))
+            _alpha_ratio = float(_cfg_pg.features.sfi_max_alpha_ratio)
             self.SFI_MAX_ALPHA_RATIO = _alpha_ratio
             print(f"[FIX-J] PhaseGates G1: SFI_MAX_ALPHA_RATIO={self.SFI_MAX_ALPHA_RATIO:.3f} ({self.SFI_MAX_ALPHA_RATIO*100:.1f}% max alpha)")
+        except AttributeError as _e_sfi:
+            msg = f"[PhaseGates-G1] CRITICAL: Falta features.sfi_max_alpha_ratio en settings.yaml: {_e_sfi}"
+            logger.critical(msg)
+            raise RuntimeError(msg) from _e_sfi
         except Exception as _e_sfi:
-            self.SFI_MAX_ALPHA_RATIO = 0.60  # valor validado — no 0.80 original
-            print(f"[FIX-J] WARNING: No se pudo leer features.sfi_max_alpha_ratio ({_e_sfi}). Fallback=0.60")
-            logger.warning("[PhaseGates-G1] SFI_MAX_ALPHA_RATIO fallback=0.60 — settings.yaml no disponible")
+            msg = f"[PhaseGates-G1] CRITICAL: No se pudo leer features.sfi_max_alpha_ratio: {_e_sfi}"
+            logger.critical(msg)
+            raise RuntimeError(msg) from _e_sfi
 
         # [FIX-GATES-CFG] Carga dinámica de Phase Gates desde settings.yaml (sección stat)
         # POLÍTICA NO-FALLBACK (2026-05-21): Gates críticos de calidad de modelo → CRITICAL si falla settings.
@@ -167,19 +172,20 @@ class WFBPhaseGate:
                 raise KeyError(f"[PhaseGates] CRITICAL: claves obligatorias ausentes en cfg.stat: {_missing_crit}. "
                                "Ver docs/parametros_fijos.md §3.1")
 
-            self.XGB_AUC_HARD_STOP             = float(getattr(_stat, 'xgb_auc_hard_stop'))
-            self.XGB_AUC_WARN                  = float(getattr(_stat, 'xgb_auc_warn', 0.530))  # warn no critico
-            self.XGB_BRIER_HARD_STOP           = float(getattr(_stat, 'xgb_brier_hard_stop'))
-            self.XGB_BRIER_WARN                = float(getattr(_stat, 'xgb_brier_warn', 0.2700))
-            self.XGB_BRIER_DEGRADED_MAX_AGENTS = int(getattr(_stat, 'xgb_brier_degraded_max_agents', 1))
-            self.XGB_PROBA_STD_MIN             = float(getattr(_stat, 'xgb_proba_std_min'))
-            self.LGBM_PROBA_STD_MIN            = float(getattr(_stat, 'lgbm_proba_std_min', 0.010))
-            self.HMM_MIN_ACTIVE_STATES         = int(getattr(_stat, 'hmm_min_active_states', 2))
-            self.SFI_MIN_FEATURES              = int(getattr(_stat, 'sfi_min_features', 5))
-            # Gates operativos: fallback con WARNING
-            self.DATA_MIN_ROWS         = int(getattr(_stat, 'data_min_rows', 1000))
-            self.DATA_MAX_GAP_H        = int(getattr(_stat, 'data_max_gap_h', 48))
-            self.SIGNAL_MIN_COUNT_WARN = int(getattr(_stat, 'signal_min_count_warn', 5))
+            self.XGB_AUC_HARD_STOP             = float(_stat.xgb_auc_hard_stop)
+            self.XGB_AUC_WARN                  = float(_stat.xgb_auc_warn)
+            self.XGB_BRIER_HARD_STOP           = float(_stat.xgb_brier_hard_stop)
+            self.XGB_BRIER_WARN                = float(_stat.xgb_brier_warn)
+            self.XGB_BRIER_DEGRADED_MAX_AGENTS = int(_stat.xgb_brier_degraded_max_agents)
+            self.XGB_PROBA_STD_MIN             = float(_stat.xgb_proba_std_min)
+            self.LGBM_PROBA_STD_MIN            = float(_stat.lgbm_proba_std_min)
+            self.HMM_MIN_ACTIVE_STATES         = int(_stat.hmm_min_active_states)
+            self.SFI_MIN_FEATURES              = int(_stat.sfi_min_features)
+            
+            # Gates operativos: carga estricta No-Fallback
+            self.DATA_MIN_ROWS         = int(_stat.data_min_rows)
+            self.DATA_MAX_GAP_H        = int(_stat.data_max_gap_h)
+            self.SIGNAL_MIN_COUNT_WARN = int(_stat.signal_min_count_warn)
 
             print(
                 f"[FIX-GATES-CFG] Gates críticos cargados OK: "

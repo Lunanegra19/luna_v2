@@ -114,13 +114,13 @@ try:
         raise ValueError("calibration_fallback_method must be 'sigmoid' in Luna v2 Platt scaling fallback.")
         
     # Strictly validate Embargo parameters
-    if int(_cfg_xgb.xgboost.embargo_dynamic_decay) is None:
+    if getattr(_cfg_xgb.xgboost, "embargo_dynamic_decay", None) is None:
         raise AttributeError("settings.yaml missing 'xgboost.embargo_dynamic_decay'")
-    if int(_cfg_xgb.xgboost.embargo_decay_atr_lookback) is None:
+    if getattr(_cfg_xgb.xgboost, "embargo_decay_atr_lookback", None) is None:
         raise AttributeError("settings.yaml missing 'xgboost.embargo_decay_atr_lookback'")
-    if int(_cfg_xgb.xgboost.embargo_low_density_threshold) is None:
+    if getattr(_cfg_xgb.xgboost, "embargo_low_density_threshold", None) is None:
         raise AttributeError("settings.yaml missing 'xgboost.embargo_low_density_threshold'")
-    if int(_cfg_xgb.xgboost.embargo_min_hours) is None:
+    if getattr(_cfg_xgb.xgboost, "embargo_min_hours", None) is None:
         raise AttributeError("settings.yaml missing 'xgboost.embargo_min_hours'")
         
     OPTUNA_TRIALS = int(_cfg_xgb.xgboost.optuna_trials)
@@ -325,6 +325,8 @@ class XGBoostTrainer:
         self.X = None
         self.y = None
         self.close_rets = None
+        self._spw_ideal = 1.0
+        self._base_rate_is = 0.50
         self.study = None
         self.best_params = {}
         # FIX-CPCV-CACHE-01: cache de splits CPCV precalculados.
@@ -706,7 +708,7 @@ class XGBoostTrainer:
         try:
             _dynamic_barrier = bool(hasattr(_cfg, "xgboost") and
                                     bool(getattr(_cfg.xgboost, "dynamic_barrier", False)))
-            _event_sampling_h = int(getattr(_cfg.xgboost, "event_sampling_hours", 1))
+            _event_sampling_h = int(_cfg.xgboost.event_sampling_hours)
         except Exception:
             _dynamic_barrier, _event_sampling_h = False, 1
 
@@ -1386,7 +1388,7 @@ class XGBoostTrainer:
             # [HEURISTIC PRUNING] Gamma vs SPW Coupling
             # Focal Loss degenerates the minority class if gamma is very high but SPW is low.
             # Reject absurd combinations mathematically to optimize convergence.
-            _spw_ideal = getattr(self, '_spw_ideal', 1.0)
+            _spw_ideal = self._spw_ideal
             if _fl_gamma > 2.0 and _spw < _spw_ideal:
                 raise optuna.TrialPruned("Degenerate: High focal gamma requires higher SPW.")
             if _fl_gamma < 1.0 and _spw > _spw_ideal * 1.5:
@@ -2021,9 +2023,9 @@ class XGBoostTrainer:
         # Con score compuesto, el calibrador equilibra senial y volumen.
         # min_trades del Gauntlet (100) es el N_target optimo.
         try:
-            _n_target = int(getattr(_cfg_xgb.sop, "min_trades", getattr(_cfg_xgb.wfb, "min_trades", 30)))
-        except Exception:
-            _n_target = 100
+            _n_target = int(_cfg_xgb.stat.min_trades)
+        except Exception as e:
+            raise RuntimeError(f"Falta stat.min_trades en settings.yaml. Política No-Fallback: {e}") from e
 
         # [FIX-CALIBRATE-TIMING-01] Calcular timing features inline en df_val,
         # igual que en load_dataset() y generate_oos_predictions.py.
@@ -3409,8 +3411,8 @@ class XGBoostTrainer:
             "best_trial_number":          self.study.best_trial.number if (hasattr(self, "study") and hasattr(self.study, "best_trial") and self.study.best_trial) else -1,
             # IDEA-A: Brier gate adaptativo al regimen actual (2026-05-07)
             # [FIX-IDEA-A-01] Usa _brier_adaptive_gate calculado arriba (None si NO_OPERABLE)
-            "target_base_rate":    getattr(self, "_base_rate_is", 0.50),
-            "brier_naive":         round(getattr(self, "_base_rate_is", 0.50) * (1 - getattr(self, "_base_rate_is", 0.50)), 4),
+            "target_base_rate":    self._base_rate_is,
+            "brier_naive":         round(self._base_rate_is * (1 - self._base_rate_is), 4),
             "brier_adaptive_gate": getattr(self, "_brier_adaptive_gate", None),
             }, f, indent=4)
 

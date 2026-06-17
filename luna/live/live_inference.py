@@ -249,7 +249,11 @@ class LunaLiveInference:
             try:
                 sig = self._load_bilstm_signature(direction_mode=direction_lower)
                 seq_feat_names = sig.get("seq_feature_names", self.selected_features)
-                n_states = int(sig.get("hmm_n_states", 4))
+                try:
+                    from config.settings import cfg
+                    n_states = int(cfg.hmm.n_states)
+                except Exception as e:
+                    raise RuntimeError(f"Fallo leyendo cfg.hmm.n_states: {e}")
                 use_hmm_context = sig.get("hmm_context", False)
 
                 # Secuencias temporales (N=1, seq_len, n_features)

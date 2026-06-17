@@ -186,9 +186,11 @@ def main():
         # [VOTING-METHOD-SELECTOR] Elegir entre Hard Voting y Soft Voting
         try:
             from config.settings import cfg as _cfg
-            voting_method = getattr(_cfg.wfb, 'ensemble_voting_method', 'soft').lower()
-        except Exception:
-            voting_method = 'soft'
+            voting_method = str(_cfg.wfb.ensemble_voting_method).lower()
+        except AttributeError as e:
+            raise RuntimeError(f"CRITICAL: Falta wfb.ensemble_voting_method en settings: {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"CRITICAL: Falló la carga de wfb.ensemble_voting_method: {e}") from e
             
         # [REFERENCIA: Arquitectura Soft Voting y Multiple Testing]
         # Basado en: Bailey & López de Prado (2014) - The Deflated Sharpe Ratio (arXiv:1408.4916)
@@ -217,10 +219,12 @@ def main():
         else:
             # Soft Voting (Continuous)
             try:
-                soft_voting_threshold = float(getattr(_cfg.wfb, 'soft_voting_threshold', 0.55))
+                soft_voting_threshold = float(_cfg.wfb.soft_voting_threshold)
                 print(f"[SOFT-VOTING-01] Cargado Soft Voting Threshold: >= {soft_voting_threshold}")
+            except AttributeError as e:
+                raise RuntimeError(f"CRITICAL: Falta wfb.soft_voting_threshold en settings: {e}") from e
             except Exception as e:
-                raise RuntimeError(f"Falló la carga de soft_voting_threshold: {e}")
+                raise RuntimeError(f"CRITICAL: Falló la carga de wfb.soft_voting_threshold: {e}") from e
 
             if df_ensemble_probs is None or df_ensemble_probs.empty:
                 raise RuntimeError("CRITICAL: df_ensemble_probs está vacío. No se puede ejecutar Soft Voting.")
@@ -279,11 +283,7 @@ def main():
             "3_CALM_BEAR_B":      168.0,
             "3_BEAR_CRASH_B":     168.0,
         }
-        _xgb = getattr(_cfg, "xgboost", {})
-        if isinstance(_xgb, dict):
-            DEFAULT_WAIT_HOURS = float(_xgb.get("embargo_hours", 72.0))
-        else:
-            DEFAULT_WAIT_HOURS = float(getattr(_xgb, "embargo_hours", 72.0))
+        DEFAULT_WAIT_HOURS = float(_cfg.sop.embargo_hours)
 
         # Simular portafolio unificado: agregar por bucket temporal (FIX-D4)
         # ANTES: groupby(index exacto) → un trade por timestamp exacto
@@ -338,9 +338,11 @@ def main():
         #   - consenso >= soft_threshold + WR_rolling > 40% → 48H  (régimen neutral)
         #   - else                                           → HMM estándar (72-168H)
         try:
-            _se_adapt_enabled = bool(getattr(_cfg.wfb.circuit_breaker, 'enabled', True))
-        except Exception:
-            _se_adapt_enabled = True
+            _se_adapt_enabled = bool(_cfg.wfb.circuit_breaker.enabled)
+        except AttributeError as e:
+            raise RuntimeError(f"CRITICAL: Falta wfb.circuit_breaker.enabled en settings: {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"CRITICAL: Falló la carga de wfb.circuit_breaker.enabled: {e}") from e
 
         # WR rolling 30d sobre los trades del portfolio ordenados
         _ROLLING_WINDOW = 30  # días
@@ -528,7 +530,7 @@ def main():
                 _kurt_ens = float(_ens_verdict.get("statistical_audit", {}).get("kurtosis", 0.0))
                 _n_obs_ens = int(_ens_verdict.get("statistical_audit", {}).get("n_obs_dsr", 1))
                 _n_trials_ens = int(_ens_verdict.get("statistical_audit", {}).get("n_trials_dsr", 100))
-                _base_dsr_thr_ens = float(_ens_verdict.get("sop_thresholds", {}).get("min_dsr", 0.75))
+                _base_dsr_thr_ens = float(_cfg.stat.min_dsr)
                 _dsr_raw_ens = float(_ens_verdict.get("statistical_audit", {}).get("dsr", 0.0))
 
                 _var_sr_ens = (1.0 - (_skew_ens * _sr_crudo_ens) +
@@ -569,9 +571,11 @@ def main():
                 # ── [MCTB-02] Disyuntor Letal de Monte Carlo (Probability of Ruin) ──
                 try:
                     from config.settings import cfg as _cfg_ens
-                    _base_por_thr_ens = float(getattr(_cfg_ens.stat, "max_por_x10", 10.0))
-                except Exception:
-                    _base_por_thr_ens = 10.0
+                    _base_por_thr_ens = float(_cfg_ens.stat.max_por_x10)
+                except AttributeError as e:
+                    raise RuntimeError(f"CRITICAL: Falta stat.max_por_x10 en settings: {e}") from e
+                except Exception as e:
+                    raise RuntimeError(f"CRITICAL: Falló la carga de stat.max_por_x10: {e}") from e
 
                 _ens_verdict["summary"]["por_x10_pct"] = round(_por_x10, 2)
                 
@@ -697,14 +701,14 @@ def main():
         )
         summary_md.append(
             f"| DSR (raw) | {_ev_s.get('dsr','?')} | "
-            f">= {_ens_verdict.get('sop_thresholds', {}).get('min_dsr','?')} | "
+            f">= {_cfg.stat.min_dsr} | "
             f"{'✅' if _ev_f.get('pass_dsr') else '❌'} |"
         )
         summary_md.append(
             f"| DSR (adj R5, N={_ens_verdict.get('n_seeds_correction','?')}) | "
             f"{_ens_verdict.get('dsr_adjusted','?')} | "
             f">= {_ens_verdict.get('adjusted_dsr_threshold','?')} | "
-            f"{'✅' if _ens_verdict.get('dsr_adjusted', 0) >= _ens_verdict.get('adjusted_dsr_threshold', 0.75) else '❌'} |"
+            f"{'✅' if _ens_verdict.get('dsr_adjusted', 0) >= _ens_verdict['adjusted_dsr_threshold'] else '❌'} |"
         )
         summary_md.append(
             f"| PBO CSCV | {_ev_s.get('pbo_pct','?')}% | "
@@ -718,7 +722,7 @@ def main():
         )
         summary_md.append(
             f"| Binomial p | {_ev_s.get('binomial_p','?')} | "
-            f"< {_ens_verdict.get('sop_thresholds', {}).get('alpha_binomial', 0.20)} | "
+            f"< {_cfg.stat.alpha_binomial} | "
             f"{'✅' if _ev_f.get('pass_binomial') else '❌'} |"
         )
         summary_md.append("")

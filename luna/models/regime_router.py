@@ -216,7 +216,7 @@ class RegimeRouter:
                 with open(sig_path, 'r') as f:
                     sig = json.load(f)
                     self.signatures[name] = sig
-                    self.calibrations[name] = sig.get('optimal_threshold', 0.5)
+                    self.calibrations[name] = float(sig["optimal_threshold"])
 
                 # Cargar el modelo en formato nativo correspondiente
                 if self.agent_type == "xgboost":

@@ -47,7 +47,7 @@ def load_model_and_features(agent: str):
     clf = xgb.XGBClassifier()
     clf.load_model(str(model_path))
     sig = json.loads(sig_path.read_text(encoding="utf-8"))
-    return clf, sig.get("features", []), sig
+    return clf, sig.features, sig
 
 
 def safe_proba(clf, df, features):
@@ -74,10 +74,10 @@ def get_wfb_prior_threshold(agent: str) -> tuple:
             try:
                 s = json.loads(sig_path.read_text(encoding="utf-8"))
                 thr = s.get("optimal_threshold")
-                report = s.get("calibration_report", [])
-                has_ev = any(r.get("ev", -1) > 0 for r in report)
+                report = s.calibration_report
+                has_ev = any(r.ev > 0 for r in report)
                 if thr is not None and has_ev:
-                    max_ev = max((r.get("ev", -1) for r in report), default=-1)
+                    max_ev = max((r.ev for r in report), default=-1)
                     thresholds_with_ev.append({
                         "seed": seed_dir.name,
                         "window": w_id,
@@ -156,7 +156,7 @@ def print_agent_report(agent: str):
         print("  [SKIP] Modelo no encontrado")
         return
 
-    thr_actual = sig.get("optimal_threshold", 0.48)
+    thr_actual = sig.optimal_threshold
     thr_prior, n_prior, prior_details = get_wfb_prior_threshold(agent)
 
     print(f"  Threshold ACTUAL de la run : {thr_actual:.3f}")
