@@ -526,14 +526,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-02-28
+  hmm_train_end: 2025-03-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-03-31
-  holdout_start: 2025-03-01
-  train_end: 2024-12-31
+  holdout_end: 2025-04-30
+  holdout_start: 2025-04-01
+  train_end: 2025-01-31
   train_start: '2017-08-17'
-  validation_end: 2025-02-28
-  validation_start: 2025-01-01
+  validation_end: 2025-03-31
+  validation_start: 2025-02-01
 wfb:
   ensemble_voting_method: soft
   soft_voting_threshold: 0.55
