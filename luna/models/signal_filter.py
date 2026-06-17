@@ -1024,9 +1024,9 @@ class SignalFilter:
                         # ── [H3-FIX 2026-05-30 / SNIPER-ASYM-01 2026-06-09] CAPA 5: Percentil Causal Rolling Asimetrico ──
                         # Calculamos el percentil p(meta_v2_rolling_percentile) de las probs observadas.
                         # Novedad SNIPER-ASYM-01: El percentil varia segun el regimen (Bull relaja pyramiding, Bear asfixia ruido).
-                        _use_rolling_pct = int(_mlab_cfg.meta_v2_rolling_percentile) if _mlab_cfg else None
-                        _pct_bull = int(_mlab_cfg.meta_v2_rolling_percentile_bull) if _mlab_cfg else _use_rolling_pct
-                        _pct_bear = int(_mlab_cfg.meta_v2_rolling_percentile_bear) if _mlab_cfg else _use_rolling_pct
+                        _use_rolling_pct = float(_mlab_cfg.meta_v2_rolling_percentile) if _mlab_cfg else None
+                        _pct_bull = float(_mlab_cfg.meta_v2_rolling_percentile_bull) if _mlab_cfg else _use_rolling_pct
+                        _pct_bear = float(_mlab_cfg.meta_v2_rolling_percentile_bear) if _mlab_cfg else _use_rolling_pct
                         _rolling_min_n   = int(int(_mlab_cfg.meta_v2_rolling_min_n)) if _mlab_cfg else 50
                         
                         if _use_rolling_pct is not None and not _simulate_online:

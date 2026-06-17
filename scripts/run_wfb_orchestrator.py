@@ -285,6 +285,10 @@ def main():
     parser.add_argument("--force-resume", action="store_true", help="Forzar --resume incluso en el primer intento de la primera seed")
     parser.add_argument("--smoke-test", action="store_true", help="[DEV] Modo extra rapido para validar el pipeline (inyecta LUNA_SMOKE_TEST=1)")
     parser.add_argument("--nocache", action="store_true", help="Forzar eliminación total de la caché WFB antes de empezar")
+    parser.add_argument("--sficache", action="store_true",
+                        help="[SFICACHE-01] Implica --nocache pero preserva los sfi_lock.json de ventanas anteriores. "
+                             "Permite re-entrenar XGBoost/MetaLabeler/AE sin recalcular el SFI (el paso mas costoso). "
+                             "Util cuando solo se cambia meta_v2_rolling_percentile u otros parametros post-SFI.")
     args = parser.parse_args()
 
     if args.smoke_test:
@@ -450,13 +454,48 @@ def main():
     print(f"   Resume: {args.resume} | Force Resume: {args.force_resume} | No Cache: {args.nocache}")
     print("=================================================================")
 
+    # [SFICACHE-01 2026-06-17] --sficache implica --nocache pero preserva los SFI locks.
+    # RAZON: el SFI (BH-SHAP sobre PurgedKFold) es el paso mas costoso (~60-90 min/ventana).
+    # Si solo cambia meta_v2_rolling_percentile u otros params post-SFI, es innecesario recalcularlo.
+    # El fingerprint del sfi_lock.json incluye dates + dataset_shape + TBM params (NO rolling_percentile),
+    # por lo que el SFI cacheado sigue siendo valido tras cambios de filtrado de señales.
+    if args.sficache:
+        if not args.nocache:
+            print("[SFICACHE-01] --sficache activo: implica --nocache para limpiar todo EXCEPTO sfi_lock.json.")
+            args.nocache = True
+
     if args.nocache:
         print("[!] --nocache detectado. Limpiando WFB cache...")
         # shutil ya importado a nivel de módulo (línea 14) — no reimportar localmente (causaba UnboundLocalError)
         cache_dir = Path(__file__).parent.parent / "data" / "wfb_cache"
+
+        # [SFICACHE-01] Backup de sfi_lock.json ANTES del borrado si --sficache activo
+        _sfi_backups = {}  # dict: ruta_relativa -> contenido_json_str
+        if args.sficache and cache_dir.exists():
+            for _sfi_f in cache_dir.glob("*/sfi_lock.json"):
+                try:
+                    _rel = str(_sfi_f.relative_to(cache_dir))
+                    _sfi_backups[_rel] = _sfi_f.read_text(encoding="utf-8")
+                    print(f"[SFICACHE-01] SFI lock respaldado: {_rel}")
+                except Exception as _e_sfi_bk:
+                    print(f"[SFICACHE-01] WARN: no se pudo respaldar {_sfi_f}: {_e_sfi_bk}")
+            print(f"[SFICACHE-01] {len(_sfi_backups)} sfi_lock.json respaldados antes del borrado de cache.")
+
         if cache_dir.exists():
             shutil.rmtree(cache_dir, ignore_errors=True)
             print("[!] data/wfb_cache eliminado correctamente.")
+
+        # [SFICACHE-01] Restaurar sfi_lock.json tras el borrado
+        if args.sficache and _sfi_backups:
+            for _rel, _content in _sfi_backups.items():
+                _restore_path = cache_dir / _rel
+                try:
+                    _restore_path.parent.mkdir(parents=True, exist_ok=True)
+                    _restore_path.write_text(_content, encoding="utf-8")
+                    print(f"[SFICACHE-01] SFI lock restaurado: {_rel}")
+                except Exception as _e_sfi_rst:
+                    print(f"[SFICACHE-01] ERROR restaurando {_rel}: {_e_sfi_rst} — SFI se recalculara para esta ventana.")
+            print(f"[SFICACHE-01] ✅ {len(_sfi_backups)} sfi_lock.json restaurados. El SFI NO se recalculara.")
             
         reports_dir = Path(__file__).parent.parent / "data" / "reports" / "wfb"
         if reports_dir.exists():
@@ -632,6 +671,12 @@ def main():
                     cmd.append("--nocache")
                     print(f"[CACHE-INTEGRITY-01] Propagando --nocache al worker para seed={seed}")
 
+                # [SFICACHE-01] Propagar --sficache al worker: indica que los sfi_lock.json
+                # fueron restaurados por el orquestador y NO deben limpiarse por el worker.
+                if args.sficache:
+                    cmd.append("--sficache")
+                    print(f"[SFICACHE-01] Propagando --sficache al worker para seed={seed}")
+
                 if args.smoke_test:
                     cmd.append("--smoke-test")
 
@@ -648,6 +693,11 @@ def main():
                     _run_env["LUNA_NOCACHE"] = "1"
                 else:
                     _run_env.pop("LUNA_NOCACHE", None)  # Asegurar que no herede nocache de runs anteriores
+                # [SFICACHE-01] Propagar LUNA_SFICACHE para subprocesos anidados
+                if args.sficache:
+                    _run_env["LUNA_SFICACHE"] = "1"
+                else:
+                    _run_env.pop("LUNA_SFICACHE", None)
 
     
                 # [GAP-05/AUDIT-#25] Crear directorio canónico data/runs/WFB_{ts}/ con run_manifest.json

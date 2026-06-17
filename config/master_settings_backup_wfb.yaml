@@ -426,9 +426,9 @@ metalabeler:
   meta_v2_threshold_mode: dynamic_is
   meta_v2_thresh_bull_strong: 0.38
   meta_v2_thresh_bull_unstable: 0.45
-  meta_v2_rolling_percentile_bull: 0.7
-  meta_v2_rolling_percentile_bear: 0.9
-  meta_v2_rolling_percentile: 0.85
+  meta_v2_rolling_percentile_bull: 0.25  # [SFICACHE-01 2026-06-17] Reducido de 0.7 → 0.25 (bull: mas permisivo, captura mas alfa en tendencia)
+  meta_v2_rolling_percentile_bear: 0.40  # [SFICACHE-01 2026-06-17] Reducido de 0.9 → 0.40 (bear: algo mas estricto que el default pero mucho menos que 0.9)
+  meta_v2_rolling_percentile: 0.30       # [SFICACHE-01 2026-06-17] Reducido de 0.85 → 0.30. Analisis OOS W1-W11 (133 senas): P30 = +54.65% vs P85 = +6.98%. Optimo empirico de la curva completa 5-95%.
   meta_v2_rolling_min_n: 100
   momentum_filter_threshold: -30.0
   momentum_filter_threshold_upper: -30.0

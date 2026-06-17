@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-16 22:19 UTC
+Timestamp: 2026-06-17 19:45 UTC
 Golden Rules: 0  |  Genetic Rules: 1
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """
@@ -23,10 +23,10 @@ GOLDEN_RULES: list[dict] = [
 GENETIC_RULES: list[dict] = [
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(MVRV_Proxy >= 2.3778) & (Whale_Vol_ZScore >= 0.6228)',
-        'win_rate':    62.2,
-        'ev_pct':      0.67,
-        'description': '`MVRV_Proxy >= 2.3778`<br>**AND** `Whale_Vol_ZScore >= 0.6228`',
+        'pandas_eval': '(SSR >= 5.0035) & (NASDAQ_Ret >= 0.0166) & (NASDAQ_Ret >= 0.0090)',
+        'win_rate':    70.6,
+        'ev_pct':      0.88,
+        'description': '`SSR >= 5.0035`<br>**AND** `NASDAQ_Ret >= 0.0166`<br>**AND** `NASDAQ_Ret >= 0.0090`',
     },
 ]
 
@@ -34,25 +34,25 @@ GENETIC_RULES: list[dict] = [
 # CAUSAL VARIABLES (Advanced Engine — Granger*** + TE_net > 0)
 # ──────────────────────────────────────────────────────────────────
 
-CAUSAL_VARS: list[str] = ['SSR', 'DeFi_WBTC_TVL', 'MVRV_Proxy', 'FearGreed', 'Stablecoin_Cap', 'Master_Causal_Signal', 'CPI_YoY', 'FundingRate', 'DangerZone']
+CAUSAL_VARS: list[str] = ['SSR', 'DeFi_WBTC_TVL', 'MVRV_Proxy', 'FearGreed', 'Stablecoin_Cap', 'Master_Causal_Signal', 'DangerZone', 'FundingRate', 'CPI_YoY']
 
 # ──────────────────────────────────────────────────────────────────
 # DTW FRACTAL PROBABILITY
 # ──────────────────────────────────────────────────────────────────
 
-DTW_BULL_PROB: float = 0.2  # P(BTC sube en 24H | análogos históricos)
+DTW_BULL_PROB: float = 0.4  # P(BTC sube en 24H | análogos históricos)
 
 # ──────────────────────────────────────────────────────────────────
 # K-MEANS TRIBE BIAS
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 2: 'NEUTRAL', 1: 'NEUTRAL', 3: 'NEUTRAL'}
+TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 2: 'NEUTRAL', 3: 'NEUTRAL', 1: 'NEUTRAL'}
 
 # ──────────────────────────────────────────────────────────────────
 # K-MEANS TRIBE WIN-RATE MAP (M3 — actualizado semanalmente)
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_WR_MAP: dict[int, float] = {0: 0.644, 2: 0.53, 1: 0.526, 3: 0.447}
+TRIBE_WR_MAP: dict[int, float] = {0: 0.648, 2: 0.525, 3: 0.526, 1: 0.455}
 
 LARGA_TRIBES   = frozenset({0})
 NEUTRAL_TRIBES = frozenset({1, 2, 3})

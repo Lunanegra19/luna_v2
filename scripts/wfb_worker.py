@@ -557,6 +557,9 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Saltar ventanas completadas")
     parser.add_argument("--smoke-test", action="store_true", help="Modo humo")
     parser.add_argument("--nocache", action="store_true", help="Forzar eliminación total de caché WFB para esta seed antes de empezar")
+    parser.add_argument("--sficache", action="store_true",
+                        help="[SFICACHE-01] Implica --nocache pero los sfi_lock.json ya fueron restaurados "
+                             "por el orquestador. El worker los respeta y NO los elimina en la limpieza.")
     parser.add_argument("--merge-only", action="store_true",
                         help="[FIX-EARLYSTOP-MERGE-01] Solo merge_and_validate sin entrenar (seeds podadas early-stop N>=30)")
     args = parser.parse_args()
@@ -604,6 +607,13 @@ def main():
     if os.environ.get("LUNA_NOCACHE") == "1":
         args.nocache = True
         print(f"[CACHE-INTEGRITY-01] LUNA_NOCACHE=1 detectado — activando --nocache en worker.")
+
+    # [SFICACHE-01] Heredar --sficache del orquestador padre si está en env
+    if os.environ.get("LUNA_SFICACHE") == "1":
+        args.sficache = True
+        print(f"[SFICACHE-01] LUNA_SFICACHE=1 detectado — activando --sficache en worker. Los sfi_lock.json existentes serán respetados.")
+    elif not hasattr(args, 'sficache'):
+        args.sficache = False
 
     logger.info("=".center(60, "="))
     logger.info("  INICIANDO WFB WORKER V2  ".center(60))

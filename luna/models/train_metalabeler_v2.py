@@ -1336,7 +1336,14 @@ class MetaLabelerV2Trainer:
                 _feats = [f for f in agent_sigs["global"]["features"] if f in X_xgb_df.columns]
                 X_train_sub = X_xgb_df.iloc[train_idx][_feats].values
                 X_test_sub  = X_xgb_df.iloc[test_idx][_feats].values
-                cv_clf.fit(X_train_sub, y_xgb[train_idx], sample_weight=train_sw)
+                
+                # [FIX-SINGLE-CLASS-FOLD 2026-06-17] Guard contra ValueError
+                _y_tr = y_xgb[train_idx]
+                if len(np.unique(_y_tr)) < 2:
+                    oos_probs[test_idx] = float(_y_tr[0])
+                    continue
+                    
+                cv_clf.fit(X_train_sub, _y_tr, sample_weight=train_sw)
                 oos_probs[test_idx] = cv_clf.predict_proba(X_test_sub)[:, 1]
                 
             else:
@@ -1382,7 +1389,13 @@ class MetaLabelerV2Trainer:
                     X_train_sub = X_xgb_df.iloc[train_idx_r.tolist()][a_feats].values # Fallback list subset
                     X_test_sub  = X_xgb_df.iloc[test_idx_r.tolist()][a_feats].values
                     
-                    cv_clf.fit(X_train_sub, y_xgb[train_idx_r], sample_weight=train_sw_r)
+                    # [FIX-SINGLE-CLASS-FOLD 2026-06-17] Guard contra ValueError
+                    _y_tr = y_xgb[train_idx_r]
+                    if len(np.unique(_y_tr)) < 2:
+                        oos_probs[test_idx_r] = float(_y_tr[0])
+                        continue
+                        
+                    cv_clf.fit(X_train_sub, _y_tr, sample_weight=train_sw_r)
                     
                     # Mapear predicciones de vuelta al offset original en oos_probs
                     agent_probs = cv_clf.predict_proba(X_test_sub)[:, 1]
@@ -1419,6 +1432,7 @@ class MetaLabelerV2Trainer:
                 )
                 
                 is_train_idx = np.where(~nan_mask)[0]
+                is_test_idx  = np.where(nan_mask)[0]
                 if len(is_train_idx) > 100:
                     _f = list(X_xgb_df.columns)
                     

@@ -1453,8 +1453,21 @@ class XGBoostTrainer:
             _sw_inner = self._compute_sample_weights(self.X.iloc[_tr_inner_i].index)
             _sw_es = self._compute_sample_weights(self.X.iloc[_es_i].index)
             
+            _y_train_inner = self.y.iloc[_tr_inner_i]
+            _y_val_inner = self.y.iloc[_val_i]
+            
+            # [FIX-SINGLE-CLASS-FOLD 2026-06-17] Prevenir ValueError(Expected: [0], got [1]) si fold extremo tiene solo una clase
+            # Si el fold de entrenamiento tiene solo 1 clase, XGBoost no puede entrenar binary:logistic.
+            # Lo mismo si el fold de validacion no tiene ambas clases para metricas como AUC/Logloss
+            if len(np.unique(_y_train_inner)) < 2 or len(np.unique(_y_val_inner)) < 2:
+                logger.debug(
+                    f"[FIX-SINGLE-CLASS-FOLD] Fold {fold_i} ignorado: clases únicas insuficientes "
+                    f"(train={len(np.unique(_y_train_inner))}, val={len(np.unique(_y_val_inner))})"
+                )
+                continue
+                
             _clf_is.fit(
-                self.X.iloc[_tr_inner_i], self.y.iloc[_tr_inner_i], 
+                self.X.iloc[_tr_inner_i], _y_train_inner, 
                 sample_weight=_sw_inner,
                 eval_set=[(self.X.iloc[_es_i], self.y.iloc[_es_i])],
                 sample_weight_eval_set=[_sw_es],
@@ -1470,13 +1483,19 @@ class XGBoostTrainer:
             _proba_is_std.append(np.std(_proba_is))  # [FIX-PROB-CLUSTERING]
             _y_val = self.y.iloc[_val_i].values
             
-            # Calcular mÃ©trica principal
+            # Calcular mÃ©tricas principales (siempre calcular ambas para telemetría correcta)
+            _brier_fold = brier_score_loss(_y_val, _proba_is)
+            _logloss_fold = log_loss(_y_val, _proba_is)
+            
             if _optuna_metric == 'brier':
-                _is_scores.append(brier_score_loss(_y_val, _proba_is))
+                _is_scores.append(_brier_fold)
             elif _optuna_metric == 'logloss':
-                _is_scores.append(log_loss(_y_val, _proba_is))
+                _is_scores.append(_logloss_fold)
             else:
                 _is_scores.append(0.0) # Dummy fallback
+                
+            if getattr(self, '_brier_scores', None) is None: self._brier_scores = []
+            self._brier_scores.append(_brier_fold)
 
             # [FIX-IDEA-A-01] Calcular Naive Brier Score para el fold exacto
             _naive_p = _y_val.mean() if len(_y_val) > 0 else 0.50
@@ -1591,6 +1610,13 @@ class XGBoostTrainer:
         trial.set_user_attr('naive_is', float(np.mean(_naive_scores)) if _naive_scores else 0.50)
         trial.set_user_attr('dsr_telemetry', _dsr_telemetry)
         trial.set_user_attr('metric_is', _metric_val)
+        
+        # [FIX-BRIER-LOGLOSS-MIXUP] Guardar Brier puro explícitamente para GATE-G2
+        _mean_brier = float(np.mean(getattr(self, '_brier_scores', [1.0])))
+        trial.set_user_attr('brier_is', _mean_brier)
+        # Limpiar state para el siguiente trial
+        if hasattr(self, '_brier_scores'): del self._brier_scores
+        
         trial.set_user_attr('composite_loss', _composite_val)
         trial.set_user_attr('mean_best_iter', float(np.mean(best_iters)) if best_iters else 100)
 
@@ -3034,6 +3060,13 @@ class XGBoostTrainer:
                             # Obtener sample weights correspondientes a _train_idx
                             _sw_tr = sw_full[_train_idx]
                             
+                            # [FIX-SINGLE-CLASS-FOLD-OOF 2026-06-17] Prevenir ValueError
+                            if len(np.unique(_y_tr)) < 2:
+                                print(f"[OOF-CALIB-V2] Fold ignorado: solo 1 clase en fold train.")
+                                _oof_preds[_test_idx] = float(_y_tr.iloc[0])
+                                _oof_mask[_test_idx] = True
+                                continue
+                                
                             # Entrenar clon
                             _model_clone.fit(_X_tr, _y_tr, sample_weight=_sw_tr)
                             
@@ -3364,7 +3397,10 @@ class XGBoostTrainer:
         if hasattr(self, 'study') and self.study is not None and hasattr(self.study, 'best_trial') and self.study.best_trial is not None:
             best_trial = self.study.best_trial
             dsr_telemetry = best_trial.user_attrs.get("dsr_telemetry", float("nan"))
-            brier_raw     = best_trial.user_attrs.get("metric_is", float("nan"))
+            
+            # [FIX-BRIER-LOGLOSS-MIXUP] Extraer Brier puro, no la metrica de Optuna que podría ser LogLoss
+            brier_raw     = best_trial.user_attrs.get("brier_is", best_trial.user_attrs.get("metric_is", float("nan")))
+            
             print("[FIX-DUMMY-STUDY] Cargada telemetría real desde study.best_trial.")  # debug
             logger.info("[FIX-DUMMY-STUDY] Cargada telemetría real desde study.best_trial.")
         else:
@@ -3377,7 +3413,7 @@ class XGBoostTrainer:
         dsr_cpcv_best    = float(self.study.best_value) if (hasattr(self, 'study') and self.study is not None and hasattr(self.study, 'best_value')) else 0.50  # canónico — siempre fiable
         dsr_oos_legacy   = dsr_telemetry if not np.isnan(dsr_telemetry) else -1.0  # retrocompat
         if np.isnan(brier_raw):
-            brier_raw = dsr_cpcv_best
+            brier_raw = 1.0  # [FIX-BRIER-LOGLOSS-MIXUP] Fallback conservador para brier
 
         # Save signature
         sig_path = out_dir / f"xgboost_meta{suffix}_{self.native_direction}_signature.json"

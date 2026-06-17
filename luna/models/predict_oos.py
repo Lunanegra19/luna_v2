@@ -1002,7 +1002,7 @@ class OOSTradesGenerator:
                         _df_val_s = pd.read_parquet(_val_feat_path)
                         # Predecir con el mismo router para validación in-sample
                         _xgb_val_s = router_xgb.route_and_predict(_df_val_s)
-                        _val_cal = _xgb_val_s["calibrated"].fillna(0.5).values
+                        _val_cal = _xgb_val_s["raw"].fillna(0.5).values
                         _hold_cal = df_oos_iter["xgb_prob_cal"].fillna(0.5).values
                         
                         if len(_val_cal) > 0 and len(_hold_cal) > 0:
