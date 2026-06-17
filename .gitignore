@@ -37,3 +37,6 @@ config/settings_backup_*.yaml
 
 mcpt_temp/
 
+
+# Backups de configuracion
+config/*backup*.yaml
