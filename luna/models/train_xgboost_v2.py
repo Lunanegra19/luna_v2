@@ -2021,7 +2021,7 @@ class XGBoostTrainer:
         # Con score compuesto, el calibrador equilibra senial y volumen.
         # min_trades del Gauntlet (100) es el N_target optimo.
         try:
-            _n_target = int(_cfg_xgb.sop.min_trades)
+            _n_target = int(getattr(_cfg_xgb.sop, "min_trades", getattr(_cfg_xgb.wfb, "min_trades", 30)))
         except Exception:
             _n_target = 100
 

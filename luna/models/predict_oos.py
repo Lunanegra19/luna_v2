@@ -317,8 +317,7 @@ class OOSTradesGenerator:
                 pass
                 
             from config.settings import cfg as _cfg_regimes
-            # [SOL3-CALM-BEAR-01 2026-06-01] Fallback actualizado: calm_bear separado de bear.
-            _rm = int(_cfg_regimes.fase2.regimes_config)
+            _rm = getattr(_cfg_regimes.fase2, "regimes_config", getattr(_cfg_regimes.fase2, "regime_mapping", {}))
             print("[SOL3-CALM-BEAR-01/PREDICT] regime_mapping cargado para predict_oos.")
 
             # [SOL3-CALM-BEAR-01 2026-06-01] calm_bear añadido al loop de carga de modelos

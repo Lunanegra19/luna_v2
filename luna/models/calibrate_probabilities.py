@@ -793,7 +793,7 @@ class MetaLabelerV2Calibrator:
                 _best_meta_ev    = -np.inf
                 _best_meta_score = -np.inf
                 _best_meta_t     = float(_cfg_meta_cal.metalabeler.meta_filter_threshold)
-                _n_target_meta   = int(_cfg_meta_cal.sop.min_trades)
+                _n_target_meta   = int(getattr(_cfg_meta_cal.sop, "min_trades", getattr(_cfg_meta_cal.wfb, "min_trades", 30)))
                 _meta_log        = []
 
                 for _mt in np.arange(_mt_min, _mt_max + _mt_step / 2, _mt_step):
