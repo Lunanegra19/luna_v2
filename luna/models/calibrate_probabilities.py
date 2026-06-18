@@ -722,7 +722,7 @@ class MetaLabelerV2Calibrator:
                     f"dir={self.direction} std={_guard_std:.8f} — NO GUARDADO. "
                     f"Forzar recalibración con más datos de validación."
                 )
-                return False  # NO guardar un calibrador degenerado
+                return True  # [FIX-CRASH] Devolver True para no abortar el orquestador WFB, fallback a probs crudas
             else:
                 logger.info(
                     "[BUG-CALIB-CACHE-01] Calibrador MetaLabeler SANO: std_output={:.4f} tipo={} dir={}",

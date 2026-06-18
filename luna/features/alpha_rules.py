@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-17 22:45 UTC
+Timestamp: 2026-06-18 10:52 UTC
 Golden Rules: 0  |  Genetic Rules: 1
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """
@@ -23,10 +23,10 @@ GOLDEN_RULES: list[dict] = [
 GENETIC_RULES: list[dict] = [
     {
         'type':        'genetic_rule',
-        'pandas_eval': '(SSR >= 5.0035) & (NASDAQ_Ret >= 0.0166) & (NASDAQ_Ret >= 0.0090)',
-        'win_rate':    70.6,
-        'ev_pct':      0.88,
-        'description': '`SSR >= 5.0035`<br>**AND** `NASDAQ_Ret >= 0.0166`<br>**AND** `NASDAQ_Ret >= 0.0090`',
+        'pandas_eval': '(NASDAQ_Ret >= 0.0164)',
+        'win_rate':    56.8,
+        'ev_pct':      0.69,
+        'description': '`NASDAQ_Ret >= 0.0164`',
     },
 ]
 
@@ -34,7 +34,7 @@ GENETIC_RULES: list[dict] = [
 # CAUSAL VARIABLES (Advanced Engine — Granger*** + TE_net > 0)
 # ──────────────────────────────────────────────────────────────────
 
-CAUSAL_VARS: list[str] = ['SSR', 'DeFi_WBTC_TVL', 'MVRV_Proxy', 'FearGreed', 'Stablecoin_Cap', 'Master_Causal_Signal', 'DangerZone', 'FundingRate', 'CPI_YoY']
+CAUSAL_VARS: list[str] = ['SSR', 'DeFi_WBTC_TVL', 'MVRV_Proxy', 'FearGreed', 'Stablecoin_Cap', 'Master_Causal_Signal', 'NASDAQ_Ret', 'FundingRate', 'CPI_YoY', 'DangerZone']
 
 # ──────────────────────────────────────────────────────────────────
 # DTW FRACTAL PROBABILITY
@@ -52,7 +52,7 @@ TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 2: 'NEUTRAL', 3: 'NEUTRAL', 1: 'NEUTRA
 # K-MEANS TRIBE WIN-RATE MAP (M3 — actualizado semanalmente)
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_WR_MAP: dict[int, float] = {0: 0.648, 2: 0.525, 3: 0.526, 1: 0.455}
+TRIBE_WR_MAP: dict[int, float] = {0: 0.65, 2: 0.527, 3: 0.526, 1: 0.453}
 
 LARGA_TRIBES   = frozenset({0})
 NEUTRAL_TRIBES = frozenset({1, 2, 3})

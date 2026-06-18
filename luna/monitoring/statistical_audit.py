@@ -426,6 +426,7 @@ class LunaStatisticalAuditor:
                 "max_pbo_pct":      self.MAX_PBO * 100.0,
                 "min_trades":       self.MIN_TRADES,
                 "max_drawdown_pct": self.MAX_DRAWDOWN * 100.0,
+                "alpha_binomial":   self.ALPHA_BINOMIAL,
             },
             "timestamp": pd.Timestamp.now('UTC').isoformat(),  # [FIX-PIPE-002]
         }

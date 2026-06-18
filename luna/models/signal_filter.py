@@ -362,6 +362,19 @@ class SignalFilter:
             except Exception:
                 pass
                 
+        # [COMBO-HIPOTESIS] Modificador de Threshold Dinámico (-0.02)
+        try:
+            from config.settings import cfg as _cfg_mod
+            _thresh_mod = float(getattr(_cfg_mod.xgboost, "signal_threshold_modifier", 0.0))
+            if _thresh_mod != 0.0:
+                _DEFAULT_XGB_LIMIT += _thresh_mod
+                if optimal_threshold_per_regime:
+                    for _k in optimal_threshold_per_regime.keys():
+                        optimal_threshold_per_regime[_k] += _thresh_mod
+                logger.info("  [COMBO-HIPOTESIS] Aplicado modificador de threshold: {:.3f}", _thresh_mod)
+        except Exception:
+            pass
+
         # I4 Dynamic Application
         # [FIX-THRESHOLD-TRACE-01] Registrar el threshold efectivo real para trazabilidad.
         # BUG PREVIO (2026-05-31): used_threshold siempre era 0.5 cuando se usaba el path

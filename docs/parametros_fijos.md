@@ -41,3 +41,11 @@ Registrados tras la auditoría de implementación de Hipótesis A, B y C. Todos 
 | **C-1** | `autoencoder.ae_anchored_kl_loss` | `true` | `autoencoder` | `luna/models/train_autoencoder.py::train_autoencoder` | Activa la carga del modelo AE de la ventana anterior como ancla para el Contrastive Drift Loss. |
 | **C-2** | `autoencoder.ae_kl_lambda` | `0.05` | `autoencoder` | `luna/models/train_autoencoder.py::train_autoencoder` | Peso de la penalización de deriva latente en la función de coste: `loss = MSE + 0.05 * MSE_latente`. A 0.05 se previene la rotación del espacio latente sin impedir que el modelo se adapte al nuevo régimen. |
 | **C-3** | `autoencoder.ae_kl_drift_alarm_threshold` | `0.5` | `autoencoder` | `luna/models/train_autoencoder.py::train_autoencoder` | Umbral de MSE en espacio latente (Tanh bounded [-1,1]) que activa un WARNING de latent drift. 0.5 en escala Tanh equivale a una rotación semántica significativa del 50% del espacio. |
+
+## Parámetros de Combo Estricto e Hipótesis de Threshold (2026-06-18)
+
+| ID | Parámetro (`settings.yaml`) | Valor Institucional | Sección YAML | Módulo Consumidor | Justificación |
+|---|---|---|---|---|---|
+| **D-1** | `xgboost.conformal_gap_threshold` | `0.10` | `xgboost` | `luna/models/predict_oos.py` | Censor Estricto. Censura trades donde la diferencia entre la confianza predicha (probabilidad) y el Win Rate móvil excede el 10%, indicando sobreconfianza del modelo debido a Covariate Shift. |
+| **D-2** | `xgboost.conformal_min_win_rate` | `0.55` | `xgboost` | `luna/models/predict_oos.py` | Censor Estricto. Win Rate mínimo móvil requerido para no censurar si se incumple el gap de calibración. |
+| **D-3** | `xgboost.signal_threshold_modifier` | `-0.02` | `xgboost` | `luna/models/signal_filter.py::apply_model_threshold` | Modificador agresivo aplicado para reducir la censura extrema de señales, recuperando Alpha al capturar trades viables que quedaban a un 1-2% del umbral de decisión estático. |

@@ -1843,12 +1843,21 @@ class OOSTradesGenerator:
         df_trades['rolling_confidence'] = df_trades[_conf_col].fillna(0.5).rolling(window=_rolling_window, min_periods=1).mean()
         df_trades['calibration_gap'] = df_trades['rolling_confidence'] - df_trades['rolling_win_rate']
         
-        # Censura conformal: gap > 15% y win_rate < 50%
-        df_trades['conformal_censored'] = (df_trades['calibration_gap'] > 0.15) & (df_trades['rolling_win_rate'] < 0.5)
+        # [COMBO-HIPOTESIS] Lectura de Strict Censor dinamico desde settings.yaml
+        try:
+            from config.settings import cfg as _cfg_conf
+            _gap_thresh = float(getattr(_cfg_conf.xgboost, "conformal_gap_threshold", 0.15))
+            _min_wr = float(getattr(_cfg_conf.xgboost, "conformal_min_win_rate", 0.5))
+        except Exception:
+            _gap_thresh = 0.15
+            _min_wr = 0.5
+
+        # Censura conformal dinámica
+        df_trades['conformal_censored'] = (df_trades['calibration_gap'] > _gap_thresh) & (df_trades['rolling_win_rate'] < _min_wr)
         
         _censored_count = df_trades['conformal_censored'].sum()
         if _censored_count > 0:
-            print(f"[CONFORMAL-CENSOR] Covariate Shift detectado. Censurando {_censored_count} trades tóxicos (Gap>15%, WR<50%). Kelly -> 0.0")
+            print(f"[CONFORMAL-CENSOR] Covariate Shift detectado. Censurando {_censored_count} trades tóxicos (Gap>{_gap_thresh:.2f}, WR<{_min_wr:.2f}). Kelly -> 0.0")
             logger.info(f"[CONFORMAL-CENSOR] {_censored_count} trades silenciados por sobreconfianza del modelo.")
             # Forzamos kelly_fraction_used a 0.0 para que no operen en mercado real
             df_trades.loc[df_trades['conformal_censored'], 'kelly_fraction_used'] = 0.0

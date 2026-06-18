@@ -533,14 +533,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-08-31
+  hmm_train_end: 2025-03-31
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-09-30
-  holdout_start: 2025-09-01
-  train_end: 2025-06-30
+  holdout_end: 2025-04-30
+  holdout_start: 2025-04-01
+  train_end: 2025-01-31
   train_start: '2017-08-17'
-  validation_end: 2025-08-31
-  validation_start: 2025-07-01
+  validation_end: 2025-03-31
+  validation_start: 2025-02-01
 wfb:
   ensemble_voting_method: soft
   soft_voting_threshold: 0.55
@@ -740,7 +740,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 42
+  optuna_seed: 1337
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -776,6 +776,10 @@ xgboost:
   guardian_tbm_min_class_pct: 0.05
   guardian_min_p_iqr: 0.02
   guardian_hmm_min_mi: 0.001
+  # [COMBO-HIPOTESIS 2026-06-18] Strict Censor + Thresh Mod
+  conformal_gap_threshold: 0.10
+  conformal_min_win_rate: 0.55
+  signal_threshold_modifier: -0.02
 dashboard_healthcheck:
   enabled: true
   base_url: http://localhost:5050
