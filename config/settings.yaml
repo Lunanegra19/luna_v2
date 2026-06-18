@@ -426,9 +426,9 @@ metalabeler:
   meta_v2_threshold_mode: dynamic_is
   meta_v2_thresh_bull_strong: 0.38
   meta_v2_thresh_bull_unstable: 0.45
-  meta_v2_rolling_percentile_bull: 0.25  # [SFICACHE-01 2026-06-17] Reducido de 0.7 → 0.25 (bull: mas permisivo, captura mas alfa en tendencia)
-  meta_v2_rolling_percentile_bear: 0.40  # [SFICACHE-01 2026-06-17] Reducido de 0.9 → 0.40 (bear: algo mas estricto que el default pero mucho menos que 0.9)
-  meta_v2_rolling_percentile: 0.30       # [SFICACHE-01 2026-06-17] Reducido de 0.85 → 0.30. Analisis OOS W1-W11 (133 senas): P30 = +54.65% vs P85 = +6.98%. Optimo empirico de la curva completa 5-95%.
+  meta_v2_rolling_percentile_bull: 0.50  # [SNIPER-SWEETSPOT 2026-06-18] Ajuste empirico post-Fix XGBoost. Optimo en BULL para ~50% WR.
+  meta_v2_rolling_percentile_bear: 0.40  # [SNIPER-SWEETSPOT 2026-06-18] Mantenido. Optimo en BEAR para ~100% WR sin perder trades vitales.
+  meta_v2_rolling_percentile: 0.40       # [SNIPER-SWEETSPOT 2026-06-18] Ajuste empirico. Optimo en NEUTRAL para ~70% WR reteniendo volumen.
   meta_v2_rolling_min_n: 100
   momentum_filter_threshold: -30.0
   momentum_filter_threshold_upper: -30.0
@@ -526,14 +526,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2024-12-31
+  hmm_train_end: 2025-02-28
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-01-31
-  holdout_start: 2025-01-01
-  train_end: 2024-10-31
+  holdout_end: 2025-03-31
+  holdout_start: 2025-03-01
+  train_end: 2024-12-31
   train_start: '2017-08-17'
-  validation_end: 2024-12-31
-  validation_start: 2024-11-01
+  validation_end: 2025-02-28
+  validation_start: 2025-01-01
 wfb:
   ensemble_voting_method: soft
   soft_voting_threshold: 0.55
