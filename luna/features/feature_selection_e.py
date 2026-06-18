@@ -653,20 +653,30 @@ class AutoLagDiscovery:
 
     def find_lag(self, series: pd.Series, target: pd.Series,
                  name: str, hmm_regime: Optional[pd.Series] = None) -> Dict:
-        """Busca el lag ÃÂ³ptimo por MI para una feature.
+        """Busca el lag ÃƒÂ³ptimo por MI para una feature.
 
         MI-FIX (2026-03-16): usa RNG seeded derivado del nombre de feature para
         garantizar reproducibilidad entre runs con el mismo dataset.
-        Antes de este fix: np.random.choice sin seed Ã¢â â lags distintos cada run
+        Antes de este fix: np.random.choice sin seed Ã¢â€ â€™ lags distintos cada run
         (DeFi_WBTC_TVL variaba entre 1H y 500H entre M-26 y M-27).
         """
         candidates = [l for l in self.LAG_CANDIDATES if l <= self.max_lag]
         mi_results: Dict[int, float] = {}
 
         # GUARD: si target estÃ¡ vacÃ­o (ej: llamada desde D.2 holdout-adversarial
-        # con y=pd.Series(dtype=float)), no hay nada que calcular â early return.
+        # con y=pd.Series(dtype=float)), no hay nada que calcular â†’ early return.
         if len(target) == 0:
             return {"optimal_lag": 1, "mi_score": 0.0, "all_mi": {}}
+
+        # [BUG-3-FIX 2026-06-18] Leer sfi_knn_adaptive UNA SOLA VEZ antes del loop.
+        try:
+            from config.settings import cfg as _cfg_mi_outer
+            _adaptive_knn = bool(getattr(_cfg_mi_outer.features, "sfi_knn_adaptive", False))
+        except Exception as _e_knn:
+            _adaptive_knn = False
+            print(f"[BUG-3-FIX][SFI][WARNING] No se pudo leer sfi_knn_adaptive de cfg: {_e_knn}. "
+                  f"Usando KNN fijo k=3 como fallback.")
+        logger.debug(f"[BUG-3-FIX][SFI] adaptive_knn={_adaptive_knn} para feature '{name}'")
 
         # [FIX-SFI-RNG-01] RNG determinista por feature usando hash criptográfico SHA-256
         # para evitar el salteo process-randomized de la función hash() nativa de Python.
@@ -700,7 +710,11 @@ class AutoLagDiscovery:
             if len(Xv) < 50:
                 continue
             try:
-                mi = mutual_info_classif(Xv, yv, random_state=self.random_state)[0]
+                # [MEJORA-MATH-B + BUG-3-FIX] KNN Adaptativo — _adaptive_knn leído una vez
+                # al inicio de find_lag (fuera del loop) para evitar 7000 imports por run.
+                n_neigh = max(3, int(np.sqrt(len(Xv)))) if _adaptive_knn else 3
+                
+                mi = mutual_info_classif(Xv, yv, n_neighbors=n_neigh, random_state=self.random_state)[0]
                 mi_results[lag] = mi
             except Exception:
                 continue

@@ -25,3 +25,19 @@ Cualquier nuevo parámetro o "Magic Number" descubierto durante auditorías post
 1. Registrado en `config/settings.yaml`.
 2. Extirpado del código estático mediante aserción `getattr(cfg, ...)`.
 3. Sincronizado matemáticamente en `config/settings.py::_unify_parameters` si comparte dominio semántico con otros parámetros existentes.
+
+---
+
+## Parámetros de Mejoras Matemáticas V3 (2026-06-18)
+
+Registrados tras la auditoría de implementación de Hipótesis A, B y C. Todos leen desde `settings.yaml` con fallback WARNING (no silencioso). Ninguno es un parámetro de Gauntlet, riesgo o embargo, por lo que según la política No-Fallback se permite fallback suave con trazabilidad obligatoria.
+
+| ID | Parámetro (`settings.yaml`) | Valor Institucional | Sección YAML | Módulo Consumidor | Justificación |
+|---|---|---|---|---|---|
+| **A-1** | `xgboost.tbm_asymmetric` | `true` | `xgboost` | `luna/features/tbm.py::apply_triple_barrier` | Activa el cálculo de semi-varianza asimétrica para corregir el sesgo del TBM simétrico frente a la distribución de retornos con negative skew de BTC. |
+| **A-2** | `xgboost.tbm_asymmetry_ratio_cap` | `2.0` | `xgboost` | `luna/features/tbm.py::apply_triple_barrier` | Cap institucional del ratio ATR_downside/ATR_upside. Permite máx 2x más amplitud en SL que en PT. Valor superior a 2.0 degradaría matemáticamente la esperanza matemática del trade. El clip interno de seguridad en `compute_asymmetric_ratio` es `10.0` para evitar propagación de valores explosivos en `bfill`. |
+| **B-1** | `features.sfi_knn_adaptive` | `true` | `features` | `luna/features/feature_selection_e.py::AutoLagDiscovery.find_lag` | Activa KNN adaptativo `k = max(3, sqrt(N))` en el estimador de Información Mutua. Corrige la "Maldición de la Dimensionalidad" con `k=3` fijo en ventanas de alta dimensionalidad (D>50). |
+| **B-2** | `features.sfi_mrmr_enabled` | `true` | `features` | `luna/features/feature_selection_e.py` | Flag de control para la lógica MRMR en el pipeline SFI. Pendiente de integración completa en la fase de scoring de clustering (actualmente informativo). |
+| **C-1** | `autoencoder.ae_anchored_kl_loss` | `true` | `autoencoder` | `luna/models/train_autoencoder.py::train_autoencoder` | Activa la carga del modelo AE de la ventana anterior como ancla para el Contrastive Drift Loss. |
+| **C-2** | `autoencoder.ae_kl_lambda` | `0.05` | `autoencoder` | `luna/models/train_autoencoder.py::train_autoencoder` | Peso de la penalización de deriva latente en la función de coste: `loss = MSE + 0.05 * MSE_latente`. A 0.05 se previene la rotación del espacio latente sin impedir que el modelo se adapte al nuevo régimen. |
+| **C-3** | `autoencoder.ae_kl_drift_alarm_threshold` | `0.5` | `autoencoder` | `luna/models/train_autoencoder.py::train_autoencoder` | Umbral de MSE en espacio latente (Tanh bounded [-1,1]) que activa un WARNING de latent drift. 0.5 en escala Tanh equivale a una rotación semántica significativa del 50% del espacio. |

@@ -62,6 +62,40 @@ def compute_atr(close: pd.Series, span: int = 24) -> pd.Series:
     # MEJORA-04 (2026-03-17): mismo límite que get_daily_volatility — max 24 barras.
     return atr.bfill(limit=24)
 
+def compute_asymmetric_ratio(close: pd.Series, span: int = 24) -> pd.Series:
+    """
+    Calcula ratio de asimetría usando los retornos como proxy para ATR_upside y ATR_downside.
+    Ratio = ATR_downside / ATR_upside
+
+    [BUG-2-FIX 2026-06-18] Se añade clip(upper=10.0) antes del bfill porque el EWMA
+    de upside inicia en 0 en las primeras barras, produciendo ratios > 1e10 que se
+    propagan hacia atrás con bfill. El cap institucional final (tbm_asymmetry_ratio_cap=2.0)
+    se aplica en apply_triple_barrier, pero si el bfill ya propagó un valor explosivo
+    el damage ya está hecho en esas posiciones. Cap interno=10.0 es conservador: permite
+    asimetrías extremas (10:1 bajista vs alcista) sin catastrofizar la inicialización.
+    """
+    diff = close.diff()
+    upside = diff.clip(lower=0)
+    downside = diff.clip(upper=0).abs()
+    
+    atr_up = upside.ewm(span=span, adjust=False).mean()
+    # Usar np.where en lugar de replace para manejar también valores muy bajos (no solo 0 exacto)
+    atr_up = atr_up.where(atr_up > 1e-8, 1e-8)
+    atr_down = downside.ewm(span=span, adjust=False).mean()
+    
+    ratio = atr_down / atr_up
+    # [BUG-2-FIX] clip interno antes de bfill para evitar propagación de valores explosivos
+    ratio = ratio.clip(upper=10.0)
+    result = ratio.bfill(limit=24)
+    
+    n_explosive = (ratio > 5.0).sum()
+    if n_explosive > 0:
+        print(f"[BUG-2-FIX][TBM] compute_asymmetric_ratio: {n_explosive} barras con ratio >5.0 "
+              f"(clippeadas a 10.0 antes de bfill). Valores de inicio de serie normalizados.")
+    
+    return result
+
+
 
 
 def compute_dynamic_horizon(
@@ -435,6 +469,32 @@ def apply_triple_barrier(
             min_return = float(_cfg_tbm.xgboost.tbm_min_return)
         except Exception as e_tbm:
             raise RuntimeError(f"Falta min_return y no se pudo leer cfg.xgboost.tbm_min_return en settings.yaml. Política No-Fallback: {e_tbm}")
+
+    # 1c. Asymmetric TBM (Hipótesis A)
+    try:
+        from config.settings import cfg as _cfg_tbm
+        tbm_asymmetric = bool(getattr(_cfg_tbm.xgboost, "tbm_asymmetric", False))
+        tbm_asymmetry_ratio_cap = float(getattr(_cfg_tbm.xgboost, "tbm_asymmetry_ratio_cap", 2.0))
+    except Exception as e_tbm:
+        # [BUG-4-FIX 2026-06-18] Añadir trazabilidad al fallback (RULE[fixbugsprints.md])
+        print(f"[BUG-4-FIX][TBM][WARNING] No se pudo leer tbm_asymmetric de cfg: {e_tbm}. "
+              f"Usando fallback tbm_asymmetric=False (TBM simétrico). Revisar settings.yaml.")
+        logger.warning("[BUG-4-FIX][TBM] Fallback a TBM simétrico por error leyendo cfg: {}", e_tbm)
+        tbm_asymmetric = False
+        tbm_asymmetry_ratio_cap = 2.0
+
+
+    if tbm_asymmetric:
+        asym_ratio = compute_asymmetric_ratio(price_series, span=24).clip(lower=1/tbm_asymmetry_ratio_cap, upper=tbm_asymmetry_ratio_cap)
+        pt_m, sl_m = pt_sl_multiplier[0], pt_sl_multiplier[1]
+        
+        pt_mult_s = pd.Series(pt_m, index=price_series.index) if not isinstance(pt_m, pd.Series) else pt_m
+        sl_mult_s = pd.Series(sl_m, index=price_series.index) if not isinstance(sl_m, pd.Series) else sl_m
+        
+        pt_sl_multiplier = [pt_mult_s, sl_mult_s * asym_ratio]
+        
+        # Logear la activación de la mejora
+        logger.info(f"[MEJORA-MATH-A] Asymmetric TBM Activado. Cap: {tbm_asymmetry_ratio_cap}x | Ratio medio asimetría: {float(asym_ratio.median()):.2f}x")
 
     
     # 2. Time Stop (t1) -> Horizonte fijo o dinámico (Mejora 4)

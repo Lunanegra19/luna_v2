@@ -47,6 +47,7 @@ patterns = {
 
 # Parametros conocidos que estan en settings.yaml
 SETTINGS_PARAMS = {
+    # Gauntlet y riesgo (CRITICO si fallback)
     'min_dsr', 'max_pbo', 'min_trades', 'alpha_binomial', 'max_drawdown',
     'pbo_n_blocks', 'total_return_cap', 'cusum_threshold', 'wfv_n_windows',
     'embargo_hours', 'purge_hours', 'mc_block_size_hours',
@@ -54,7 +55,21 @@ SETTINGS_PARAMS = {
     'max_position', 'target_vol_annual', 'dd_kill_switch', 'dd_half_size',
     'momentum_filter_threshold', 'momentum_filter_threshold_upper',
     'ood_contamination', 'hmm_n_states',
+    # [MEJORA-MATH-A 2026-06-18] Asymmetric TBM - parametros de mejora (no riesgo)
+    'tbm_asymmetric', 'tbm_asymmetry_ratio_cap',
+    # [MEJORA-MATH-B 2026-06-18] KNN Adaptativo SFI
+    'sfi_knn_adaptive', 'sfi_mrmr_enabled',
+    # [MEJORA-MATH-C 2026-06-18] Anchored AE Drift Loss
+    'ae_anchored_kl_loss', 'ae_kl_lambda', 'ae_kl_drift_alarm_threshold',
 }
+
+# Parametros de riesgo critico: fallback produce RuntimeError (SOP R16)
+CRITICAL_RISK_PARAMS = {
+    'min_dsr', 'max_pbo', 'min_trades', 'alpha_binomial', 'max_drawdown',
+    'pbo_n_blocks', 'embargo_hours', 'purge_hours', 'kelly_fraction',
+    'dd_kill_switch', 'dd_half_size',
+}
+
 
 results = defaultdict(list)
 hardcoded_constants = defaultdict(list)
@@ -90,14 +105,24 @@ for fpath in py_files:
         for m in patterns['getattr_default_numerico'].finditer(line):
             param_name = m.group(1).lower()
             default_val = m.group(2)
+            # Solo reportar si: (a) es un param conocido de settings, o (b) el default != 0 (magic number potencial)
             if param_name in SETTINGS_PARAMS or float(default_val) != 0:
+                # Severidad diferenciada: CRITICO para params de riesgo, MEDIO para params de mejora documentados
+                if param_name in CRITICAL_RISK_PARAMS:
+                    _sev = 'CRITICO'
+                elif param_name in SETTINGS_PARAMS:
+                    # Param conocido y documentado — solo informativo (MEDIO)
+                    _sev = 'MEDIO'
+                else:
+                    # Default != 0 en param desconocido — potencial magic number
+                    _sev = 'ALTO'
                 results[rel].append({
                     'lineno': i,
                     'tipo': 'GETATTR_DEFAULT',
                     'param': m.group(1),
                     'valor': default_val,
                     'linea': stripped[:120],
-                    'riesgo': 'ALTO'
+                    'riesgo': _sev
                 })
 
         # 3. Constantes criticas hardcodeadas

@@ -178,6 +178,35 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
     device = torch.device("cpu")
     logger.info("  [4] Entrenando red vía Device: {}", device)
     
+    # [MEJORA-MATH-C] Anchored AE Drift Loss
+    try:
+        from config.settings import cfg as _cfg_ae
+        ae_anchored = bool(getattr(_cfg_ae.autoencoder, "ae_anchored_kl_loss", False))
+        kl_lambda = float(getattr(_cfg_ae.autoencoder, "ae_kl_lambda", 0.05))
+        kl_alarm = float(getattr(_cfg_ae.autoencoder, "ae_kl_drift_alarm_threshold", 0.5))
+    except Exception as _e_ae_cfg:
+        # [BUG-4-FIX 2026-06-18] Trazabilidad en fallback (RULE[fixbugsprints.md] + SOP R16)
+        print(f"[BUG-4-FIX][AE][WARNING] No se pudo leer params AE de cfg: {_e_ae_cfg}. "
+              f"Usando fallback: ae_anchored=False, kl_lambda=0.05, kl_alarm=0.5. Revisar settings.yaml.")
+        logger.warning("[BUG-4-FIX][AE] Fallback a AE sin ancla por error leyendo cfg: {}", _e_ae_cfg)
+        ae_anchored = False
+        kl_lambda = 0.05
+        kl_alarm = 0.5
+
+    anchored_model = None
+    if ae_anchored:
+        _prev_model_path = p_out / "autoencoder_state.pt"
+        if _prev_model_path.exists():
+            try:
+                anchored_model = DenoisingAutoEncoder(input_dim=len(features), latent_dim=latent_dim).to(device)
+                anchored_model.load_state_dict(torch.load(_prev_model_path, map_location=device, weights_only=True))
+                anchored_model.eval()
+                logger.info("  [MEJORA-MATH-C] AE ancla cargado para Drift Loss.")
+            except Exception as e:
+                logger.warning("  [MEJORA-MATH-C] Error al cargar AE ancla: {}", e)
+                anchored_model = None
+                
+    
     model = DenoisingAutoEncoder(input_dim=len(features), latent_dim=latent_dim).to(device)
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4) # Regularización L2
@@ -188,6 +217,13 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
     
     best_model_state = None
     
+    # [BUG-1-FIX 2026-06-18] Confirmación de forward pass única activa
+    _anchored_status = "ACTIVO (Anchored Drift Loss ON)" if anchored_model is not None else "NO (primer entrenamiento o ancla no encontrada)"
+    print(f"[BUG-1-FIX][AE] Forward pass única por batch. Modo ancla: {_anchored_status}. "
+          f"Latent dim={latent_dim}, features={len(features)}, epochs={epochs}")
+    logger.info("[BUG-1-FIX][AE] Training loop configurado con forward pass única. Anchored={}", anchored_model is not None)
+    
+
     for epoch in range(epochs):
         model.train()
         train_loss = 0.0
@@ -195,10 +231,23 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
             batch_data = batch_data.to(device)
             optimizer.zero_grad()
             
-            # Forward
-            _, reconstructed = model(batch_data)
+            # [BUG-1-FIX 2026-06-18] Forward ÚNICA: se extrae curr_latent de la misma
+            # pasada que produce reconstructed. Llamar model(batch_data) dos veces en
+            # modo train() sesga BatchNorm (actualiza stats 2x por batch) y aplica
+            # Dropout con máscaras distintas, produciendo gradientes incorrectos.
+            curr_latent, reconstructed = model(batch_data)
             loss = criterion(reconstructed, batch_data)
             
+            # [MEJORA-MATH-C] Anchored Drift Loss (usa curr_latent ya computado)
+            l_drift = 0.0
+            if anchored_model is not None:
+                with torch.no_grad():
+                    prev_latent, _ = anchored_model(batch_data)
+                # Pseudo-KL Loss (MSE over Tanh bounded latent space)
+                l_drift_tensor = criterion(curr_latent, prev_latent)
+                l_drift = l_drift_tensor.item()
+                loss = loss + kl_lambda * l_drift_tensor
+                
             # Backward
             loss.backward()
             optimizer.step()
@@ -218,7 +267,12 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
         val_loss /= len(val_loader)
         
         if epoch % 5 == 0 or epoch == epochs - 1:
-            logger.info("  [5] Epoch {:03d}/{:03d} | Train Loss (MSE): {:.5f} | Val Loss: {:.5f}", epoch+1, epochs, train_loss, val_loss)
+            if anchored_model is not None:
+                logger.info("  [5] Epoch {:03d}/{:03d} | Train Loss (MSE+Drift): {:.5f} | Val Loss: {:.5f} | Drift: {:.5f}", epoch+1, epochs, train_loss, val_loss, l_drift)
+                if l_drift > kl_alarm:
+                    logger.warning("  [MEJORA-MATH-C] Latent Drift ALARM! Drift {:.4f} > umbral {:.4f}", l_drift, kl_alarm)
+            else:
+                logger.info("  [5] Epoch {:03d}/{:03d} | Train Loss (MSE): {:.5f} | Val Loss: {:.5f}", epoch+1, epochs, train_loss, val_loss)
             
         if val_loss < best_val_loss:
             best_val_loss = val_loss
