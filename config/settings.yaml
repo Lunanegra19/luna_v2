@@ -659,24 +659,6 @@ wfb:
     train_end: '2025-09-30'
     val_end: '2025-11-30'
     val_start: '2025-10-01'
-  - holdout_end: '2026-01-31'
-    holdout_start: '2026-01-01'
-    id: W13
-    train_end: '2025-10-31'
-    val_end: '2025-12-31'
-    val_start: '2025-11-01'
-  - holdout_end: '2026-02-28'
-    holdout_start: '2026-02-01'
-    id: W14
-    train_end: '2025-11-30'
-    val_end: '2026-01-31'
-    val_start: '2025-12-01'
-  - holdout_end: '2026-03-31'
-    holdout_start: '2026-03-01'
-    id: W15
-    train_end: '2025-12-31'
-    val_end: '2026-02-28'
-    val_start: '2026-01-01'
 xgboost:
   # [MEJORA-MATH-A 2026-06-18] Asymmetric TBM
   tbm_asymmetric: true
