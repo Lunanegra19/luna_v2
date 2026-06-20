@@ -3834,6 +3834,14 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             totp_secret   = _env.get('DASHBOARD_TOTP_SECRET', os.getenv('DASHBOARD_TOTP_SECRET', ''))
             expected_pass = _env.get('DASHBOARD_PASS', os.getenv('DASHBOARD_PASS', ''))
 
+            # Fallback for local environments when credentials are not configured in .env
+            if not expected_user:
+                expected_user = 'luna'
+                print("[DASHBOARD-SECURITY-WARN] DASHBOARD_USER no configurado en .env, usando fallback 'luna' para entorno local.")
+            if not expected_pass:
+                expected_pass = 'luna'
+                print("[DASHBOARD-SECURITY-WARN] DASHBOARD_PASS no configurado en .env, usando fallback 'luna' para entorno local.")
+
             if username != expected_user:
                 self._register_failure(client_ip)
                 print(f"[DASHBOARD-SECURITY] Login fallido: usuario '{username}' desde {client_ip}")
