@@ -617,9 +617,10 @@ def get_wfb_seeds_summary():
                     verdict_sid = fallback_closest_session(f.stat().st_mtime, sessions_info)
                 
                 if verdict_sid in sessions_info:
-                    if deploy_approved:
-                        sessions_info[verdict_sid]["champions"].append(seed_info)
-                    else:
+                    # Always include all gauntlet seeds in champions to compute Kelly and portfolio allocation over the consensus ensemble
+                    sessions_info[verdict_sid]["champions"].append(seed_info)
+                    
+                    if not deploy_approved:
                         fail_reasons = []
                         if not flags.get("pass_dsr", True):
                             fail_reasons.append(f"DSR ({seed_info['dsr']} < 0.75)")
