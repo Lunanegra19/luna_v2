@@ -3072,13 +3072,15 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         sfi_info["error"] = str(e)
             
             # Combine payload
+            is_vps = not (sys.platform == 'win32')
             payload = {
                 "system": {
                     "cpu_percent": cpu_percent,
                     "ram_percent": ram_percent,
                     "ram_free_gb": round(ram_free_gb, 2),
                     "ram_total_gb": round(ram_total_gb, 2),
-                    "platform": sys.platform
+                    "platform": sys.platform,
+                    "is_vps": is_vps
                 },
                 "wfb": {
                     "lock_held": lock_held,

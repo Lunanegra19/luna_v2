@@ -485,7 +485,17 @@ async function fetchSystemStatus() {
         const liveIndicator = document.getElementById('live-indicator');
         if (liveIndicator) {
             liveIndicator.className = 'status-badge live';
-            liveIndicator.innerHTML = '<span class="pulse-dot"></span><span id="live-text">CONEXIÓN LOCAL DIRECTA</span>';
+            if (data.system && data.system.is_vps) {
+                liveIndicator.style.borderColor = 'rgba(6, 182, 212, 0.2)';
+                liveIndicator.style.background = 'rgba(6, 182, 212, 0.05)';
+                liveIndicator.style.color = '#06b6d4';
+                liveIndicator.innerHTML = '<span class="pulse-dot-blue"></span><span id="live-text">CONEXIÓN VPS EN VIVO</span>';
+            } else {
+                liveIndicator.style.borderColor = 'rgba(16, 185, 129, 0.2)';
+                liveIndicator.style.background = 'rgba(16, 185, 129, 0.05)';
+                liveIndicator.style.color = '#10b981';
+                liveIndicator.innerHTML = '<span class="pulse-dot"></span><span id="live-text">CONEXIÓN LOCAL DIRECTA</span>';
+            }
         }
         
         // 1. Resources Monitor
