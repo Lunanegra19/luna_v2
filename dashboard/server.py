@@ -825,7 +825,40 @@ def get_wfb_seeds_summary():
                     "type": "gauntlet"
                 }
             ]
-            print(f"[DASHBOARD-FIX-GRAPHIFY] [PROD-CHAMPIONS] No active WFB, loaded 3 approved seeds in active_run['champions']")
+        # Extract active_seeds and current_seed dynamically
+        active_seeds = []
+        current_seed = ""
+        
+        for o in orchs:
+            cmd = o.get("cmd", "")
+            match = re.search(r"--seeds\s+([\d\s]+)", cmd)
+            if match:
+                try:
+                    active_seeds = [int(s) for s in match.group(1).split()]
+                except Exception:
+                    pass
+                    
+        for w in wrks:
+            cmd = w.get("cmd", "")
+            match = re.search(r"--seed\s+(\d+)", cmd)
+            if match:
+                current_seed = match.group(1)
+                
+        processed_seeds = sorted(list(set([c["seed"] for c in champs_list] + [d["seed"] for d in unique_disc])))
+        
+        if not is_active or not active_seeds:
+            active_seeds = processed_seeds
+            
+        total_seeds = len(active_seeds) if active_seeds else 29
+        processed_seeds_count = len(processed_seeds)
+        
+        # Calculate consensus threshold
+        if total_seeds >= 5:
+            consensus_threshold = 4
+        elif total_seeds == 3:
+            consensus_threshold = 2
+        else:
+            consensus_threshold = max(2, total_seeds - 1)
             
         active_run = {
             "session_id": newest_sid,  # Matches the currently running worker log timestamp
@@ -833,8 +866,14 @@ def get_wfb_seeds_summary():
             "timestamp": sessions_info[newest_sid]["timestamp"],
             "champions": champs_list,
             "discarded": unique_disc,
-            "is_active": is_active
+            "is_active": is_active,
+            "active_seeds": active_seeds,
+            "total_seeds": total_seeds,
+            "current_seed": current_seed,
+            "processed_seeds_count": processed_seeds_count,
+            "consensus_threshold": consensus_threshold
         }
+        print(f"[DASHBOARD-TRACK] [WFB-METADATA-ENRICH] Active run WFB_{newest_sid} enriched. is_active={is_active}, total_seeds={total_seeds}, processed={processed_seeds_count}, current={current_seed or 'None'}")
     else:
         # Cargar las 3 semillas aprobadas en producción de ensemble_metadata.json
         # de manera dinámica para que el frontend pueda utilizarlas en sus proyecciones de Kelly.
@@ -884,7 +923,12 @@ def get_wfb_seeds_summary():
                 }
             ],
             "discarded": [],
-            "is_active": False
+            "is_active": False,
+            "active_seeds": [99, 1337, 2025],
+            "total_seeds": 3,
+            "current_seed": "",
+            "processed_seeds_count": 3,
+            "consensus_threshold": 2
         }
         print(f"[DASHBOARD-FIX-GRAPHIFY] [PROD-CHAMPIONS] Inactive WFB, loaded 3 approved seeds in active_run['champions']: {[c['seed'] for c in active_run['champions']]}. Added empty windows to prevent front-end TypeError crashes.")
         

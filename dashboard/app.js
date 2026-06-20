@@ -121,6 +121,36 @@ function _updateKellyConsensusInfo(sourceLabel, retVal, ddVal, oosSimData) {
     console.log(`[KELLY-INFO] Banner actualizado: ${sourceLabel} | base_ret=${retVal}% | base_dd=${ddVal}% | Calmar=${calmar}`);
 }
 
+function _updateSweepSessionInfo(sessionId, startTime, totalCalculated, totalConfigured, isConsensusActive) {
+    const sweepSessionId = document.getElementById('sweep-session-id');
+    const sweepSessionStart = document.getElementById('sweep-session-start');
+    const sweepSeedsCount = document.getElementById('sweep-seeds-count');
+    const sweepSessionConsensus = document.getElementById('sweep-session-consensus');
+    const sweepConsensoStatus = document.getElementById('sweep-consenso-status');
+    const pulseDot = document.querySelector('#tab-sweep .active-session-pulse');
+    
+    if (sweepSessionId) {
+        sweepSessionId.textContent = sessionId ? `WFB_${sessionId}` : 'None';
+    }
+    if (sweepSessionStart) {
+        sweepSessionStart.textContent = startTime || 'N/A';
+    }
+    if (sweepSeedsCount) {
+        sweepSeedsCount.textContent = `${totalCalculated} / ${totalConfigured}`;
+    }
+    if (sweepSessionConsensus) {
+        const soft_threshold = totalConfigured >= 5 ? 4 : totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1);
+        sweepSessionConsensus.textContent = `Soft-Embargo (≥ ${soft_threshold} de ${totalConfigured} semillas)`;
+    }
+    if (sweepConsensoStatus) {
+        sweepConsensoStatus.textContent = isConsensusActive ? 'SÍ' : 'NO';
+        sweepConsensoStatus.className = isConsensusActive ? 'active-session-stat-val highlight-emerald' : 'active-session-stat-val highlight-error';
+    }
+    if (pulseDot) {
+        pulseDot.style.display = isConsensusActive ? 'inline-block' : 'none';
+    }
+}
+
 // Clock Initialization
 function updateClock() {
     const now = new Date();
@@ -1339,8 +1369,45 @@ async function fetchSystemStatus() {
         const titleText = document.getElementById('active-session-title-text');
         
         if (data.active_run) {
-            document.getElementById('active-session-id').textContent = data.active_run.session_id ? `WFB_${data.active_run.session_id}` : 'None';
-            document.getElementById('active-session-start').textContent = data.active_run.start_time || 'N/A';
+            const activeIdEl = document.getElementById('active-session-id');
+            const activeStartEl = document.getElementById('active-session-start');
+            const consensusTextEl = document.getElementById('active-session-consensus-text');
+            const currentSeedEl = document.getElementById('active-session-current-seed');
+            const progressTextEl = document.getElementById('active-session-progress-text');
+            const progressPctEl = document.getElementById('active-session-progress-pct');
+            const progressBarEl = document.getElementById('active-session-progress-bar');
+            const statusBadgeEl = document.getElementById('active-run-status-badge');
+            
+            const totalCalculated = data.active_run.processed_seeds_count !== undefined ? data.active_run.processed_seeds_count : (data.active_run.champions ? data.active_run.champions.length : 0);
+            const totalConfigured = data.active_run.total_seeds || (data.settings && data.settings.wfb && data.settings.wfb.active_seeds ? data.settings.wfb.active_seeds.length : 29);
+            
+            if (activeIdEl) activeIdEl.textContent = data.active_run.session_id ? `WFB_${data.active_run.session_id}` : 'None';
+            if (activeStartEl) activeStartEl.textContent = data.active_run.start_time || 'N/A';
+            
+            if (consensusTextEl) {
+                const threshold = data.active_run.consensus_threshold || (totalConfigured >= 5 ? 4 : totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1));
+                consensusTextEl.textContent = `Soft-Embargo (≥ ${threshold} de ${totalConfigured})`;
+            }
+            
+            if (currentSeedEl) {
+                currentSeedEl.textContent = data.active_run.current_seed ? `${data.active_run.current_seed}` : (data.active_run.is_active ? 'Iniciando...' : 'Ninguna (Completado)');
+                if (data.active_run.current_seed) {
+                    currentSeedEl.style.color = '#f59e0b';
+                } else if (data.active_run.is_active) {
+                    currentSeedEl.style.color = '#38bdf8';
+                } else {
+                    currentSeedEl.style.color = '#10b981';
+                }
+            }
+            
+            if (progressTextEl) {
+                progressTextEl.textContent = `${totalCalculated} / ${totalConfigured}`;
+            }
+            
+            const pct = totalConfigured > 0 ? Math.min(100, Math.round((totalCalculated / totalConfigured) * 100)) : 0;
+            if (progressPctEl) progressPctEl.textContent = `${pct}%`;
+            if (progressBarEl) progressBarEl.style.width = `${pct}%`;
+            
             document.getElementById('active-champions-count').textContent = data.active_run.champions ? data.active_run.champions.length : 0;
             document.getElementById('active-discarded-count').textContent = data.active_run.discarded ? data.active_run.discarded.length : 0;
             
@@ -1351,10 +1418,22 @@ async function fetchSystemStatus() {
                     pulseDot.style.display = 'inline-block';
                     pulseDot.className = 'active-session-pulse';
                 }
+                if (statusBadgeEl) {
+                    statusBadgeEl.textContent = 'ACTIVA';
+                    statusBadgeEl.className = 'badge badge-active';
+                    statusBadgeEl.style.background = 'rgba(6, 182, 212, 0.15)';
+                    statusBadgeEl.style.color = '#06b6d4';
+                }
             } else {
                 if (titleText) titleText.textContent = 'ÚLTIMA EJECUCIÓN COMPLETADA (HISTÓRICO)';
                 if (pulseDot) {
                     pulseDot.style.display = 'none';
+                }
+                if (statusBadgeEl) {
+                    statusBadgeEl.textContent = 'COMPLETADA';
+                    statusBadgeEl.className = 'badge badge-normal';
+                    statusBadgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+                    statusBadgeEl.style.color = '#10b981';
                 }
             }
 
@@ -1362,16 +1441,33 @@ async function fetchSystemStatus() {
             renderChampionsTable(data.active_run.champions, data.wfb.lock_held);
             renderDiscardedTable(data.active_run.discarded);
             updateEnsemblePortfolio(data.active_run.champions);
+
+            // Update sweeps tab session info
+            const isConsensusActive = data.active_run.champions && data.active_run.champions.length > 0;
+            _updateSweepSessionInfo(data.active_run.session_id, data.active_run.start_time, totalCalculated, totalConfigured, isConsensusActive);
         } else {
-            document.getElementById('active-session-id').textContent = 'N/A';
-            document.getElementById('active-session-start').textContent = 'N/A';
+            if (document.getElementById('active-session-id')) document.getElementById('active-session-id').textContent = 'N/A';
+            if (document.getElementById('active-session-start')) document.getElementById('active-session-start').textContent = 'N/A';
+            if (document.getElementById('active-session-consensus-text')) document.getElementById('active-session-consensus-text').textContent = 'N/A';
+            if (document.getElementById('active-session-current-seed')) document.getElementById('active-session-current-seed').textContent = 'Ninguna';
+            if (document.getElementById('active-session-progress-text')) document.getElementById('active-session-progress-text').textContent = 'N/A';
+            if (document.getElementById('active-session-progress-pct')) document.getElementById('active-session-progress-pct').textContent = '0%';
+            if (document.getElementById('active-session-progress-bar')) document.getElementById('active-session-progress-bar').style.width = '0%';
             document.getElementById('active-champions-count').textContent = '0';
             document.getElementById('active-discarded-count').textContent = '0';
             if (titleText) titleText.textContent = 'INACTIVO';
             if (pulseDot) pulseDot.style.display = 'none';
+            
+            const statusBadgeEl = document.getElementById('active-run-status-badge');
+            if (statusBadgeEl) {
+                statusBadgeEl.textContent = 'INACTIVO';
+                statusBadgeEl.className = 'badge badge-error';
+            }
+            
             renderChampionsTable([], false);
             renderDiscardedTable([]);
             updateEnsemblePortfolio([]);
+            _updateSweepSessionInfo('N/A', 'N/A', 0, 29, false);
         }
         
         // 10. Render Collapsible Historical Runs Section
@@ -2953,12 +3049,56 @@ function selectHistoricalSession(sessionId) {
     const activeDiscardedCount = document.getElementById('active-discarded-count');
     if (activeDiscardedCount) activeDiscardedCount.textContent = session.discarded ? session.discarded.length : 0;
 
+    // Update enriched card fields for historical view
+    const consensusTextEl = document.getElementById('active-session-consensus-text');
+    const currentSeedEl = document.getElementById('active-session-current-seed');
+    const progressTextEl = document.getElementById('active-session-progress-text');
+    const progressPctEl = document.getElementById('active-session-progress-pct');
+    const progressBarEl = document.getElementById('active-session-progress-bar');
+    const statusBadgeEl = document.getElementById('active-run-status-badge');
+    const titleText = document.getElementById('active-session-title-text');
+    const pulseDot = document.getElementById('active-session-pulse-dot');
+
+    const totalCalculated = (session.champions ? session.champions.length : 0) + (session.discarded ? session.discarded.length : 0);
+    const totalConfigured = session.total_seeds || totalCalculated || 29;
+    
+    if (consensusTextEl) {
+        const threshold = session.consensus_threshold || (totalConfigured >= 5 ? 4 : totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1));
+        consensusTextEl.textContent = `Soft-Embargo (≥ ${threshold} de ${totalConfigured})`;
+    }
+    if (currentSeedEl) {
+        currentSeedEl.textContent = 'Ninguna (Histórico)';
+        currentSeedEl.style.color = '#10b981';
+    }
+    if (progressTextEl) {
+        progressTextEl.textContent = `${totalCalculated} / ${totalConfigured}`;
+    }
+    const pct = totalConfigured > 0 ? Math.min(100, Math.round((totalCalculated / totalConfigured) * 100)) : 100;
+    if (progressPctEl) progressPctEl.textContent = `${pct}%`;
+    if (progressBarEl) progressBarEl.style.width = `${pct}%`;
+    if (statusBadgeEl) {
+        statusBadgeEl.textContent = 'COMPLETADA';
+        statusBadgeEl.className = 'badge badge-normal';
+        statusBadgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        statusBadgeEl.style.color = '#10b981';
+    }
+    if (titleText) {
+        titleText.textContent = 'EJECUCIÓN HISTÓRICA COMPLETADA (AUDITORÍA)';
+    }
+    if (pulseDot) {
+        pulseDot.style.display = 'none';
+    }
+
     // Re-render tables
     renderChampionsTable(session.champions, false);
     renderDiscardedTable(session.discarded);
 
     // Update consolidates portfolio
     updateEnsemblePortfolio(session.champions);
+
+    // Update sweeps tab session info for historical runs
+    const isConsensusActive = session.champions && session.champions.length > 0;
+    _updateSweepSessionInfo(sessionId, session.start_time, totalCalculated, totalConfigured, isConsensusActive);
 
     // Recalculate sweeps
     updateBaseMetrics(session.champions);
