@@ -2511,7 +2511,23 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             print(f"[DASHBOARD-SECURITY] Fallo #{len(fails)} registrado para IP {client_ip}")
 
     def _send_login_page(self, error: str = ''):
-        """[SECURITY] Muestra la pagina de login HTML con TOTP."""
+        """[SECURITY] Muestra la pagina de login HTML con TOTP o contraseña local."""
+        _env = load_env_vars()
+        totp_secret = _env.get('DASHBOARD_TOTP_SECRET', os.getenv('DASHBOARD_TOTP_SECRET', ''))
+        
+        if totp_secret:
+            totp_label = "Código Authenticator"
+            totp_type = "number"
+            totp_placeholder = "000000"
+            totp_hint = "Código de 6 dígitos de tu app de autenticación"
+            totp_attrs = 'min="0" max="999999" pattern="[0-9]{6}" style="letter-spacing: 8px; font-size: 1.5rem; text-align: center;"'
+        else:
+            totp_label = "Contraseña de Acceso"
+            totp_type = "password"
+            totp_placeholder = "Contraseña"
+            totp_hint = "Introduce la contraseña local (default: luna)"
+            totp_attrs = 'style="letter-spacing: normal; text-align: left; font-size: 1rem;"'
+
         error_html = f'<div class="error">{error}</div>' if error else ''
         page = f'''<!DOCTYPE html>
 <html lang="es">
@@ -2538,7 +2554,6 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
              color: #fff; font-size: 1rem; outline: none; margin-bottom: 20px;
              transition: border-color 0.2s; }}
     input:focus {{ border-color: #3b82f6; }}
-    input[type=number] {{ letter-spacing: 8px; font-size: 1.5rem; text-align: center; }}
     .hint {{ color: rgba(255,255,255,0.3); font-size: 0.75rem; margin-top: -14px;
              margin-bottom: 20px; }}
     button {{ width: 100%; padding: 14px; background: linear-gradient(135deg, #3b82f6, #1d4ed8);
@@ -2562,10 +2577,10 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
     <form method="POST" action="/login">
       <label>Usuario</label>
       <input type="text" name="username" autocomplete="username" required autofocus>
-      <label>Código Authenticator</label>
-      <input type="number" name="totp" placeholder="000000"
-             min="0" max="999999" pattern="[0-9]{{6}}" required autocomplete="one-time-code">
-      <div class="hint">Código de 6 dígitos de tu app de autenticación</div>
+      <label>{totp_label}</label>
+      <input type="{totp_type}" name="totp" placeholder="{totp_placeholder}"
+             required autocomplete="current-password" {totp_attrs}>
+      <div class="hint">{totp_hint}</div>
       <button type="submit">Entrar →</button>
     </form>
   </div>
