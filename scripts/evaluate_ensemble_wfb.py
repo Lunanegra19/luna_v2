@@ -44,8 +44,22 @@ def main():
         active_seeds = list(_cfg.wfb.active_seeds)
         print(f"[FIX-ENSEMBLE-EVAL] Semillas activas cargadas desde settings.yaml: {active_seeds}")
         logger.info(f"[FIX-ENSEMBLE-EVAL] Semillas activas: {active_seeds}")
+        
+        # [ENSEMBLE-WINDOWS-FIX 2026-06-19] Leer ventanas requeridas para el ensamble (No-Fallback)
+        try:
+            ensemble_required_windows = int(_cfg.wfb.ensemble_required_windows)
+            print(f"[ENSEMBLE-WINDOWS-FIX] Ventanas requeridas para el ensamble: {ensemble_required_windows}")
+            logger.info(f"[ENSEMBLE-WINDOWS-FIX] Ventanas requeridas: {ensemble_required_windows}")
+        except Exception as e_req_win:
+            err_msg = f"CRITICAL [ENSEMBLE-WINDOWS-FIX]: Falta wfb.ensemble_required_windows en settings.yaml. Política No-Fallback activa. Error: {e_req_win}"
+            print(err_msg)
+            logger.critical(err_msg)
+            raise KeyError(err_msg) from e_req_win
+            
     except Exception as e:
-        err_msg = f"CRITICAL [FIX-ENSEMBLE-EVAL]: Falló la carga de wfb.active_seeds de settings.yaml: {e}"
+        if isinstance(e, KeyError) and "ENSEMBLE-WINDOWS-FIX" in str(e):
+            raise e
+        err_msg = f"CRITICAL [FIX-ENSEMBLE-EVAL]: Falló la carga de configuración de settings.yaml: {e}"
         print(err_msg)
         logger.critical(err_msg)
         raise RuntimeError(err_msg)
@@ -114,6 +128,24 @@ def main():
     approved_seeds = []
     
     for seed, files in seeds_dict.items():
+        # [ENSEMBLE-WINDOWS-FIX 2026-06-19] Filtrar por ventanas completadas
+        completed_windows_count = 0
+        for w_idx in range(1, ensemble_required_windows + 1):
+            p_file = wfb_out_dir / f"oos_trades_W{w_idx}_seed{seed}.parquet"
+            f_file = wfb_out_dir / f"oos_trades_W{w_idx}_seed{seed}_EMPTY.flag"
+            if p_file.exists() or f_file.exists():
+                completed_windows_count += 1
+                
+        if completed_windows_count < ensemble_required_windows:
+            excl_msg = f"[ENSEMBLE-WINDOWS-FIX] Semilla {seed} EXCLUIDA del ensamble. Ventanas completadas: {completed_windows_count} < {ensemble_required_windows} requeridas."
+            print(excl_msg)
+            logger.warning(excl_msg)
+            continue
+        else:
+            incl_msg = f"[ENSEMBLE-WINDOWS-FIX] Semilla {seed} INCLUIDA en el ensamble. Ventanas completadas: {completed_windows_count} == {ensemble_required_windows} requeridas."
+            print(incl_msg)
+            logger.info(incl_msg)
+
         seed_dfs = []
         for f in files:
             try:
@@ -142,14 +174,15 @@ def main():
                     n_per_year = n_trades / (days / 365.25) if days > 0 else n_trades * 365.25
                     sharpe = (df_seed_trades['return_pct'].mean() / std_r) * (n_per_year ** 0.5)
             
-            # [H1] Poda de Semillas Tóxicas (Pre-Ensemble)
+            # [H1] Poda de Semillas Tóxicas (Pre-Ensemble) - DESACTIVADA
+            # [PRUNE-DEACTIVATE-FIX 2026-06-19] Todas las semillas participan en el Soft Voting para verdadero Ensamble.
+            all_trades_list.append(df_seed_trades)
+            approved_seeds.append(seed)
             if sharpe >= 0.5:
-                all_trades_list.append(df_seed_trades)
-                approved_seeds.append(seed)
-                print(f"[H1] Semilla {seed} APROBADA (Sharpe: {sharpe:.4f} >= 0.5)")
+                print(f"[H1] Semilla {seed} H1-APROBADA (Sharpe: {sharpe:.4f} >= 0.5)")
             else:
-                print(f"[H1] Semilla {seed} RECHAZADA por Toxicidad (Sharpe: {sharpe:.4f} < 0.5). Excluida del Soft Voting.")
-                logger.warning(f"[H1] Semilla {seed} podada por Sharpe < 0.5")
+                print(f"[H1] Semilla {seed} H1-DEGRADADA pero INCLUIDA (Sharpe: {sharpe:.4f} < 0.5). Poda desactivada para Soft Voting.")
+                logger.info(f"[H1] Semilla {seed} Sharpe < 0.5 pero incluida por política de Ensamble.")
             
             seed_metrics.append({
                 "Seed": seed,
@@ -157,7 +190,7 @@ def main():
                 "Win Rate": wr,
                 "Sharpe Anualizado": sharpe,
                 "Retorno Medio (%)": df_seed_trades['return_pct'].mean() * 100 if 'return_pct' in df_seed_trades.columns else 0.0,
-                "Status": "APPROVED" if sharpe >= 0.5 else "REJECTED"
+                "Status": "APPROVED"
             })
             
     # 1. Agregar probabilidades de expertos vía Soft Voting (filtrando por approved_seeds)

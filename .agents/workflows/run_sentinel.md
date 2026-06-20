@@ -29,4 +29,4 @@ Si la run se detiene, crashea, o detectas resultados numéricos sin sentido:
 ### FASE 4: Relanzamiento y Continuación del Bucle
 1. Deten la run si no esta detenida, verifica que no queden procesos zombie de la run anterior, aplica el fix testeado, asi la toda la run tendra en cuenta el nuevo fix.
 2. Relanza la run completa (añadiendo `--nocache` si el error involucró ajustes de parámetros).
-3. **Vuelve inmediatamente a la FASE 1.** El bucle de monitoreo debe continuar iterando ininterrumpidamente hasta que la run reporte su finalización definitiva (100% completado).
+3. **Vuelve inmediatamente a la FASE 1.** El bucle de monitoreo debe continuar iterando ininterrumpidamente hasta que la run reporte su finalización definitiva (100% completado todas las semillas y el ensamble final). revisa de cerca la implementacion de los ultimos fixes

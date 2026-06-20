@@ -213,9 +213,11 @@ def _compute_partial_score(seed: int, windows_done: list[int]) -> dict:
 def _check_multi_window_early_stop(seed: int, windows_done: list[int]) -> tuple[bool, str]:
     """
     Evalua si la seed debe descartarse tras completar las ventanas en windows_done.
-    Lógica V2: Poda dinámica. El benchmark no está hardcodeado, se construye 
-    con el score de la primera semilla exitosa en dynamic_benchmark.json.
+    Lógica V2: Poda de semillas desactivada para verdadero Ensamble Multisemilla.
     """
+    # [PRUNE-DEACTIVATE-FIX 2026-06-19] Bypasear la poda para asegurar que todas las semillas corran todas las ventanas
+    print(f"[EARLY-STOP-DEACTIVATED] seed{seed}: Poda desactivada por politica de Ensamble Multisemilla.")
+    return False, "disabled"
     # [FIX-D2] benchmark_path faltaba — causaba NameError en runtime (variable usada pero nunca definida)
     benchmark_path = _ROOT / "data" / "reports" / "wfb" / "dynamic_benchmark.json"
     dynamic_benchmark = 50.0  # Baseline inicial absoluta si no hay benchmark
@@ -1039,7 +1041,20 @@ def main():
         _RUNS_DIR = _ROOT / "data" / "runs"
         _settings_path = _ROOT / "config" / "settings.yaml"
 
-        # Mapear seed → run_dir más reciente
+        # Backup y actualización de active_seeds temporal
+        _cfg_ens = _yaml_ens.safe_load(_settings_path.read_text(encoding="utf-8"))
+        _old_active_seeds = list(_cfg_ens.get("wfb", {}).get("active_seeds", []))
+        
+        # [ENSEMBLE-WINDOWS-FIX 2026-06-19] Leer ventanas requeridas para el ensamble (No-Fallback)
+        try:
+            ensemble_required_windows = int(_cfg_ens.get("wfb", {}).get("ensemble_required_windows"))
+            print(f"[ENSEMBLE-WINDOWS-FIX] Ventanas requeridas leídas en orquestador: {ensemble_required_windows}")
+        except Exception as e_req_win:
+            err_msg = f"CRITICAL [ENSEMBLE-WINDOWS-FIX]: Falta wfb.ensemble_required_windows en settings.yaml. Política No-Fallback activa. Error: {e_req_win}"
+            print(err_msg)
+            raise KeyError(err_msg) from e_req_win
+
+        # Mapear seed → run_dir más reciente y filtrar por número de ventanas completadas
         _seed_run_map = {}
         for _run_dir in sorted(_RUNS_DIR.glob("WFB_*"), reverse=True):
             if "_seed" not in _run_dir.name:
@@ -1047,15 +1062,24 @@ def main():
             try:
                 _s = int(_run_dir.name.split("_seed")[-1])
                 if _s in complete_seeds and _s not in _seed_run_map:
-                    _seed_run_map[_s] = _run_dir
-            except Exception:
-                pass
+                    # Validar cuántas ventanas completó realmente
+                    completed_windows_count = 0
+                    for w_idx in range(1, ensemble_required_windows + 1):
+                        p_file = _WFB_OUT / f"oos_trades_W{w_idx}_seed{_s}.parquet"
+                        f_file = _WFB_OUT / f"oos_trades_W{w_idx}_seed{_s}_EMPTY.flag"
+                        if p_file.exists() or f_file.exists():
+                            completed_windows_count += 1
+                    
+                    if completed_windows_count == ensemble_required_windows:
+                        _seed_run_map[_s] = _run_dir
+                        print(f"[ENSEMBLE-WINDOWS-FIX] Seed {_s} pasa filtro en orquestador ({completed_windows_count}/{ensemble_required_windows} ventanas).")
+                    else:
+                        print(f"[ENSEMBLE-WINDOWS-FIX] Seed {_s} EXCLUIDA en orquestador ({completed_windows_count}/{ensemble_required_windows} ventanas).")
+            except Exception as _e_map:
+                print(f"[ENSEMBLE-WINDOWS-FIX] Error filtrando seed {_run_dir.name}: {_e_map}")
 
         print(f"[AUTO-ENSEMBLE-02] Utilizando {len(_seed_run_map)} seeds completadas para el evaluador del ensemble.")  # RULE[fixbugsprints.md]
 
-        # Backup y actualización temporal de active_seeds
-        _cfg_ens = _yaml_ens.safe_load(_settings_path.read_text(encoding="utf-8"))
-        _old_active_seeds = list(_cfg_ens.get("wfb", {}).get("active_seeds", []))
         _new_active_seeds = sorted(_seed_run_map.keys())
         _cfg_ens["wfb"]["active_seeds"] = _new_active_seeds
         _settings_path.write_text(

@@ -352,9 +352,14 @@ class KellyPositionSizer:
             _eff_drift = drift_penalty * _ood_penalty
             max_pos  = dynamic_max_position(jc, drift_penalty=_eff_drift)
 
-            # Sobreescribir max_position para este tick
+            # [KELLY-DYN-SCALE-FIX 2026-06-19] Bugfix: dynamic_max_position returns risk fraction [0.03, 0.30],
+            # but compute_kelly clips the leverage multiplier (notional position size).
+            # Convert risk fraction limit to leverage limit by dividing by target_sl_pct.
+            max_pos_leverage = max_pos / self.target_sl_pct
+
+            # Sobreescribir max_position para este tick en unidades de leverage
             _orig_max = self.max_position
-            self.max_position = max_pos
+            self.max_position = max_pos_leverage
             frac = self.compute_kelly(np.array([xgb_p]))[0]
             self.max_position = _orig_max  # restaurar
 
@@ -363,10 +368,19 @@ class KellyPositionSizer:
                 if not bool(row.get(mask_col, True)):
                     frac = 0.0
 
-            if max_pos > _orig_max:
+            # Comparación consistente en la misma escala (leverage nominal)
+            if max_pos_leverage > _orig_max:
                 n_boosted += 1
-            elif max_pos < _orig_max:
+            elif max_pos_leverage < _orig_max:
                 n_reduced += 1
+
+            # Print de trazabilidad del fix para debug y log tracking (SOP Rule & fixbugsprints.md)
+            if idx == df.index[0] or idx == df.index[-1]:
+                print(
+                    f"[KELLY-DYN-SCALE-FIX] t={idx} | jc={jc:.4f} | "
+                    f"max_pos_risk={max_pos:.4f} -> max_pos_leverage={max_pos_leverage:.2f}x | "
+                    f"xgb_p={xgb_p:.4f} -> frac_leverage={frac:.4f}x"
+                )
 
             fractions.append(frac)
 

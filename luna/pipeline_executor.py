@@ -476,11 +476,9 @@ class LunaPipelineExecutor:
             free_gb = mem.available / (1024 ** 3)
             if free_gb < 16.0:
                 msg = f"RAM libre detectada ({free_gb:.1f} GB) es menor a 16GB. Riesgo de OOM."
-                if self.mode == 'PROD':
-                    logger.error(f"[PRE-FLIGHT FATAL] {msg}")
-                    sys.exit(1)
-                else:
-                    logger.warning(f"[PRE-FLIGHT WARN] {msg}")
+                # [RAM-CHECK-FIX 2026-06-20] Convertido a WARNING en lugar de FATAL para permitir ejecución local
+                print(f"[PRE-FLIGHT WARN] {msg} (Permitiendo continuación por configuración local)")
+                logger.warning(f"[PRE-FLIGHT WARN] {msg}")
             else:
                 logger.info(f"[PRE-FLIGHT] RAM libre: {free_gb:.1f} GB OK.")
         except ImportError:

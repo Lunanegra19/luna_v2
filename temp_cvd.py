@@ -635,7 +635,7 @@ if 'xgb_prob_cal' in df.columns and 'meta_v2_prob' in df.columns and 'ood_kl_dis
                     mask = mask & components[name]
             sub_df = df[mask]
             m = metricas_fin(sub_df)
-            coalition_sharpes[subset] = m['sharpe'] if not np.isnan(m['sharpe']) else 0.0
+            coalition_sharpes[tuple(sorted(list(subset)))] = m['sharpe'] if not np.isnan(m['sharpe']) else 0.0
 
     print("  [SHAP] Calculando Marginal Contributions...")
     n = len(comp_names)
@@ -701,4 +701,84 @@ print("  [CVD-MEJORA-02] MetaLabeler sim con Ret_total + Sharpe + impacto por ve
 print("  [CVD-MEJORA-03] Componente 9: combinacion XGBoost+KL Score (Hipotesis H3)")
 print("  [CVD-MEJORA-04] Componente 13: Architectural SHAP (Game Theory Edge Attribution)")
 print("  [CVD-MEJORA-05] Componente 14: Markov Health Monitor (Win/Loss Transitions)")
-print("[CVD-MEJORA] Dashboard CVD-01 completado. Mejoras: MEJORA-01 MEJORA-02 MEJORA-03 SHAP MARKOV")
+print("  [CVD-MEJORA-06] Componente 15: Recomendador Automático de Parámetros y Poda de Semillas")
+print("[CVD-MEJORA] Dashboard CVD-01 completado. Mejoras: MEJORA-01 MEJORA-02 MEJORA-03 SHAP MARKOV RECOMENDADOR")
+
+# ─── 15. RECOMENDADOR AUTOMÁTICO DE PARÁMETROS Y EXPORTADOR [CVD-MEJORA-06] ───
+print()
+print(SEP)
+print("COMPONENTE 15: Recomendador Automático de Parámetros y Poda de Semillas")
+print(SEP)
+
+# 1. Simulación de Stop-Loss Cap
+print("  Simulación de límites de Stop Loss cap duro:")
+print(f"    {'Stop Loss Cap':<15} {'N':>5} {'WR':>8} {'PnL_tot':>10} {'Sharpe':>7} {'MaxDD':>7} {'Calmar':>7}")
+print("    " + DASH[:60])
+for cap in [None, 0.04, 0.03, 0.025, 0.02, 0.015]:
+    sub = df.copy()
+    if cap is not None:
+        sub['ret100'] = sub['return_raw'].clip(lower=-cap) * 100
+        sub['return_raw'] = sub['return_raw'].clip(lower=-cap)
+    m = metricas_fin(sub)
+    cap_label = f"{cap*100:.1f}%" if cap is not None else "Ninguno"
+    print(f"    {cap_label:<15} {m['n']:>5} {m['wr']:>7.1f}% {m['ret']:>+9.1f}pp {m['sharpe']:>7.2f} {m['maxdd']:>6.1f}% {m['calmar']:>7.2f}")
+
+# 2. Simulación de Holding Limits (Barrera de tiempo)
+if 'holding_time_hours' in df.columns:
+    print("\n  Simulación de límites de Holding Time (Barrera Vertical):")
+    print(f"    {'Holding Cap':<15} {'N':>5} {'WR':>8} {'PnL_tot':>10} {'Sharpe':>7} {'MaxDD':>7} {'Calmar':>7}")
+    print("    " + DASH[:60])
+    for h_cap in [None, 72, 48, 36, 24, 12]:
+        sub = df.copy()
+        if h_cap is not None:
+            mask_long = sub['holding_time_hours'] > h_cap
+            sub.loc[mask_long, 'return_raw'] = sub.loc[mask_long, 'return_raw'].apply(lambda r: r * 0.5 if r > 0 else max(r, -0.015))
+            sub['ret100'] = sub['return_raw'] * 100
+        m = metricas_fin(sub)
+        h_label = f"{h_cap}H" if h_cap is not None else "Ninguno"
+        print(f"    {h_label:<15} {m['n']:>5} {m['wr']:>7.1f}% {m['ret']:>+9.1f}pp {m['sharpe']:>7.2f} {m['maxdd']:>6.1f}% {m['calmar']:>7.2f}")
+
+# 3. Poda Automática de Semillas
+print("\n  Análisis de rendimiento por semilla (Seeds Ranking):")
+seed_metrics = []
+for seed, grp in df.groupby('_seed'):
+    m = metricas_fin(grp)
+    seed_metrics.append({
+        "seed": seed,
+        "n": m["n"],
+        "wr": m["wr"],
+        "ret": m["ret"],
+        "sharpe": m["sharpe"],
+        "maxdd": m["maxdd"],
+        "calmar": m["calmar"]
+    })
+
+df_seeds = pd.DataFrame(seed_metrics).sort_values("sharpe", ascending=False)
+try:
+    print(df_seeds.to_markdown(index=False))
+except Exception:
+    # Fallback si tabulate no está instalado
+    print(df_seeds.to_string(index=False))
+
+# Seleccionar semillas con Sharpe positivo
+_sharpe_floor = 0.0
+active_seeds_rec = df_seeds[df_seeds['sharpe'] > _sharpe_floor]['seed'].tolist()
+
+print(f"\n  👉 Lista recomendada de active_seeds (Sharpe > {_sharpe_floor}):")
+print(f"     {active_seeds_rec}")
+
+# Exportar recomendación en JSON
+try:
+    import json
+    rec_path = Path("data/reports/wfb/recommended_active_seeds.json")
+    rec_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(rec_path, "w", encoding="utf-8") as rf:
+        json.dump({
+            "recommended_seeds": active_seeds_rec,
+            "seed_details": seed_metrics,
+            "timestamp": pd.Timestamp.now().isoformat()
+        }, rf, indent=2, default=str)
+    print(f"\n  ✅ Recomendación exportada con éxito en {rec_path.name}")
+except Exception as _e_rec:
+    print(f"  ❌ Error exportando JSON de recomendación: {_e_rec}")
+

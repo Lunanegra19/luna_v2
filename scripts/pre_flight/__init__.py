@@ -13,3 +13,4 @@ from .test_r14_fixes import *
 from .test_v5_bugs import *
 from .test_invariants import *
 from .test_parameter_correlations import *
+from .test_data_lake import *  # [FIX-PREFLIGHT-DATALAKE-01 2026-06-18]

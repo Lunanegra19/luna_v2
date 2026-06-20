@@ -2000,10 +2000,13 @@ class XGBoostTrainer:
             _wfb_window = os.environ.get("LUNA_WINDOW_ID", "")
             _wfb_seed = os.environ.get("LUNA_SEED", "")
             
-            if _wfb_window and _wfb_seed:
+            if _wfb_window and _wfb_window != "PROD" and _wfb_seed:
                 _hmm_model_dir = self.root / "data" / "wfb_cache" / f"seed{_wfb_seed}" / _wfb_window / "models"
             else:
                 _hmm_model_dir = self.root / "data" / "models"
+                if _wfb_window == "PROD":
+                    print(f"[BUGFIX-PROD-HMM-CALIB 2026-06-20] HMM model directory resolved to {_hmm_model_dir} for production calibration (LUNA_WINDOW_ID={_wfb_window}, LUNA_SEED={_wfb_seed}).")
+                    logger.info(f"[BUGFIX-PROD-HMM-CALIB 2026-06-20] HMM model directory resolved to {_hmm_model_dir} for production calibration.")
                 
             _hmm_pkl_path = _hmm_model_dir / "hmm_regime.pkl"
             

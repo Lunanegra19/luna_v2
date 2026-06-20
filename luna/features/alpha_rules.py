@@ -1,6 +1,6 @@
 """
 alpha_rules.py — GENERADO AUTOMÁTICAMENTE por export_alpha_rules.py
-Timestamp: 2026-06-18 10:52 UTC
+Timestamp: 2026-06-20 08:36 UTC
 Golden Rules: 0  |  Genetic Rules: 1
 DO NOT EDIT MANUALLY — se sobreescribe semanalmente con run_weekly_mining.py
 """
@@ -46,16 +46,16 @@ DTW_BULL_PROB: float = 0.4  # P(BTC sube en 24H | análogos históricos)
 # K-MEANS TRIBE BIAS
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_BIAS: dict[int, str] = {0: 'LARGA', 2: 'NEUTRAL', 3: 'NEUTRAL', 1: 'NEUTRAL'}
+TRIBE_BIAS: dict[int, str] = {3: 'LARGA', 1: 'NEUTRAL', 2: 'NEUTRAL', 0: 'NEUTRAL'}
 
 # ──────────────────────────────────────────────────────────────────
 # K-MEANS TRIBE WIN-RATE MAP (M3 — actualizado semanalmente)
 # ──────────────────────────────────────────────────────────────────
 
-TRIBE_WR_MAP: dict[int, float] = {0: 0.65, 2: 0.527, 3: 0.526, 1: 0.453}
+TRIBE_WR_MAP: dict[int, float] = {3: 0.645, 1: 0.527, 2: 0.526, 0: 0.449}
 
-LARGA_TRIBES   = frozenset({0})
-NEUTRAL_TRIBES = frozenset({1, 2, 3})
+LARGA_TRIBES   = frozenset({3})
+NEUTRAL_TRIBES = frozenset({0, 1, 2})
 
 ALL_RULES: list[dict] = GOLDEN_RULES + GENETIC_RULES
 

@@ -48,6 +48,16 @@ class SignalFilter:
         self._xgb_iso_suffix = None  # para soporte multi-agente (bull/range/bear)
         # [KELLY-SIZER] Position sizer — cargado lazy en apply_kelly_sizing()
         self._kelly_sizer = None
+        
+        # [FILTER-GOVERNOR 2026-06-19] Instanciar el Governor de filtros
+        try:
+            from config.settings import cfg as _cfg_init
+            _seed = int(_cfg_init.xgboost.optuna_seed)
+        except Exception:
+            _seed = 42
+        from luna.models.filter_governor import FilterGovernor
+        self.governor = FilterGovernor(self.models_dir, _seed)
+        self.relaxation_factor = 0.0
 
     def _load_xgb_isotonic_calibrator(self, suffix: str = "") -> bool:
         """
@@ -646,6 +656,19 @@ class SignalFilter:
         except Exception:
             _dvol_max, _dvol_min = 1.5, -1.0
             
+        # [FILTER-GOVERNOR 2026-06-19] Relajacion de DVOL Guardian
+        if getattr(self, "relaxation_factor", 0.0) > 0.0:
+            try:
+                from config.settings import cfg as _cfg_gov
+                _max_relax_min = float(_cfg_gov.filter_governor.max_relaxation_dvol_min)
+                _max_relax_max = float(_cfg_gov.filter_governor.max_relaxation_dvol_max)
+                
+                _dvol_min = _dvol_min + self.relaxation_factor * (_max_relax_min - _dvol_min)
+                _dvol_max = _dvol_max + self.relaxation_factor * (_max_relax_max - _dvol_max)
+                logger.info(f"  [FILTER-GOVERNOR] DVOL thresholds relaxed to [{_dvol_min:.2f}, {_dvol_max:.2f}] (relaxation={self.relaxation_factor:.4f})")
+            except Exception as e_gov:
+                logger.warning(f"  [FILTER-GOVERNOR] Error interpolando DVOL thresholds: {e_gov}")
+            
         if "DVOL_kz" in df_oos.columns:
             dvol_series = df_oos["DVOL_kz"]
             _dvol_mask = (dvol_series >= _dvol_min) & (dvol_series <= _dvol_max)
@@ -1040,6 +1063,23 @@ class SignalFilter:
                         _use_rolling_pct = float(_mlab_cfg.meta_v2_rolling_percentile) if _mlab_cfg else None
                         _pct_bull = float(_mlab_cfg.meta_v2_rolling_percentile_bull) if _mlab_cfg else _use_rolling_pct
                         _pct_bear = float(_mlab_cfg.meta_v2_rolling_percentile_bear) if _mlab_cfg else _use_rolling_pct
+                        
+                        # [FILTER-GOVERNOR 2026-06-19] Relajación de percentiles de MetaLabeler V2
+                        if getattr(self, "relaxation_factor", 0.0) > 0.0:
+                            try:
+                                from config.settings import cfg as _cfg_gov
+                                _pct_delta = float(_cfg_gov.filter_governor.max_relaxation_meta_percentile_delta)
+                                _deduct = self.relaxation_factor * _pct_delta
+                                if _use_rolling_pct is not None:
+                                    _use_rolling_pct = max(0.05, _use_rolling_pct - _deduct)
+                                if _pct_bull is not None:
+                                    _pct_bull = max(0.05, _pct_bull - _deduct)
+                                if _pct_bear is not None:
+                                    _pct_bear = max(0.05, _pct_bear - _deduct)
+                                logger.info(f"  [FILTER-GOVERNOR] MetaLabeler rolling percentiles reduced by {_deduct:.4f} (global={_use_rolling_pct:.4f}, bull={_pct_bull:.4f}, bear={_pct_bear:.4f})")
+                            except Exception as e_gov:
+                                logger.warning(f"  [FILTER-GOVERNOR] Error relajando MetaLabeler rolling percentiles: {e_gov}")
+                                
                         _rolling_min_n   = int(int(_mlab_cfg.meta_v2_rolling_min_n)) if _mlab_cfg else 50
                         
                         if _use_rolling_pct is not None and not _simulate_online:
@@ -1123,6 +1163,20 @@ class SignalFilter:
                                         logger.info(f"  [FIX-SNIPER-W4] Hard Exclusion OOS: {_mask_banned.sum()} señales bloqueadas en regímenes prohibidos {_h1_excluded_list}")
                         except Exception as _e_excl:
                             pass
+
+                        # [FILTER-GOVERNOR 2026-06-19] Relajación de MetaLabeler V2 threshold
+                        if getattr(self, "relaxation_factor", 0.0) > 0.0:
+                            try:
+                                from config.settings import cfg as _cfg_gov
+                                _prob_delta = float(_cfg_gov.filter_governor.max_relaxation_meta_prob_delta)
+                                _deduct = self.relaxation_factor * _prob_delta
+                                _old_min = _eff_thresh.min()
+                                _old_max = _eff_thresh.max()
+                                _eff_thresh = _eff_thresh - _deduct
+                                _eff_thresh = _eff_thresh.clip(lower=0.35)
+                                logger.info(f"  [FILTER-GOVERNOR] MetaLabeler threshold relaxed by {_deduct:.4f} (rango: [{_old_min:.3f}, {_old_max:.3f}] -> [{_eff_thresh.min():.3f}, {_eff_thresh.max():.3f}])")
+                            except Exception as e_gov:
+                                logger.warning(f"  [FILTER-GOVERNOR] Error relajando MetaLabeler threshold: {e_gov}")
 
                         meta_v2_mask = meta_v2_prob_series.fillna(0.0) >= _eff_thresh
                         n_meta = int(meta_v2_mask.sum())
@@ -1230,9 +1284,14 @@ class SignalFilter:
                         _window_id_s = _parent_name
                 
                 if _window_id_s:
-                    _val_path = _ROOT_DYN / "data" / "wfb_cache" / _window_id_s / "features" / f"features_validation_{_window_id_s}.parquet"
-                    if not _val_path.exists():
-                        _val_path = _ROOT_DYN / "data" / "wfb_cache" / _window_id_s / "features" / "features_validation.parquet"
+                    if _window_id_s == "PROD":
+                        _val_path = _ROOT_DYN / "data" / "features" / "features_validation.parquet"
+                        print(f"[BUGFIX-PROD-DYN-HMM-ALLOWED 2026-06-20] Dynamic allowed regimes path resolved to {_val_path} for production.")
+                        logger.info(f"[BUGFIX-PROD-DYN-HMM-ALLOWED 2026-06-20] Dynamic allowed regimes path resolved to {_val_path} for production.")
+                    else:
+                        _val_path = _ROOT_DYN / "data" / "wfb_cache" / _window_id_s / "features" / f"features_validation_{_window_id_s}.parquet"
+                        if not _val_path.exists():
+                            _val_path = _ROOT_DYN / "data" / "wfb_cache" / _window_id_s / "features" / "features_validation.parquet"
                     
                     if _val_path.exists():
                         from luna.models.hmm_regime import HMMRegimeModel
@@ -1880,6 +1939,10 @@ class SignalFilter:
         """ Ejecuta el pipeline de filtrado completo, secuencialmente. """
         self.funnel_stats["raw_oos_bars"] = len(df_oos)
         
+        # [FILTER-GOVERNOR 2026-06-19] Calcular el factor de relajacion para esta ventana
+        self.relaxation_factor = self.governor.get_relaxation_factor()
+        print(f"[FILTER-GOVERNOR] [BUG-FIX-LOG 2026-06-19] Relaxation factor = {self.relaxation_factor:.4f}")
+        
         self._inject_hmm_predictive_risk(df_oos)
 
         xgb_mask = self.apply_model_threshold(df_oos, prefix="xgboost_meta", prob_col="xgb_prob", model_name="XGBoost", direction=direction)
@@ -2234,7 +2297,11 @@ class SignalFilter:
             if _density_mode_active:
                 _base_emb_h = _MIN_EMBARGO_H
             else:
-                _base_emb_h = _DEFAULT_WAIT_HOURS # [FIX-EMBARGO-HARDCODED] Cumplir regla No-Magic-Numbers y usar settings.yaml
+                # [FIX-EMBARGO-HMM-DYNAMIC 2026-06-19] Leer embargo dinámico por régimen HMM
+                _base_emb_h = _hmm_embargo_map.get(_current_regime, _DEFAULT_WAIT_HOURS)
+                # Print de trazabilidad según RULE[fixbugsprints.md]
+                if _t == _signal_candidates[0]:
+                    print(f"[FIX-EMBARGO-HMM-DYNAMIC 2026-06-19] Primer candidate en {_t} regime={_current_regime} | base_emb={_base_emb_h}H")
 
             # Aplicar decaimiento por volatilidad si está activo
             _emb_h = _base_emb_h

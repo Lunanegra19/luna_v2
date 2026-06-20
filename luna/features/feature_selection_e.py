@@ -351,8 +351,34 @@ class FeatureClusterer:
 
         # [PURGA-MACRO-SFI] 2026-06-06: Arquitectura 2-capas: Capa A (Macro), Capa B (Micro/Timing).
         # Para que el SFI no se contamine con lag macroeconómico, las purgamos del pool de XGBoost.
+        # [BUG-FIX 2026-06-19] Bypassear la purga para cualquier feature que esté configurada en las whitelists de settings.yaml
+        try:
+            from config.settings import cfg as _cfg_macro
+            _whitelisted_features = set(_cfg_macro.features.sfi_macro_features or []) \
+                                  | set(_cfg_macro.features.sfi_onchain_features or []) \
+                                  | set(_cfg_macro.features.sfi_calendar_features or []) \
+                                  | set(_cfg_macro.features.sfi_macro_stable_features or [])
+        except Exception:
+            _whitelisted_features = set()
+
+        def _is_wl(name):
+            if name in _whitelisted_features:
+                return True
+            for w in _whitelisted_features:
+                if w in name:
+                    return True
+            return False
+
         macro_keywords = ['M2_', 'FedFunds', 'CPI', 'YieldCurve', 'T10Y2Y', 'DXY', 'SP500', 'Gold']
-        macro_cols_to_drop = [c for c in X.columns if any(mk.lower() in c.lower() for mk in macro_keywords)]
+        macro_cols_to_drop = [c for c in X.columns 
+                              if not _is_wl(c) 
+                              and any(mk.lower() in c.lower() for mk in macro_keywords)]
+        
+        # [BUG-FIX-PURGE-BYPASS 2026-06-19] Whitelisted features bypass macro drop
+        _bypassed_purge = [c for c in X.columns if _is_wl(c) and any(mk.lower() in c.lower() for mk in macro_keywords)]
+        if _bypassed_purge:
+            print(f"[BUG-FIX-PURGE-BYPASS 2026-06-19] Bypasseada purga macro para {len(_bypassed_purge)} features: {_bypassed_purge}")
+
         if macro_cols_to_drop:
             logger.info(f"[PURGA-MACRO-SFI] Excluyendo {len(macro_cols_to_drop)} features macro del pool SFI para enfocar XGBoost en Micro/Timing.")
             print(f"[FIX-ARQUITECTURA-2CAPAS] Purgando {len(macro_cols_to_drop)} variables MACRO del SFI. XGBoost se enfocará en timing.")
@@ -557,19 +583,28 @@ class FeatureClusterer:
             # MAS estables cross-window que features tecnicas. El boost garantiza
             # que el SFI las favorezca en el ranking frente a features inestables.
             # El boost es ADITIVO (no multiplicativo) para preservar el ordinal relativo.
+            # [BUG-FIX 2026-06-19] Fix list parser for sfi_macro_stable_features (avoid int() exception)
             try:
                 from config.settings import cfg as _cfg_macro
                 _macro_boost = float(_cfg_macro.features.sfi_macro_stable_boost)
-                _macro_feats = set(int(_cfg_macro.features.sfi_macro_stable_features) or [])
-            except Exception:
+                _macro_feats = set(_cfg_macro.features.sfi_macro_stable_features or [])
+                print(f"[BUG-FIX-WHITELIST-BOOST 2026-06-19] Whitelist boost cargada: {_macro_boost} para {len(_macro_feats)} features.")
+            except Exception as _ex_boost:
                 _macro_boost = 0.15
                 _macro_feats = set()
+                print(f"[BUG-FIX-WHITELIST-BOOST 2026-06-19] ERROR cargando whitelist boost, fallback a default: {_ex_boost}")
             if _macro_feats:
                 _boosted = []
+                def _in_macro_wl(name):
+                    if name in _macro_feats:
+                        return True
+                    for w in _macro_feats:
+                        if w in name:
+                            return True
+                    return False
                 for feat_c, score_c in combined.items():
                     # Aplicar boost solo si la feature esta en la whitelist macro
-                    _base_name = feat_c.split('_milag')[0] if '_milag' in feat_c else feat_c
-                    _in_macro  = feat_c in _macro_feats or _base_name in _macro_feats
+                    _in_macro = _in_macro_wl(feat_c)
                     combined[feat_c] = min(1.0, score_c + (_macro_boost if _in_macro else 0.0))
                     if _in_macro and combined[feat_c] > score_c:
                         _boosted.append(feat_c)
@@ -2186,7 +2221,7 @@ class FeatureSelectionPipelineE:
         REPORT_FILE.write_text("\n".join(md_lines), encoding="utf-8")
         logger.success(f"Ã¢Å“â€¦ Reporte guardado: {REPORT_FILE}")
 
-    # Ã¢â€ â‚¬Ã¢â€ â‚¬ Pipeline principal Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬Ã¢â€ â‚¬
+    # ------------------------------------------------------------------------------------------------------------------------------------------------
 
     def run(self, features_parquet: Optional[Path] = None,
             resume: bool = False) -> Dict:
@@ -2227,7 +2262,12 @@ class FeatureSelectionPipelineE:
         # mÃ¡xima del parquet, lo que viola la causalidad y hace no-reproducible el WFB.
         try:
             from config.settings import cfg as _cfg_sfi_fix
-            _wfb_train_end = int(int(_cfg_sfi_fix.temporal_splits).train_end)
+            # [BUG-NAMESPACE-FIX 2026-06-18] ANTES: int(int(cfg.temporal_splits).train_end) -> TypeError
+            # cfg.temporal_splits es _Namespace, no casteable a int. Se accede directamente a .train_end
+            # que es datetime.date, y se convierte a string para pd.Timestamp.
+            _te_raw = _cfg_sfi_fix.temporal_splits.train_end  # datetime.date o str
+            _wfb_train_end = str(_te_raw)  # p.ej. "2024-10-31"
+            print("[BUG-NAMESPACE-FIX][WFB-CAUSAL-FIX-SFI] train_end leido correctamente: " + repr(_wfb_train_end))
             if _wfb_train_end:
                 _cutoff_sfi = pd.Timestamp(str(_wfb_train_end), tz='UTC')
                 if df.index.tz is None:
@@ -2354,10 +2394,34 @@ class FeatureSelectionPipelineE:
         #   - PASSTHROUGH_FEATURES (van directo al JSON output, saltan SFI)
         #   - RAW_COLS_BLACKLIST: OHLC raw (corr~1.0 con close) + alpha_combined (BUG-R12-01)
         _excluded = set(ALPHA_SIGNALS + PASSTHROUGH_FEATURES + ["target", "close"]) | RAW_COLS_BLACKLIST
+        
+        # [BUG-FIX 2026-06-19] Bypassear la prohibición de TIPO1_SLOW_SUBSTRINGS para features explícitamente whitelisted
+        try:
+            from config.settings import cfg as _cfg_white
+            _whitelisted_features = set(_cfg_white.features.sfi_macro_features or []) \
+                                  | set(_cfg_white.features.sfi_onchain_features or []) \
+                                  | set(_cfg_white.features.sfi_calendar_features or []) \
+                                  | set(_cfg_white.features.sfi_macro_stable_features or [])
+        except Exception:
+            _whitelisted_features = set()
+
+        def _is_wl(name):
+            if name in _whitelisted_features:
+                return True
+            for w in _whitelisted_features:
+                if w in name:
+                    return True
+            return False
+
         raw_cols   = [c for c in df.columns
                       if c not in _excluded
-                      and not any(sub in c.lower() for sub in TIPO1_SLOW_SUBSTRINGS)
+                      and (_is_wl(c) or not any(sub in c.lower() for sub in TIPO1_SLOW_SUBSTRINGS))
                       and df[c].dtype in [np.float32, np.float64, np.int32, np.int64]]
+
+        # [BUG-FIX-TIPO1-BYPASS 2026-06-19] Whitelisted features bypass slow substrings exclusion
+        _bypassed_slow = [c for c in df.columns if _is_wl(c) and any(sub in c.lower() for sub in TIPO1_SLOW_SUBSTRINGS)]
+        if _bypassed_slow:
+            print(f"[BUG-FIX-TIPO1-BYPASS 2026-06-19] Bypasseado TIPO1_SLOW_SUBSTRINGS para {len(_bypassed_slow)} features: {_bypassed_slow}")
 
         # â”€â”€ Etapa PRE-A: Estacionariedad ADF (Pilar 3) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         adf_penalties = {c: 1.0 for c in df.columns}

@@ -72,7 +72,8 @@ def test(name: str, section: str = "misc"):
 def run_all(fail_fast=False, verbose=False, section_filter=None):
     section_order = [
         "legacy", "sop", "temporal", "architecture",
-        "artifacts", "code", "data", "math", "consistency", "env", "v5_bugs", "r14_fixes"
+        "artifacts", "code", "data", "math", "consistency", "env", "v5_bugs", "r14_fixes",
+        "data_lake",  # [FIX-PREFLIGHT-DATALAKE-01 2026-06-18] Data Lake Integrity
     ]
     # Normalizar section_filter: puede ser str ("env"), str coma-separado ("env,v5_bugs"),
     # set, list o None. Convertir siempre a set para comparación O(1).
@@ -106,6 +107,7 @@ def run_all(fail_fast=False, verbose=False, section_filter=None):
         "env":          "SECCION 10: Entorno y Dependencias",
         "v5_bugs":      "SECCION 11: V5 Bug Regressions (Run 12)",
         "r14_fixes":    "SECCION 12: Run 14 Fixes (LOG-BUG-01/02, SFI-02, MOD-02)",
+        "data_lake":    "SECCION 13: Data Lake Integrity [FIX-PREFLIGHT-DATALAKE-01]",
     }
 
     print(f"\n{C.BOLD}[PRE-FLIGHT] Luna V1 v3.3 -- {len(all_fns)} tests{C.END}\n")

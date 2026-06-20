@@ -271,7 +271,7 @@ class LunaTearSheet:
                             _last_state = s.iloc[-1]
                             _extra = pd.Series(_last_state, index=_extra_idx, name=s.name)
                             s = pd.concat([s, _extra]).sort_index()
-                            logger.info("[HMM] Forward-fill aplicado: estado='%s' hasta %s",
+                            logger.info("[HMM] Forward-fill aplicado: estado='{}' hasta {}",
                                         _last_state, holdout_end.date())
                 except Exception as _hld_e:
                     logger.debug("[HMM] No se pudo leer features_holdout: {}", _hld_e)

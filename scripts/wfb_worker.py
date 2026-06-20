@@ -116,7 +116,7 @@ def _validate_window_overlaps():
                     f"🔴 [DATA-INTEGRITY] ERROR TEMPORAL INTRA-VENTANA en {w['id']}: "
                     f"Orden requerido (train_end <= val_start <= val_end < holdout_start < holdout_end) no cumplido."
                 )
-                sys.exit(1)
+                sys.exit(5)
         except SystemExit:
             raise
         except Exception:
@@ -134,7 +134,7 @@ def _validate_window_overlaps():
                     f"{w2['id']} (holdout_start={w2['holdout_start']}). "
                     f"Abortando antes de desperdiciar horas de cómputo."
                 )
-                sys.exit(1)
+                sys.exit(5)
         except SystemExit:
             raise
         except Exception as _e_ovlp:
@@ -190,7 +190,7 @@ def _acquire_lock():
     except FileExistsError:
         print(f"🔴 [FIX-LOCK-RECOVER-01] [FATAL] Lock '.wfb_lock' existe y el proceso propietario (PID) está activo. Abortando run duplicado.")
         logger.error("🔴 [FATAL] Lock '.wfb_lock' existe y el proceso está vivo. Abortando.")
-        sys.exit(1)
+        sys.exit(5)
 
     import atexit
     import signal
@@ -507,6 +507,101 @@ def merge_and_validate(seed: str = ""):
     else:
         global_df.to_parquet(_out_path, index=False)
 
+    # ── [FILTER-GOVERNOR REPORT GENERATION 2026-06-19] ──────────────────────
+    try:
+        from luna.models.filter_governor import FilterGovernor
+        gov_report_path = _ROOT / "docs" / "filter_governor_report.md"
+        
+        # Load config settings for governor
+        from config.settings import cfg as _cfg_gov_rep
+        gov_enabled = bool(_cfg_gov_rep.filter_governor.enabled)
+        gov_min_w = int(_cfg_gov_rep.filter_governor.min_completed_windows)
+        gov_perf_ratio = float(_cfg_gov_rep.filter_governor.performance_threshold_ratio)
+        cost_rt = float(_cfg_gov_rep.sop.cost_pct)
+        
+        report_lines = [
+            "# [BUG-FIX-LOG 2026-06-19] Filter Governor & Sizer Calibration Report",
+            "",
+            "This report summarizes the performance of the **Dynamic Filter Governor** and the calibration of the **Kelly Position Sizer** across all WFB windows.",
+            "",
+            "## Active Governor Parameters",
+            f"- **Enabled**: {gov_enabled}",
+            f"- **Min Completed Windows**: {gov_min_w}",
+            f"- **Performance Threshold Ratio**: {gov_perf_ratio:.1%}",
+            f"- **Round-Trip Transaction Cost**: {cost_rt:.2%}",
+            "",
+            "## Window-by-Window Relaxation & Performance Analysis",
+            "| Window | Relaxation Factor | Baseline Return | Filtered Return | Delta (Filtered - Baseline) | Status |",
+            "|--------|-------------------|-----------------|-----------------|-----------------------------|--------|"
+        ]
+        
+        for w in WINDOWS:
+            w_id = w["id"]
+            # Save LUNA_WINDOW_ID to environment
+            old_win_id = os.environ.get("LUNA_WINDOW_ID", None)
+            os.environ["LUNA_WINDOW_ID"] = w_id
+            
+            # Calculate relaxation factor
+            gov_seed = int(seed) if seed else 42
+            gov = FilterGovernor(WFB_OUT_DIR, gov_seed)
+            rel_factor = gov.get_relaxation_factor()
+            
+            # Restore environment
+            if old_win_id is not None:
+                os.environ["LUNA_WINDOW_ID"] = old_win_id
+            else:
+                os.environ.pop("LUNA_WINDOW_ID", None)
+                
+            p_base = WFB_OUT_DIR / f"oos_trades_xgb_baseline_{w_id}{_seed_suffix}.parquet"
+            p_filt = WFB_OUT_DIR / f"oos_trades_{w_id}{_seed_suffix}.parquet"
+            
+            base_net = 0.0
+            filt_net = 0.0
+            
+            if p_base.exists():
+                try:
+                    df_base = pd.read_parquet(p_base)
+                    base_net = (df_base["return_raw"] - cost_rt).sum() if not df_base.empty else 0.0
+                except Exception as e:
+                    logger.warning(f"[FILTER-GOVERNOR-REPORT] Error reading baseline parquet for {w_id}: {e}")
+                    
+            if p_filt.exists():
+                try:
+                    df_filt = pd.read_parquet(p_filt)
+                    filt_net = (df_filt["return_raw"] - cost_rt).sum() if not df_filt.empty else 0.0
+                except Exception as e:
+                    logger.warning(f"[FILTER-GOVERNOR-REPORT] Error reading filtered parquet for {w_id}: {e}")
+                    
+            delta = filt_net - base_net
+            
+            if rel_factor == 0.0:
+                status_str = "Strict (Default)"
+            elif rel_factor == 1.0:
+                status_str = "Fully Relaxed"
+            else:
+                status_str = f"Relaxed (factor = {rel_factor:.4f})"
+                
+            report_lines.append(
+                f"| {w_id} | {rel_factor:.4f} | {base_net:.2%} | {filt_net:.2%} | {delta:+.2%} | {status_str} |"
+            )
+            
+        report_lines.extend([
+            "",
+            "## Summary of Calibration changes",
+            "- Kelly Position Sizer `pt_ratio` has been adjusted to `1.01` (from `1.2`) to align with empirical OOS Win/Loss ratios (~0.888) while satisfying positive asymmetry pre-flight constraints. This stops sizing negative-EV trades.",
+            f"- Report generated at: {datetime.datetime.now().isoformat()}",
+            f"- Seed: {seed if seed else 'None'}"
+        ])
+        
+        # Write report file
+        _ROOT.joinpath("docs").mkdir(exist_ok=True)
+        gov_report_path.write_text("\n".join(report_lines), encoding="utf-8")
+        print(f"[FILTER-GOVERNOR] Summary report written to docs/filter_governor_report.md")
+        logger.info("[FILTER-GOVERNOR] Summary report successfully written to docs/filter_governor_report.md")
+    except Exception as e_rep:
+        logger.error(f"[FILTER-GOVERNOR-REPORT] Error generating summary report: {e_rep}")
+        print(f"[FILTER-GOVERNOR] Warning: could not generate summary report: {e_rep}")
+
     logger.info("Lanzando Validación Estadística (Gauntlet)...")
     
     _env = os.environ.copy()
@@ -541,11 +636,11 @@ def merge_and_validate(seed: str = ""):
             print(f"[GAUNTLET][FIX-GAUNTLET-EXIT-01] ⚠️ CRASH REAL del validador (exit={_gauntlet_result.returncode}). "
                   f"Revisar logs/run_statistical_validation*.log para traceback completo.")
             logger.error("[GAUNTLET][FIX-GAUNTLET-EXIT-01] Crash inesperado del validador estadístico "
-                         "(exit=%d). Ver logs para traceback. No bloqueante para la cola multi-seed.",
+                         "(exit={}). Ver logs para traceback. No bloqueante para la cola multi-seed.",
                          _gauntlet_result.returncode)
     except Exception as _e_gauntlet:
         print(f"[GAUNTLET][FIX-GAUNTLET-EXIT-01] Excepción al lanzar subproceso del validador: {_e_gauntlet}")
-        logger.error("[GAUNTLET][FIX-GAUNTLET-EXIT-01] Fallo al lanzar run_statistical_validation.py: %s. "
+        logger.error("[GAUNTLET][FIX-GAUNTLET-EXIT-01] Fallo al lanzar run_statistical_validation.py: {}. "
                      "No bloqueante.", _e_gauntlet)
 
 
@@ -599,7 +694,7 @@ def main():
             print(f"[FIX-EARLYSTOP-MERGE-01] merge_and_validate COMPLETADO exitosamente para seed={args.seed}. Ver Gauntlet logs.")
         except Exception as _e_mo:
             print(f"[FIX-EARLYSTOP-MERGE-01] ERROR en merge_and_validate seed={args.seed}: {_e_mo}")
-            sys.exit(1)
+            sys.exit(5)
         print(f"[FIX-EARLYSTOP-MERGE-01] merge-only FINALIZADO para seed={args.seed}. Saliendo con exit=0.")
         sys.exit(0)
 
@@ -822,6 +917,10 @@ def main():
                 logger.debug(f"[GAP-03] No se pudo escribir window_config: {_e_wc}")
 
             rewrite_yaml_for_window(w)
+            # [HMM-ENV-FIX 2026-06-19] Asegurar que LUNA_WINDOW_ID se propague al entorno de python del worker
+            import os as _os_env
+            _os_env.environ["LUNA_WINDOW_ID"] = w["id"]
+            print(f"[HMM-ENV-FIX] Inyectada variable de entorno LUNA_WINDOW_ID={w['id']} en el proceso del worker.")
 
             # [FALLA 1] Hidratar estado de la ventana desde caché si existe
             # [CACHE-INTEGRITY-01] Verificar fingerprint de caché antes de hidratar
@@ -958,14 +1057,14 @@ def main():
                         )
                         print(f"[FIX-MERGE-EXIT-01] SystemExit(0) en {w['id']} seed={args.seed} - EMPTY.flag creado. Continuando al siguiente window.")
                         logger.warning(
-                            "[FIX-MERGE-EXIT-01] SystemExit(0) capturado en ventana %s seed=%s. "
+                            "[FIX-MERGE-EXIT-01] SystemExit(0) capturado en ventana {} seed={}. "
                             "execute_training_sequence() salió de forma graceful (sin señales OOS). "
-                            "EMPTY.flag creado en %s. Continuando al siguiente window para llegar a merge_and_validate.",
+                            "EMPTY.flag creado en {}. Continuando al siguiente window para llegar a merge_and_validate.",
                             w['id'], args.seed, _empty_flag_inner.name
                         )
                     except Exception as _ef_inner:
                         print(f"[FIX-MERGE-EXIT-01] ERROR creando EMPTY.flag en {w['id']}: {_ef_inner}")
-                        logger.error("[FIX-MERGE-EXIT-01] No se pudo crear EMPTY.flag para %s: %s", w['id'], _ef_inner)
+                        logger.error("[FIX-MERGE-EXIT-01] No se pudo crear EMPTY.flag para {}: {}", w['id'], _ef_inner)
                 elif _se_inner.code == 3:
                     # [GUARDIAN-FAIL-FAST] El modelo abortó por fallo estructural (OOD, Collapse, Rank-Order).
                     _seed_sfx_inner = f"_seed{args.seed}" if args.seed else ""
@@ -977,29 +1076,29 @@ def main():
                         )
                         print(f"🛡️ [GUARDIAN-FAIL-FAST] SystemExit(3) en {w['id']} seed={args.seed} - Entrenamiento abortado por Guardián Estructural. Ventana descartada limpiamente.")
                         logger.warning(
-                            "[GUARDIAN-FAIL-FAST] SystemExit(3) capturado en ventana %s seed=%s. "
+                            "[GUARDIAN-FAIL-FAST] SystemExit(3) capturado en ventana {} seed={}. "
                             "Guardián Estructural abortó la ejecución por degeneración del modelo. "
                             "Ventana descartada. Continuando al siguiente window.",
                             w['id'], args.seed
                         )
                     except Exception as _ef_inner:
                         print(f"[GUARDIAN-FAIL-FAST] ERROR creando EMPTY.flag en {w['id']}: {_ef_inner}")
-                        logger.error("[GUARDIAN-FAIL-FAST] No se pudo crear EMPTY.flag para %s: %s", w['id'], _ef_inner)
+                        logger.error("[GUARDIAN-FAIL-FAST] No se pudo crear EMPTY.flag para {}: {}", w['id'], _ef_inner)
                 else:
                     # SystemExit con código != 0 y != 3 → error real → re-raise
                     print(f"[FIX-MERGE-EXIT-01] SystemExit({_se_inner.code}) en {w['id']} - re-raising (error real).")
-                    logger.error("[FIX-MERGE-EXIT-01] SystemExit(%s) en ventana %s - error real, abortando worker.", _se_inner.code, w['id'])
+                    logger.error("[FIX-MERGE-EXIT-01] SystemExit({}) en ventana {} - error real, abortando worker.", _se_inner.code, w['id'])
                     raise
 
         merge_and_validate(seed_str)
 
     except SystemExit as _se_outer:
         print(f"[FIX-MERGE-EXIT-01] SystemExit({_se_outer.code}) outer - merge_and_validate NO ejecutado. Abortando worker.")
-        logger.error("[FIX-MERGE-EXIT-01] SystemExit(%s) en outer try/except - merge_and_validate NO se ejecutó. Causa: SystemExit(%s!=0) desde ventana.", _se_outer.code, _se_outer.code)
+        logger.error("[FIX-MERGE-EXIT-01] SystemExit({}) en outer try/except - merge_and_validate NO se ejecutó. Causa: SystemExit({}!=0) desde ventana.", _se_outer.code, _se_outer.code)
         raise
     except Exception as e:
         logger.exception(f"Error crítico en wfb_worker: {e}")
-        sys.exit(1)
+        sys.exit(5)
 
 
 if __name__ == "__main__":

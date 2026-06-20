@@ -110,7 +110,11 @@ HMM_TBM_PARAMS = {
     "3_CALM_BEAR":       {"sl": 1.0, "tp": 1.2},
     # FIX-I4 (2026-04-29): tp 2.5->1.5 — objetivo mas realista en regimen bajista.
     "3_BEAR_CRASH":      {"sl": 1.5, "tp": 1.5},
+    # [LUNA-V2-FIX-BEARTREND 2026-06-19] Mapeo de 3_BEAR_TREND para simulador y testing
+    "3_BEAR_TREND":      {"sl": 1.0, "tp": 1.2},
 }
+
+_HMM_TBM_FALLBACK = {"sl": 0.8, "tp": 1.5}
 
 
 # --- RESOLVEDORES ROBUSTOS CONTRA SILENT REGIME FALLBACK ---
@@ -152,6 +156,119 @@ def get_hmm_tbm_params(regime_name: str) -> dict:
     return _HMM_TBM_FALLBACK
 
 
+# [BUG-01-FIX 2026-06-19] get_hmm_horizon: función restaurada.
+# Esta función fue eliminada de predict_oos.py pero signal_filter.py (L1241) continúa
+# importándola, causando ImportError en cada ejecución OOS y degradando la selección
+# dinámica de regímenes HMM al fallback estático (1_VOLATILE_BULL únicamente).
+_HMM_HORIZON_MAP = {
+    "1_VOLATILE_BULL":   240,
+    "1_BULL_GRIND":      168,
+    "1_BULL_TREND":      168,
+    "2_CALM_RANGE":      96,
+    "2_VOLATILE_RANGE":  120,
+    "3_CALM_BEAR":       168,
+    "3_BEAR_TREND":      168,
+    "3_BEAR_CRASH":      168,
+}
+_HMM_HORIZON_DEFAULT = 72
+_HMM_HORIZON_FALLBACK = 168
+HMM_HORIZON_MAP = _HMM_HORIZON_MAP
+
+
+def get_hmm_horizon(regime_name: str) -> int:
+    """
+    [BUG-01-FIX 2026-06-19] Mapea el nombre semántico del régimen HMM al horizonte
+    temporal óptimo (en horas) para la barrera vertical del TBM dinámico.
+
+    Mismo patrón de resolución robusto que get_hmm_tbm_params: soporta coincidencia
+    exacta, prefijo base y remoción de sufijos dinámicos (_B, _C, _WEAK).
+
+    Args:
+        regime_name: Nombre semántico del régimen HMM (ej. '1_BULL_TREND', '1_VOLATILE_BULL_C').
+
+    Returns:
+        Horizonte temporal en horas (int).
+    """
+    if not isinstance(regime_name, str):
+        regime_name = str(regime_name)
+    regime_str = regime_name.strip()
+    if regime_str in _HMM_HORIZON_MAP:
+        return _HMM_HORIZON_MAP[regime_str]
+    for base_regime, horizon_h in _HMM_HORIZON_MAP.items():
+        if regime_str.startswith(base_regime):
+            print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' -> base '{base_regime}' -> {horizon_h}H")
+            return horizon_h
+    import re as _re_hor
+    _stripped = _re_hor.sub(r'_(WEAK|[B-D])$', '', regime_str)
+    if _stripped in _HMM_HORIZON_MAP:
+        _h = _HMM_HORIZON_MAP[_stripped]
+        print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' -> '{_stripped}' (sufijo removido) -> {_h}H")
+        return _h
+    
+    # --- NUEVA GUARDA FAIL-FAST ---
+    if regime_str.startswith(("1_", "2_", "3_")):
+        err_msg = f"[CRITICAL-FALLBACK-ALERT] Régimen conocido '{regime_str}' no pudo ser resuelto a ninguna clave base de HMM_HORIZON_MAP!"
+        print(f"[CRITICAL-FALLBACK-ALERT] {err_msg}")
+        raise ValueError(err_msg)
+        
+    print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' desconocido -> fallback {_HMM_HORIZON_FALLBACK}H")
+    return _HMM_HORIZON_FALLBACK
+
+
+# [BUG-01-FIX 2026-06-19] get_hmm_horizon: función restaurada.
+# Esta función fue eliminada de predict_oos.py pero signal_filter.py (L1241) continúa
+# importándola, causando ImportError en cada ejecución OOS y degradando la selección
+# dinámica de regímenes HMM al fallback estático (1_VOLATILE_BULL únicamente).
+#
+# Horizonte temporal en horas por régimen — calibrado para reducir Holding_Time_Friction:
+#   BULL_TREND: 120H → tendencia fuerte, dejar correr la ganancia
+#   VOLATILE_BULL: 96H → alta volatilidad, salida más rápida
+#   BULL_GRIND: 72H → alcista lento, horizonte moderado
+#   CALM/BEAR: 48H → conservador, salida rápida ante reversión
+_HMM_HORIZON_MAP = {
+    "1_VOLATILE_BULL":   96,
+    "1_BULL_GRIND":      72,
+    "1_BULL_TREND":     120,
+    "2_CALM_RANGE":      48,
+    "2_VOLATILE_RANGE":  72,
+    "3_CALM_BEAR":       48,
+    "3_BEAR_CRASH":      48,
+    "3_BEAR_TREND":      48,
+}
+_HMM_HORIZON_DEFAULT = 72
+_HMM_HORIZON_FALLBACK = 168
+HMM_HORIZON_MAP = _HMM_HORIZON_MAP
+
+
+def get_hmm_horizon(regime_name: str) -> int:
+    """
+    [BUG-01-FIX 2026-06-19] Mapea el nombre semántico del régimen HMM al horizonte
+    temporal óptimo (en horas) para la barrera vertical del TBM dinámico.
+    """
+    if not isinstance(regime_name, str):
+        regime_name = str(regime_name)
+    regime_str = regime_name.strip()
+    if regime_str in _HMM_HORIZON_MAP:
+        return _HMM_HORIZON_MAP[regime_str]
+    for base_regime, horizon_h in _HMM_HORIZON_MAP.items():
+        if regime_str.startswith(base_regime):
+            print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' -> base '{base_regime}' -> {horizon_h}H")
+            return horizon_h
+    import re as _re_hor
+    _stripped = _re_hor.sub(r'_(WEAK|[B-D])$', '', regime_str)
+    if _stripped in _HMM_HORIZON_MAP:
+        _h = _HMM_HORIZON_MAP[_stripped]
+        print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' -> '{_stripped}' (sufijo removido) -> {_h}H")
+        return _h
+    _upper = regime_str.upper()
+    if "BULL" in _upper:
+        print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' fallback familia BULL -> 96H")
+        return 96
+    if "BEAR" in _upper or "CRASH" in _upper:
+        print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' fallback familia BEAR -> 48H")
+        return 48
+    print(f"[BUG-01-FIX] get_hmm_horizon: '{regime_str}' desconocido -> fallback {_HMM_HORIZON_FALLBACK}H")
+    return _HMM_HORIZON_FALLBACK
 
 
 class OOSTradesGenerator:
@@ -993,10 +1110,14 @@ class OOSTradesGenerator:
                 try:
                     import os as _os_sentinel
                     _window_id_s = _os_sentinel.environ.get("LUNA_WINDOW_ID", "UNK")
-                    # Rutas para buscar la validación in-sample
-                    _val_feat_path = self.root / "data" / "wfb_cache" / _window_id_s / "features" / f"features_validation_{_window_id_s}.parquet"
-                    if not _val_feat_path.exists():
-                        _val_feat_path = self.root / "data" / "wfb_cache" / _window_id_s / "features" / "features_validation.parquet"
+                    if _window_id_s == "PROD":
+                        _val_feat_path = self.root / "data" / "features" / "features_validation.parquet"
+                        print(f"[BUGFIX-PROD-DRIFT-SENTINEL 2026-06-20] Prediction Drift Sentinel path resolved to {_val_feat_path} for production.")
+                        logger.info(f"[BUGFIX-PROD-DRIFT-SENTINEL 2026-06-20] Prediction Drift Sentinel path resolved to {_val_feat_path} for production.")
+                    else:
+                        _val_feat_path = self.root / "data" / "wfb_cache" / _window_id_s / "features" / f"features_validation_{_window_id_s}.parquet"
+                        if not _val_feat_path.exists():
+                            _val_feat_path = self.root / "data" / "wfb_cache" / _window_id_s / "features" / "features_validation.parquet"
                     
                     if _val_feat_path.exists():
                         _df_val_s = pd.read_parquet(_val_feat_path)
@@ -1021,15 +1142,22 @@ class OOSTradesGenerator:
                                 _hold_pct = np.where(_hold_pct == 0, 1e-4, _hold_pct)
                                 _pred_psi = np.sum((_hold_pct - _val_pct) * np.log(_hold_pct / _val_pct))
                                 
-                                # [FIX-PRED-DRIFT-SENTINEL 2026-06-13] Carga dinámica de parámetros desde settings.yaml (No-Fallback)
-                                _pred_min_psi = 0.08
-                                _pred_max_psi = 0.20
+                                # [FIX-PRED-DRIFT-SENTINEL 2026-06-19] Carga dinámica de parámetros desde settings.yaml (No-Fallback estricto)
+                                # Se corrige discrepancia de claves (antes min_psi/max_psi, correcto psi_min/psi_max)
                                 if _cfg_xgb is not None:
                                     try:
-                                        _pred_min_psi = float(_cfg_xgb.wfb.pred_drift_min_psi)
-                                        _pred_max_psi = float(_cfg_xgb.wfb.pred_drift_max_psi)
-                                    except Exception as _e_cfg:
-                                        pass
+                                        _pred_min_psi = float(_cfg_xgb.wfb.pred_drift_psi_min)
+                                        _pred_max_psi = float(_cfg_xgb.wfb.pred_drift_psi_max)
+                                    except (AttributeError, KeyError) as _e_cfg:
+                                        _err_msg = (
+                                            f"CRITICAL [PRED-DRIFT-SENTINEL]: Falta pred_drift_psi_min o pred_drift_psi_max "
+                                            f"en settings.yaml wfb block. Política No-Fallback activa. Error: {_e_cfg}"
+                                        )
+                                        print(_err_msg)
+                                        logger.critical(_err_msg)
+                                        raise KeyError(_err_msg) from _e_cfg
+                                else:
+                                    raise RuntimeError("CRITICAL [PRED-DRIFT-SENTINEL]: _cfg_xgb es None. Configuración no cargable. Política No-Fallback activa.")
                                 
                                 if _pred_psi >= _pred_max_psi:
                                     _pred_drift_penalty = 0.0
@@ -1039,6 +1167,8 @@ class OOSTradesGenerator:
                                 print(f"[FIX-PRED-DRIFT-SENTINEL] Window {_window_id_s} | Dirección {_direct} | Preds PSI = {_pred_psi:.4f} | Penalty = {_pred_drift_penalty:.1%} | Bounds=[{_pred_min_psi:.2f}, {_pred_max_psi:.2f}]")
                                 logger.info(f"[FIX-PRED-DRIFT-SENTINEL] Window {_window_id_s} | Dirección {_direct} | Preds PSI = {_pred_psi:.4f} | Penalty = {_pred_drift_penalty:.1%} | Bounds=[{_pred_min_psi:.2f}, {_pred_max_psi:.2f}]")
                 except Exception as _e_sent:
+                    if isinstance(_e_sent, (KeyError, RuntimeError)) and "CRITICAL" in str(_e_sent):
+                        raise _e_sent
                     print(f"[FIX-PRED-DRIFT-SENTINEL] Error en Sentinel (no critico): {_e_sent}")
                     logger.debug(f"[FIX-PRED-DRIFT-SENTINEL] Error en Sentinel: {_e_sent}")
 
@@ -1060,11 +1190,12 @@ class OOSTradesGenerator:
                     )
                     if _pct_mod_oos < 0.5 and _n_cals_ok > 0 and _n_total_oos > 100:
                         logger.critical(
-                            "[FIX-CALIB-BINARY-01/DETECTION-3] DEBUG: %d calibradores cargados "
-                            "pero passthrough activo (diff_mean=%.6f). "
+                            "[FIX-CALIB-BINARY-01/DETECTION-3] DEBUG: {} calibradores cargados "
+                            "pero passthrough activo (diff_mean={:.6f}). "
                             "Las probabilidades calibradas estan deshabilitadas por diseño (SPW=1.0 fix).",
                             _n_cals_ok, float(_diff_oos.mean())
                         )
+                        print(f"[BUG-FIX-LOG 2026-06-20] [FIX-CALIB-LOG-FORMAT] Corregido formato de log crítico de calibración: {_n_cals_ok} cals, diff_mean={float(_diff_oos.mean()):.6f}")
                 except Exception as _e_det3:
                     print(f"[FIX-CALIB-BINARY-01/DETECTION-3] Error en audit (no critico): {_e_det3}")
             else:
@@ -1445,8 +1576,28 @@ class OOSTradesGenerator:
             # Historial de retornos recientes (deque de tamano fijo) para rolling Sharpe causal
             from collections import deque as _deque
             _roll_sr_history = _deque(maxlen=_h5_window)  # retornos brutos de los ultimos N trades
+            _pending_trades = []  # [H5-ROLL-SR-GATE-CAUSAL 2026-06-19] Queue for active/unrealized trades: (exit_time, ret_bruto, confidence)
             _h5_gates_applied = 0  # contador de trades silenciados por H5
-            print(f"[H5-ROLL-SR-GATE] Inicializado: history=deque(maxlen={_h5_window}) | threshold={_h5_threshold}")
+            print(f"[H5-ROLL-SR-GATE] Inicializado: history=deque(maxlen={_h5_window}) | threshold={_h5_threshold} | queue causal activa")
+
+            # [CONFORMAL-GATE-CAUSAL 2026-06-19] Cargar parámetros de la censura Conformal
+            # No-Fallback estricto: parámetros de riesgo del censor conformal.
+            try:
+                from config.settings import cfg as _cfg_conf
+                _gap_thresh = float(_cfg_conf.xgboost.conformal_gap_threshold)
+                _min_wr = float(_cfg_conf.xgboost.conformal_min_win_rate)
+                _conf_window = int(_cfg_conf.xgboost.conformal_rolling_window)
+                print(f"[CONFORMAL-GATE-CAUSAL] Cargado: gap_thresh={_gap_thresh:.3f} | min_wr={_min_wr:.3f} | window={_conf_window}")
+                logger.info(f"[CONFORMAL-GATE-CAUSAL] Conformal Censor activo: gap_thresh={_gap_thresh:.3f} | min_wr={_min_wr:.3f} | window={_conf_window}")
+            except Exception as _e_conf:
+                _err_conf = f"CRITICAL [CONFORMAL-GATE-CAUSAL]: Fallo cargando parametros de conformal censor de settings.yaml: {_e_conf}"
+                print(_err_conf)
+                logger.critical(_err_conf)
+                raise RuntimeError(_err_conf) from _e_conf
+
+            _roll_conf_history = _deque(maxlen=_conf_window)  # confianza (xgb_prob_cal/raw) de completados
+            _roll_win_history = _deque(maxlen=_conf_window)   # win status (ret_bruto > 0) de completados
+            _conformal_censored_count = 0  # contador de trades censurados conformalmente
 
             # [SOP-COST-FIX 2026-06-05] Cargar costo transaccional (SOP R6) sin fallback
             try:
@@ -1470,12 +1621,53 @@ class OOSTradesGenerator:
 
             active_exits = []
 
+            # [H2-FIX 2026-06-19] Cargar hard stop absoluto post-TBM de settings (No-Fallback estricto).
+            # Descarta trades donde ret_raw > tbm_hard_stop_pct ANTES del Kelly sizing.
+            # Evidencia: retro-sim identifico outlier ret=-13.93% (gap/crash que salto el SL de ATR).
+            # Politica No-Fallback: falta el param -> KeyError inmediato para forzar parada visible.
+            try:
+                from config.settings import cfg as _cfg_hardstop
+                _TBM_HARD_STOP_PCT = float(_cfg_hardstop.xgboost.tbm_hard_stop_pct)
+                print(f"[H2-FIX] Hard Stop absoluto post-TBM cargado: max_loss={_TBM_HARD_STOP_PCT:.1%} | "
+                      f"Cualquier trade con ret < -{_TBM_HARD_STOP_PCT:.1%} sera descartado antes de Kelly.")
+                logger.info(f"[H2-FIX] tbm_hard_stop_pct={_TBM_HARD_STOP_PCT:.3f} cargado correctamente de settings.yaml")
+            except (AttributeError, KeyError) as _e_hs:
+                _msg_hs = (f"[H2-FIX][CRITICAL] Falta xgboost.tbm_hard_stop_pct en settings.yaml. "
+                           f"Politica No-Fallback: agregar el parametro antes de ejecutar. Error: {_e_hs}")
+                print(_msg_hs)
+                logger.critical(_msg_hs)
+                raise KeyError(_msg_hs) from _e_hs
+            except Exception as _e_hs2:
+                raise RuntimeError(f"[H2-FIX][CRITICAL] Error inesperado leyendo tbm_hard_stop_pct: {_e_hs2}") from _e_hs2
+
             for t in signal_times:
                 if t not in tbm_result.index:
                     continue
                 row = tbm_result.loc[t]
                 if pd.isna(row.get("ret", np.nan)):
                     continue
+
+                # [H5-ROLL-SR-GATE-CAUSAL 2026-06-19] Mover a completados los trades cuya fecha de salida sea <= t
+                # t es la hora de entrada del nuevo trade. Los retornos de trades pasados solo son conocidos
+                # para el Sharpe/Conformal Gates si ya se cerraron (exit_time <= t).
+                _completed_trades = []
+                _still_pending = []
+                for _p_item in _pending_trades:
+                    _p_exit_time = _p_item[0]
+                    _p_ret = _p_item[1]
+                    _p_conf = _p_item[2] if len(_p_item) > 2 else 0.5
+                    
+                    if _p_exit_time <= t:
+                        _completed_trades.append((_p_ret, _p_conf))
+                    else:
+                        _still_pending.append(_p_item)
+                _pending_trades = _still_pending
+                
+                for _ret, _conf in _completed_trades:
+                    _roll_sr_history.append(_ret)
+                    _roll_win_history.append(float(_ret > 0))
+                    _roll_conf_history.append(_conf)
+                    print(f"[CAUSAL-COMPLETED 2026-06-19] Trade completado a las {t} | ret={_ret:.4f} | conf={_conf:.4f} | history_len={len(_roll_sr_history)}")
 
                 # [FIX-CONCURRENCY-CAP 2026-06-13] Clean up expired exits
                 active_exits = [ex for ex in active_exits if ex > t]
@@ -1513,12 +1705,24 @@ class OOSTradesGenerator:
 
                 # [V2-P3-DRIFT] sizing unificado mediante la clase oficial (DRY principle)
                 ret_raw_tbm  = float(row["ret"])
-                
+
+                # [H2-FIX-CORRECTION 2026-06-19] Simular la pérdida del stop-loss real en lugar de ignorar el trade (Look-Ahead Leak Fix)
+                # La exclusión por continue se cambia por un capping de la pérdida al nivel del stop.
+                _trade_ret_effective = ret_raw_tbm
+                _hard_stop_triggered = False
+                if ret_raw_tbm < -_TBM_HARD_STOP_PCT:
+                    _trade_ret_effective = -_TBM_HARD_STOP_PCT
+                    _hard_stop_triggered = True
+                    print(f"[H2-FIX-CORRECTION 2026-06-19] HARD STOP TRIGGERED en {t} | ret_raw={ret_raw_tbm:.4f} -> capped a {-_TBM_HARD_STOP_PCT:.4f}")
+                    logger.warning(f"[H2-FIX-CORRECTION] Hard stop absoluto capped en {t}: ret={ret_raw_tbm:.4f} -> {-_TBM_HARD_STOP_PCT:.4f}")
+
+                _confidence_val = float(df_oos_iter.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos_iter.columns and t in df_oos_iter.index else float(df_oos_iter.loc[t, "xgb_prob"]) if "xgb_prob" in df_oos_iter.columns and t in df_oos_iter.index else 0.5
+
                 if _kelly_sizer_instance is not None:
                     # Empaquetamos la fila para que el método nativo evalue todo el conjunto
                     _row_df = df_oos_iter.loc[[t]].copy()
                     # Mapear columnas esperadas por KellyPositionSizer
-                    _row_df["xgb_prob"] = float(df_oos_iter.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos_iter.columns and t in df_oos_iter.index else float(df_oos_iter.loc[t, "xgb_prob"]) if "xgb_prob" in df_oos_iter.columns and t in df_oos_iter.index else 0.5
+                    _row_df["xgb_prob"] = _confidence_val
                     _row_df["meta_prob"] = float(df_oos_iter.loc[t, "meta_v2_prob"]) if "meta_v2_prob" in df_oos_iter.columns and t in df_oos_iter.index else 0.5
                     _row_df["hmm_regime"] = float(df_oos_iter.loc[t, "HMM_Regime"]) if "HMM_Regime" in df_oos_iter.columns and t in df_oos_iter.index else np.nan
                     
@@ -1555,16 +1759,41 @@ class OOSTradesGenerator:
                     if _h5_roll_sr < _h5_threshold:
                         _h5_gates_applied += 1
                         print(f"[H5-ROLL-SR-GATE] SILENCIADO Kelly en {t} | "
-                              f"roll_SR={_h5_roll_sr:.4f} < umbral={_h5_threshold} | "
-                              f"kelly_original={_eff_mult:.4f} → 0.0 | "
-                              f"history_n={len(_h5_arr)} | mean_ret={_h5_mean*100:.4f}% | "
-                              f"std={_h5_std*100:.4f}% | gates_total={_h5_gates_applied}")
+                               f"roll_SR={_h5_roll_sr:.4f} < umbral={_h5_threshold} | "
+                               f"kelly_original={_eff_mult:.4f} → 0.0 | "
+                               f"history_n={len(_h5_arr)} | mean_ret={_h5_mean*100:.4f}% | "
+                               f"std={_h5_std*100:.4f}% | gates_total={_h5_gates_applied}")
                         logger.info(f"[H5-ROLL-SR-GATE] Kelly silenciado en {t}: roll_SR={_h5_roll_sr:.4f} < {_h5_threshold}")
                         _eff_mult = 0.0
                     else:
                         logger.debug(f"[H5-ROLL-SR-GATE] Kelly PERMITIDO en {t}: roll_SR={_h5_roll_sr:.4f} >= {_h5_threshold}")
                 elif _h5_enabled:
                     logger.debug(f"[H5-ROLL-SR-GATE] Historial insuficiente ({len(_roll_sr_history)}/{_h5_window}), gate inactivo en {t}")
+
+                # [CONFORMAL-CENSOR-CAUSAL 2026-06-19] Censura conformal causal inside the loop
+                _conformal_censored = False
+                _roll_win_rate = np.nan
+                _roll_confidence = np.nan
+                _calibration_gap = np.nan
+                
+                if len(_roll_win_history) >= 5:
+                    _roll_win_rate = float(np.mean(_roll_win_history))
+                    _roll_confidence = float(np.mean(_roll_conf_history))
+                    _calibration_gap = _roll_confidence - _roll_win_rate
+                    if _calibration_gap > _gap_thresh and _roll_win_rate < _min_wr:
+                        _conformal_censored = True
+                        _conformal_censored_count += 1
+                        print(f"[CONFORMAL-CENSOR-CAUSAL] Covariate Shift detectado en {t} | "
+                              f"roll_confidence={_roll_confidence:.4f} | roll_win_rate={_roll_win_rate:.4f} | "
+                              f"gap={_calibration_gap:.4f} (umbral={_gap_thresh:.2f}) | "
+                              f"kelly_original={_eff_mult:.4f} → 0.0 | "
+                              f"history_len={len(_roll_win_history)} | censored_total={_conformal_censored_count}")
+                        logger.info(f"[CONFORMAL-CENSOR-CAUSAL] Trade censurado en {t}: gap={_calibration_gap:.4f} > {_gap_thresh:.2f} and WR={_roll_win_rate:.4f} < {_min_wr:.2f}")
+                        _eff_mult = 0.0
+                    else:
+                        logger.debug(f"[CONFORMAL-CENSOR-CAUSAL] Kelly PERMITIDO en {t}: gap={_calibration_gap:.4f} <= {_gap_thresh:.2f} or WR={_roll_win_rate:.4f} >= {_min_wr:.2f}")
+                else:
+                    logger.debug(f"[CONFORMAL-CENSOR-CAUSAL] Historial de conformal insuficiente ({len(_roll_win_history)}/5) en {t}")
 
                 # [P1-BEAR-CRASH-01 2026-05-29] Hard exclusion en regimen 3_BEAR_CRASH.
                 # Evidencia auditoria 2026-05-30: 36 trades con Kelly=0 contaminaban el WR
@@ -1586,12 +1815,12 @@ class OOSTradesGenerator:
                 #   Equivalente matematico: cost_efectivo = cost_rt * kelly (proporcional a posicion real).
                 _COST_RT = _GLOBAL_COST_RT  # [SOP-COST-FIX] Valor leido de settings (No-Fallback)
 
-                ret_kelly    = (ret_raw_tbm - _COST_RT) * _eff_mult  # [FIX-COST-RT-01] costo sobre posicion real
-                ret_bruto    = ret_raw_tbm - _COST_RT                # retorno bruto sin Kelly (para is_win TBM puro)
+                ret_kelly    = (_trade_ret_effective - _COST_RT) * _eff_mult  # [FIX-COST-RT-01] costo sobre posicion real
+                ret_bruto    = _trade_ret_effective - _COST_RT                # retorno bruto sin Kelly (para is_win TBM puro)
                 logger.debug(
                     "[FIX-COST-RT-01] Trade: ret_raw=%.4f%% | kelly=%.1f%% | "
                     "ret_bruto=%.4f%% | ret_kelly=%.4f%% | costo_efectivo=%.5f%%",
-                    ret_raw_tbm * 100, _eff_mult * 100,
+                    _trade_ret_effective * 100, _eff_mult * 100,
                     ret_bruto * 100, ret_kelly * 100, _COST_RT * _eff_mult * 100
                 )
 
@@ -1642,32 +1871,28 @@ class OOSTradesGenerator:
                     "return_pct":   ret_kelly,
                     "return_raw":   ret_bruto,
                     "tribe_mult":   tribe_mult,
-                    # BUG-GEN-02 FIX (2026-04-06): is_win = victoria TBM bruta (modelo puro).
-                    # is_win_kelly = victoria teniendo en cuenta el multiplicador Kelly tribal.
-                    # Si tribe_mult < 1.0, un trade ganador puede tener return_pct < 0 (Kelly pierde).
-                    # Gauntlet usa return_pct → is_win_kelly es la métrica relevante para Calmar/WR real.
                     "is_win":       bool(ret_bruto > 0),
                     "is_win_kelly": bool(ret_kelly > 0),
                     "xgb_prob":     float(df_oos_iter.loc[t, "xgb_prob"]) if t in df_oos_iter.index else np.nan,
                     "xgb_prob_cal": float(df_oos_iter.loc[t, "xgb_prob_cal"]) if "xgb_prob_cal" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
                     "meta_v2_prob": float(df_oos_iter.loc[t, "meta_v2_prob"]) if "meta_v2_prob" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
                     "lgbm_prob":    float(df_oos_iter.loc[t, "lgbm_prob"]) if "lgbm_prob" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
-                    # BUG-03 FIX: registrar si este trade entro con threshold de emergencia
                     "signal_threshold":      signal_pipeline.used_threshold if 'signal_pipeline' in locals() else np.nan,
                     "threshold_was_lowered": signal_pipeline.threshold_was_lowered if 'signal_pipeline' in locals() else False,
                     "filter_fallback_level": getattr(signal_pipeline, "filter_fallback_level", 0) if 'signal_pipeline' in locals() else 0,
-                    # TEARSHEET-v5.0: tiempos de entrada/salida para Panel B (Holding Time)
                     "entry_time":   t,
                     "exit_time":    row.get("first_touch", pd.NaT) if hasattr(row, "get") else getattr(row, "first_touch", pd.NaT),
-                    # FIX-REGIME-STATIC-01 (2026-04-29): hmm_regime por trade (no moda estática del OOS completo).
-                    # Bug: _regime_now era la moda de TODO el holdout, asignando 3_BEAR_CRASH a todos los trades
-                    # en W3+W4 aunque BTC pasó de $60K a $108K. Fix: leer HMM_Semantic del bar de entrada.
                     "hmm_regime":   str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t in df_oos_iter.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
                     "HMM_Semantic": str(df_oos_iter.loc[t, "HMM_Semantic"]) if "HMM_Semantic" in df_oos_iter.columns and t in df_oos_iter.index else (_regime_now if '_regime_now' in locals() else 'UNKNOWN'),
                     "kelly_fraction_used": _eff_mult,
                     "ood_kl_distance": float(df_oos_iter.loc[t, "ood_kl_distance"]) if "ood_kl_distance" in df_oos_iter.columns and t in df_oos_iter.index else np.nan,
                     "shap_drivers": top_shap_features,
                     "alpha_trigger": ",".join([c for c in ["alpha_golden_score", "alpha_genetic_score", "alpha_dtw_signal"] if c in df_oos_iter.columns and t in df_oos_iter.index and float(df_oos_iter.loc[t, c]) > 0]),
+                    "hard_stop_triggered": _hard_stop_triggered,
+                    "conformal_censored": _conformal_censored,
+                    "rolling_win_rate": _roll_win_rate,
+                    "rolling_confidence": _roll_confidence,
+                    "calibration_gap": _calibration_gap,
                 })
                 # [FIX-CONCURRENCY-CAP 2026-06-13] Registrar la salida del trade activo
                 _exit_t = row.get("first_touch", pd.NaT) if hasattr(row, "get") else getattr(row, "first_touch", pd.NaT)
@@ -1682,9 +1907,9 @@ class OOSTradesGenerator:
                 running_equity += ret_kelly
                 peak_equity     = max(peak_equity, running_equity)
 
-                # [H5-ROLL-SR-GATE] Actualizar historial con retorno BRUTO del trade ejecutado
-                # Usamos ret_bruto (pre-Kelly) para que el gate sea invariante al tamaño de posición
-                _roll_sr_history.append(float(ret_bruto))
+                # [H5-ROLL-SR-GATE-CAUSAL 2026-06-19] Registrar en cola de pendientes, NO en la historia activa inmediatamente
+                _pending_trades.append((_exit_t, float(ret_bruto), _confidence_val))
+                print(f"[H5-ROLL-SR-GATE-CAUSAL-PENDING 2026-06-19] Trade registrado en {t} | exit_time={_exit_t} | ret={ret_bruto:.4f} | conf={_confidence_val:.4f}")
 
 
             # ---> RESEARCH: XGBoost Only (Pre-MetaLabeler Baseline)
@@ -1835,35 +2060,11 @@ class OOSTradesGenerator:
         df_trades = df_trades.set_index("timestamp")
         df_trades.index = pd.to_datetime(df_trades.index, utc=True)
         
-        # [CONFORMAL-PREDICTION-01] Filtro Rolling de Covariate Shift
-        _rolling_window = max(5, len(df_trades) // 3)
-        df_trades['rolling_win_rate'] = df_trades['is_win'].rolling(window=_rolling_window, min_periods=1).mean()
-        # Usamos xgb_prob_cal como confianza principal
-        _conf_col = 'xgb_prob_cal' if 'xgb_prob_cal' in df_trades.columns else 'xgb_prob'
-        df_trades['rolling_confidence'] = df_trades[_conf_col].fillna(0.5).rolling(window=_rolling_window, min_periods=1).mean()
-        df_trades['calibration_gap'] = df_trades['rolling_confidence'] - df_trades['rolling_win_rate']
-        
-        # [COMBO-HIPOTESIS] Lectura de Strict Censor dinamico desde settings.yaml
-        try:
-            from config.settings import cfg as _cfg_conf
-            _gap_thresh = float(getattr(_cfg_conf.xgboost, "conformal_gap_threshold", 0.15))
-            _min_wr = float(getattr(_cfg_conf.xgboost, "conformal_min_win_rate", 0.5))
-        except Exception:
-            _gap_thresh = 0.15
-            _min_wr = 0.5
-
-        # Censura conformal dinámica
-        df_trades['conformal_censored'] = (df_trades['calibration_gap'] > _gap_thresh) & (df_trades['rolling_win_rate'] < _min_wr)
-        
-        _censored_count = df_trades['conformal_censored'].sum()
+        # [CONFORMAL-PREDICTION-CAUSAL] Resumen de censura conformal aplicada dentro del bucle
+        _censored_count = df_trades['conformal_censored'].sum() if 'conformal_censored' in df_trades.columns else 0
         if _censored_count > 0:
-            print(f"[CONFORMAL-CENSOR] Covariate Shift detectado. Censurando {_censored_count} trades tóxicos (Gap>{_gap_thresh:.2f}, WR<{_min_wr:.2f}). Kelly -> 0.0")
-            logger.info(f"[CONFORMAL-CENSOR] {_censored_count} trades silenciados por sobreconfianza del modelo.")
-            # Forzamos kelly_fraction_used a 0.0 para que no operen en mercado real
-            df_trades.loc[df_trades['conformal_censored'], 'kelly_fraction_used'] = 0.0
-            # Recalcular retornos empíricos afectados a cero (simulando NO ejecución)
-            df_trades.loc[df_trades['conformal_censored'], 'return_pct'] = 0.0
-            df_trades.loc[df_trades['conformal_censored'], 'is_win_kelly'] = False
+            print(f"[CONFORMAL-CENSOR] Covariate Shift detectado causalmente. {_censored_count} trades censurados de {len(df_trades)} totales (Kelly -> 0.0)")
+            logger.info(f"[CONFORMAL-CENSOR] {_censored_count} trades silenciados causalmente por sobreconfianza.")
 
         n_wins = int(df_trades["is_win"].sum())
         wr     = float(n_wins) / float(len(df_trades))

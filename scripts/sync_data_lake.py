@@ -64,6 +64,11 @@ def run_fetchers():
         "luna/data/fetch_altcoins.py",
         "luna/data/fetch_mempool.py",
         "luna/data/fetch_defi.py",
+        # [FIX-FETCHERS-HUERFANOS-01 2026-06-18] Fetchers previamente huerfanos:
+        # no estaban en el pipeline automatico -> datos con hasta 112d de atraso.
+        "luna/data/fetch_crossasset.py",    # crossasset_raw: 24d atraso -> FIX-CROSSASSET-MAIN-01
+        "luna/data/fetch_stablecoins.py",   # stablecoin_m2_raw: 112d atraso -> FIX-STABLECOIN-PATH-01
+        "luna/data/fetch_bybit_ofi.py",     # bybit_ofi_1h: 65d atraso -> NUEVO-FETCHER-OFI-01
     ]
     
     _env = os.environ.copy()

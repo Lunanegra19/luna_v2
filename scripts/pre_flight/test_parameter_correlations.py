@@ -311,3 +311,18 @@ def t83_duplicate_params():
     assert not errors, f"Parametros duplicados no autorizados: {errors}"
     return "No hay duplicidades no autorizadas OK"
 
+@test("TEST-84  SOP: Coherencia PSI Prediction Drift (pred_drift_psi_min < pred_drift_psi_max)", section="consistency")
+def t84_psi_drift_bounds():
+    cfg = _cfg()
+    try:
+        psi_min = float(cfg.wfb.pred_drift_psi_min)
+        psi_max = float(cfg.wfb.pred_drift_psi_max)
+    except Exception as e:
+        assert False, f"pred_drift_psi_min o pred_drift_psi_max ausentes en cfg.wfb: {e}"
+        
+    assert psi_min >= 0, f"pred_drift_psi_min={psi_min} debe ser >= 0"
+    assert psi_max > psi_min, f"pred_drift_psi_max={psi_max} debe ser > pred_drift_psi_min={psi_min} (Evitar división por cero)"
+    # Print de trazabilidad según RULE[fixbugsprints.md]
+    print(f"[TEST-84 2026-06-19] Invariante PSI verificado: {psi_min} < {psi_max}")
+    return f"psi_min={psi_min}, psi_max={psi_max} OK"
+

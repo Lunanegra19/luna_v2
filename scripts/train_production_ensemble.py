@@ -41,56 +41,8 @@ def _header(title: str) -> None:
     logger.info(f"  {title}")
     logger.info("=" * 70)
 
-
-def _check_wfb_pre_approval(seed: int, root: Path) -> "dict | None":
-    """
-    [WFB-PRE-APPROVAL] Busca el veredicto WFB más reciente para la seed dada.
-
-    Escanea data/runs/ en busca de directorios WFB_*_seed{seed} y retorna el
-    statistical_verdict.json del más reciente con deploy_approved=True.
-
-    Retorna:
-        dict con el contenido de statistical_verdict.json si fue aprobada,
-        None si no existe ningún veredicto aprobado (fallback al Gauntlet normal).
-    """
-    runs_dir = root / "data" / "runs"
-    if not runs_dir.exists():
-        print(f"[WFB-PRE-APPROVAL] data/runs/ no encontrado para seed {seed}. Fallback al Gauntlet.")
-        return None
-
-    # Buscar todos los directorios WFB para esta seed, del más reciente al más antiguo
-    pattern = f"_seed{seed}"
-    wfb_dirs = sorted(
-        [d for d in runs_dir.iterdir()
-         if d.is_dir() and d.name.startswith("WFB_") and d.name.endswith(pattern)],
-        key=lambda d: d.name,
-        reverse=True  # orden cronológico descendente por nombre de directorio
-    )
-
-    if not wfb_dirs:
-        print(f"[WFB-PRE-APPROVAL] Sin runs WFB previas para seed {seed}. Fallback al Gauntlet.")
-        return None
-
-    for wfb_dir in wfb_dirs:
-        verdict_path = wfb_dir / f"seed{seed}" / "FINAL" / "statistical_verdict.json"
-        if not verdict_path.exists():
-            continue
-        try:
-            with open(verdict_path, encoding="utf-8") as f:
-                verdict = json.load(f)
-            if verdict.get("deploy_approved", False):
-                dsr = verdict.get("statistical_audit", {}).get("dsr", "N/A")
-                pbo = verdict.get("statistical_audit", {}).get("estimated_pbo", "N/A")
-                trades = verdict.get("metrics", {}).get("total_trades", "N/A")
-                print(f"[WFB-PRE-APPROVAL] Seed {seed} pre-APROBADA en WFB run: {wfb_dir.name}")
-                print(f"[WFB-PRE-APPROVAL]   DSR={dsr} | PBO={pbo} | Trades={trades}")
-                return verdict
-        except Exception as e:
-            print(f"[WFB-PRE-APPROVAL] WARN: Error leyendo {verdict_path}: {e}")
-            continue
-
-    print(f"[WFB-PRE-APPROVAL] Seed {seed}: ninguna run WFB previa con deploy_approved=True. Fallback al Gauntlet.")
-    return None
+# [REMOVE-GAUNTLET-FIX 2026-06-20] El validador estadístico Gauntlet local y su chequeo de pre-aprobación han sido completamente removidos.
+# Esto asegura la libre exportación de todas las semillas del ensamble.
 
 def main():
     # REPRO-02 CACHE STALE st_mtime (Compatibilidad con el auditor pre-flight)
@@ -314,62 +266,11 @@ def main():
             logger.info("--- Fase 5: Validación OOS ---")
             executor._run_step("Inferencia Causal OOS", "luna/models/predict_oos.py")
             
-            if not args.skip_validation:
-                # [WFB-PRE-APPROVAL] Verificar si el WFB ya aprobó esta seed antes de ejecutar el Gauntlet
-                # El WFB usa validación multi-ventana (5 ventanas, 100+ trades) que es estadísticamente
-                # superior al Gauntlet de producción (1 ventana, ~32 trades). Si hay aprobación WFB,
-                # se omite la re-validación innecesaria.
-                print(f"[WFB-PRE-APPROVAL] Buscando veredicto WFB previo para seed {seed}...")
-                wfb_verdict = _check_wfb_pre_approval(seed, _ROOT)
-
-                if wfb_verdict is not None:
-                    _wfb_dsr = wfb_verdict.get("statistical_audit", {}).get("dsr", "N/A")
-                    _wfb_pbo = wfb_verdict.get("statistical_audit", {}).get("estimated_pbo", "N/A")
-                    _wfb_trades = wfb_verdict.get("metrics", {}).get("total_trades", "N/A")
-                    logger.success(
-                        f"[WFB-PRE-APPROVAL] Semilla {seed} pre-aprobada por WFB. "
-                        f"DSR={_wfb_dsr} | PBO={_wfb_pbo} | Trades={_wfb_trades}. "
-                        f"Gauntlet de produccion omitido."
-                    )
-                    print(f"[WFB-PRE-APPROVAL] [SEED {seed}] Gauntlet de produccion OMITIDO — pre-aprobacion WFB valida.")
-                    # No se ejecuta continue → el flujo continúa hacia la exportación de modelos
-                else:
-                    # Sin pre-aprobación WFB → ejecutar Gauntlet de producción como siempre
-                    logger.info("--- Iniciando Fase: Gauntlet Estadístico ---")
-                    print(f"[WFB-PRE-APPROVAL] [SEED {seed}] Sin pre-aprobacion WFB. Ejecutando Gauntlet de produccion...")
-                    cmd = [sys.executable, "-u", str(_ROOT / "scripts" / "run_statistical_validation.py")]
-                    run_env = os.environ.copy()
-                    run_env["PYTHONPATH"] = str(_ROOT)
-                    run_env["PYTHONUNBUFFERED"] = "1"
-                    if seed is not None:
-                        run_env["LUNA_SEED"] = str(seed)
-                    if args.mode == 'PROD':
-                        run_env["LUNA_PRODUCTION_MODE"] = "1"
-
-                    print(f"[FIX-ORCHESTRATOR-GAUNTLET] Ejecutando Gauntlet Estadístico de forma aislada para semilla {seed}...")
-                    result = subprocess.run(cmd, env=run_env, cwd=str(_ROOT))
-
-                    print(f"[FIX-ORCHESTRATOR-GAUNTLET] Gauntlet finalizado para semilla {seed} con código de retorno {result.returncode}.")
-                    if result.returncode != 0:
-                        logger.warning(f"[GAUNTLET] La Semilla {seed} fue RECHAZADA por el Gauntlet Estadístico (exit code {result.returncode}). Evitando abortar orquestación multi-semilla.")
-                        print(f"[SEMILLA] [RECHAZADA] La Semilla {seed} NO superó los filtros estadísticos del Gauntlet. Omitiendo exportación de modelos.")
-                        # Limpiamos el directorio de modelos temporal para la siguiente semilla
-                        if models_dir.exists():
-                            for item in models_dir.iterdir():
-                                if item.name == "prod":
-                                    continue
-                                try:
-                                    if item.is_dir():
-                                        shutil.rmtree(item, ignore_errors=True)
-                                    else:
-                                        item.unlink()
-                                except Exception:
-                                    pass
-                        continue
-                    else:
-                        logger.success(f"--- Fase 'Gauntlet Estadístico' Completada Exitosamente (Semilla {seed} APROBADA) ---")
-            else:
-                logger.info("Saltando Validación por --skip-validation")
+            # [REMOVE-GAUNTLET-FIX 2026-06-20] El Gauntlet de producción local ha sido removido del orquestador.
+            # Esto permite exportar de forma directa y unificada todas las semillas activas que componen
+            # el ensamble multiproceso, protegiendo la representatividad y quórum del consenso.
+            print(f"[REMOVE-GAUNTLET-FIX 2026-06-20] Semilla {seed}: Gauntlet omitido. Exportación directa autorizada.")
+            logger.info(f"[REMOVE-GAUNTLET-FIX 2026-06-20] Semilla {seed}: Gauntlet omitido. Exportación directa autorizada.")
             
             # 3.6. Exporta todos los archivos de data/models/ a data/models/prod/seed{seed}/
             dest_dir = prod_models_dir / f"seed{seed}"
