@@ -595,6 +595,7 @@ class RegimeRouter:
                     logger.warning(_skip_msg)
                     # Forzar prob=0.0 para todas las barras bear → señal de no-operar
                     calibrated_probs.loc[mask] = 0.0
+                    unified_probs.loc[mask] = 0.0
                     # Continuar sin FATAL — la ventana sigue
                 else:
                     # [FIX-ROUTER-SANITY-01/CRITICAL] Degeneración real — el régimen SÍ
@@ -611,6 +612,7 @@ class RegimeRouter:
                     print(_msg)  # RULE[fixbugsprints.md]
                     logger.error(_msg)
                     calibrated_probs.loc[mask] = 0.0
+                    unified_probs.loc[mask] = 0.0
                     # Continuar sin FATAL — la ventana sigue
 
             # ── WARNING-1: Colapso suave — std muy baja pero no cero ──

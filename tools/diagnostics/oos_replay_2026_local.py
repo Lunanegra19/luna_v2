@@ -5,6 +5,8 @@ y ejecuta el replay del ensemble de 12 seeds con el régimen correcto.
 Ejecutar en local porque tiene acceso a los modelos prod + features_live.parquet.
 """
 import sys, os, time
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -186,7 +188,8 @@ all_seed_probs = []
 for seed, router in seed_routers.items():
     try:
         result = router.route_and_predict(df_2026_hmm)
-        probs = result["raw"].values
+        # Usar probabilidades calibradas (SOP R10)
+        probs = result["calibrated"].fillna(result["raw"]).values
         all_seed_probs.append(probs)
         bear_count = (df_2026_hmm["HMM_Semantic"] == "3_BEAR_CRASH").sum()
         zero_count = (probs == 0.0).sum()
@@ -204,7 +207,7 @@ prob_matrix = np.array(all_seed_probs)  # (n_seeds, n_bars)
 vote_matrix = (prob_matrix > 0.5).astype(int)
 vote_counts  = vote_matrix.sum(axis=0)   # (n_bars,)
 
-ensemble_decisions = np.where(vote_counts >= CONSENSUS_THRESHOLD, "LONG", "HOLD")
+ensemble_decisions = np.where(vote_counts >= CONSENSUS_CUTOFF, "LONG", "HOLD")
 decisions_series = pd.Series(ensemble_decisions, index=df_2026_hmm.index)
 
 print(f"\n[OOS-REPLAY-2026-LOCAL] Distribución de decisiones 2026 (HMM prod):")
@@ -325,9 +328,210 @@ result = {
     "sharpe": round(float(sharpe), 3),
     "trades": trade_list,
     "hmm_distribution": df_2026_hmm["HMM_Semantic"].value_counts().to_dict(),
-    "vote_distribution": {str(v): int((pd.Series(vote_counts)==v).sum()) for v in range(0,13)},
+    "vote_distribution": {str(v): int((pd.Series(vote_counts)==v).sum()) for v in range(0, len(SEEDS)+1)},
     "seeds_used": len(seed_routers),
-    "consensus_threshold": CONSENSUS_THRESHOLD,
+    "consensus_threshold": CONSENSUS_CUTOFF,
+}
+
+OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
+print(f"\n[OOS-REPLAY-2026-LOCAL] Mapping canonico estado->regimen:")
+for s, r in CANONICAL_MAP.items():
+    cnt = int((hmm_states == s).sum())
+    print(f"  Estado {s} ({state_map.get(s,'?')}) -> {r}: {cnt} barras")
+
+df_ctx["HMM_Semantic_Prod"] = df_ctx["HMM_State_Prod"].map(CANONICAL_MAP).fillna("2_CALM_RANGE")
+
+# Volatilidad por régimen para validación
+if "close" in df_ctx.columns:
+    df_ctx["ret_tmp"] = df_ctx["close"].pct_change()
+    print(f"\n[OOS-REPLAY-2026-LOCAL] Volatilidad por regimen (validacion):")
+    for reg in df_ctx["HMM_Semantic_Prod"].unique():
+        mask = df_ctx["HMM_Semantic_Prod"] == reg
+        vol = df_ctx.loc[mask, "ret_tmp"].std() * np.sqrt(8760)
+        print(f"  {reg}: vol={vol:.4f} | {mask.sum()} barras")
+    df_ctx.drop(columns=["ret_tmp"], inplace=True)
+
+# Filtrar solo 2026 con el nuevo HMM_Semantic_Prod
+df_2026_hmm = df_ctx[df_ctx.index >= "2026-01-01"].copy()
+df_2026_hmm["HMM_Semantic"] = df_2026_hmm["HMM_Semantic_Prod"]
+
+print(f"\n[OOS-REPLAY-2026-LOCAL] Distribucion HMM_Semantic (prod) en 2026:")
+print(df_2026_hmm["HMM_Semantic"].value_counts().to_string())
+
+
+# ── 6. Cargar ensemble dinámicamente desde settings.yaml ──────────────────
+import yaml
+with open(PROJECT_ROOT / "config" / "settings.yaml", "r", encoding="utf-8") as f:
+    cfg = yaml.safe_load(f)
+SEEDS = cfg["wfb"]["active_seeds"]
+CONSENSUS_CUTOFF = cfg["wfb"]["ensemble_consensus_threshold"]
+
+from luna.models.regime_router import RegimeRouter
+
+seed_routers = {}
+for seed in SEEDS:
+    seed_dir = MODELS_DIR / f"seed{seed}"
+    if seed_dir.exists():
+        try:
+            router = RegimeRouter(models_dir=seed_dir, agent_type="xgboost", direction="long")
+            seed_routers[seed] = router
+        except Exception as e:
+            print(f"[OOS-REPLAY-2026-LOCAL] seed{seed} error: {e}")
+
+print(f"\n[OOS-REPLAY-2026-LOCAL] Seeds cargadas: {len(seed_routers)}/{len(SEEDS)}")
+
+# ── 7. Inferencia ensemble sobre 2026 con HMM prod correcto ─────────────────
+all_seed_probs = []
+
+for seed, router in seed_routers.items():
+    try:
+        result = router.route_and_predict(df_2026_hmm)
+        # Usar probabilidades calibradas (SOP R10)
+        probs = result["calibrated"].fillna(result["raw"]).values
+        all_seed_probs.append(probs)
+        bear_count = (df_2026_hmm["HMM_Semantic"] == "3_BEAR_CRASH").sum()
+        zero_count = (probs == 0.0).sum()
+        print(f"[OOS-REPLAY-2026-LOCAL] seed{seed}: mean_prob={np.nanmean(probs):.4f} | "
+              f"nonzero={np.sum(probs>0)} | bear_bars={bear_count} | zero_prob={zero_count}")
+    except Exception as e:
+        print(f"[OOS-REPLAY-2026-LOCAL] seed{seed} ERROR: {e}")
+
+# ── 8. Calcular decisiones de consenso ───────────────────────────────────────
+if not all_seed_probs:
+    print("[ERROR] No hay seeds con resultados válidos")
+    sys.exit(1)
+
+prob_matrix = np.array(all_seed_probs)  # (n_seeds, n_bars)
+vote_matrix = (prob_matrix > 0.5).astype(int)
+vote_counts  = vote_matrix.sum(axis=0)   # (n_bars,)
+
+ensemble_decisions = np.where(vote_counts >= CONSENSUS_CUTOFF, "LONG", "HOLD")
+decisions_series = pd.Series(ensemble_decisions, index=df_2026_hmm.index)
+
+print(f"\n[OOS-REPLAY-2026-LOCAL] Distribución de decisiones 2026 (HMM prod):")
+print(decisions_series.value_counts().to_string())
+
+# ── 9. Calcular trades y métricas ────────────────────────────────────────────
+prev = decisions_series.shift(1).fillna("HOLD")
+entries_mask = ((prev == "HOLD") & (decisions_series == "LONG"))
+exits_mask   = ((prev == "LONG") & (decisions_series == "HOLD"))
+
+entries = entries_mask.sum()
+exits   = exits_mask.sum()
+
+# Reconstruir posiciones para métricas
+trade_list = []
+in_position = False
+pos_start = None
+pos_entry_price = None
+
+for ts, dec in decisions_series.items():
+    close_px = df_2026_hmm.loc[ts, "close"] if ts in df_2026_hmm.index else None
+    if close_px is None:
+        continue
+
+    if dec == "LONG" and not in_position:
+        in_position = True
+        pos_start = ts
+        pos_entry_price = close_px
+    elif dec == "HOLD" and in_position:
+        in_position = False
+        ret = (close_px - pos_entry_price) / pos_entry_price
+        dur_h = (ts - pos_start).total_seconds() / 3600
+        trade_list.append({
+            "type": "SIMULATED_2026",
+            "entry_date": pos_start.strftime("%Y-%m-%d %H:%M"),
+            "exit_date": ts.strftime("%Y-%m-%d %H:%M"),
+            "entry_price": round(pos_entry_price, 2),
+            "exit_price": round(close_px, 2),
+            "return_pct": round(ret * 100, 4),
+            "duration_h": round(dur_h, 1),
+            "regime": df_2026_hmm.loc[pos_start, "HMM_Semantic"] if pos_start in df_2026_hmm.index else "N/A"
+        })
+
+if in_position and pos_start is not None:
+    last_ts = df_2026_hmm.index[-1]
+    last_px = df_2026_hmm["close"].iloc[-1]
+    ret = (last_px - pos_entry_price) / pos_entry_price
+    dur_h = (last_ts - pos_start).total_seconds() / 3600
+    trade_list.append({
+        "type": "SIMULATED_2026_OPEN",
+        "entry_date": pos_start.strftime("%Y-%m-%d %H:%M"),
+        "exit_date": "ABIERTA",
+        "entry_price": round(pos_entry_price, 2),
+        "exit_price": round(last_px, 2),
+        "return_pct": round(ret * 100, 4),
+        "duration_h": round(dur_h, 1),
+        "regime": df_2026_hmm.loc[pos_start, "HMM_Semantic"] if pos_start in df_2026_hmm.index else "N/A"
+    })
+
+# Métricas
+rets = [t["return_pct"] for t in trade_list]
+wins = sum(1 for r in rets if r > 0)
+win_rate = wins / len(rets) * 100 if rets else 0
+max_dd = min(rets) if rets else 0
+sharpe = np.mean(rets) / np.std(rets) * np.sqrt(252) if len(rets) > 1 and np.std(rets) > 0 else 0
+
+# ── 10. Output final ─────────────────────────────────────────────────────────
+print("\n" + "=" * 70)
+print("[OOS-REPLAY-2026-LOCAL] RESULTADO FINAL — TRADES 2026 (HMM PROD)")
+print("=" * 70)
+print(f"Periodo: {df_2026_hmm.index.min().date()} -> {df_2026_hmm.index.max().date()}")
+print(f"Total barras H1: {len(df_2026_hmm)}")
+print(f"Barras LONG: {(decisions_series=='LONG').sum()} ({(decisions_series=='LONG').mean()*100:.1f}%)")
+print(f"Barras HOLD: {(decisions_series=='HOLD').sum()} ({(decisions_series=='HOLD').mean()*100:.1f}%)")
+print(f"\nEntradas (LONG): {entries}")
+print(f"Salidas (->HOLD): {exits}")
+print(f"Trades completos: {exits}")
+print(f"Posición actual: {decisions_series.iloc[-1]}")
+print(f"\nWin Rate: {win_rate:.1f}%")
+print(f"Max DD trade: {max_dd:.2f}%")
+print(f"Sharpe aprox: {sharpe:.3f}")
+
+print(f"\nDetalle de trades 2026:")
+for i, t in enumerate(trade_list):
+    tag = "[WIN]" if t["return_pct"] > 0 else "[LOSS]"
+    open_tag = " [ABIERTA]" if t["type"] == "SIMULATED_2026_OPEN" else ""
+    print(f"  T{i+1}{open_tag} {tag} {t['entry_date']} -> {t['exit_date']} | "
+          f"Entrada ${t['entry_price']:,.0f} Salida ${t['exit_price']:,.0f} | "
+          f"Ret={t['return_pct']:+.2f}% | Dur={t['duration_h']:.0f}h | Regimen={t['regime']}")
+
+# Detalle mensual
+print(f"\nDetalle mensual:")
+decisions_df = decisions_series.to_frame("decision")
+decisions_df["entry"] = entries_mask
+monthly = decisions_df.resample("ME").agg(
+    bars=("decision","count"),
+    long_bars=("decision", lambda x: (x=="LONG").sum()),
+    entries=("entry","sum")
+)
+for month, row in monthly.iterrows():
+    pct = row["long_bars"]/row["bars"]*100 if row["bars"]>0 else 0
+    print(f"  {month.strftime('%Y-%m')}: {int(row['entries'])} entradas | "
+          f"{int(row['long_bars'])}h LONG / {int(row['bars'])}h ({pct:.0f}%)")
+
+# ── 11. Guardar resultado JSON para el dashboard ─────────────────────────────
+import json
+import datetime
+result = {
+    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "seeds_used": len(SEEDS),
+    "consensus_threshold": CONSENSUS_CUTOFF,
+    "period": f"{df_2026_hmm.index.min().date()} -> {df_2026_hmm.index.max().date()}",
+    "total_bars": len(df_2026_hmm),
+    "long_bars": int((decisions_series=="LONG").sum()),
+    "hold_bars": int((decisions_series=="HOLD").sum()),
+    "entries": int(entries),
+    "exits": int(exits),
+    "current_position": decisions_series.iloc[-1],
+    "win_rate": round(win_rate, 2),
+    "max_dd_pct": round(max_dd, 2),
+    "sharpe": round(float(sharpe), 3),
+    "trades": trade_list,
+    "hmm_distribution": df_2026_hmm["HMM_Semantic"].value_counts().to_dict(),
+    "vote_distribution": {str(v): int((pd.Series(vote_counts)==v).sum()) for v in range(0, len(SEEDS)+1)},
+    "seeds_used": len(seed_routers),
+    "consensus_threshold": CONSENSUS_CUTOFF,
 }
 
 OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
@@ -335,4 +539,22 @@ with open(OUT_JSON, "w", encoding="utf-8") as f:
     json.dump(result, f, indent=2, ensure_ascii=False, default=str)
 
 print(f"\n[OOS-REPLAY-2026-LOCAL] OK JSON guardado: {OUT_JSON}")
+
+# [DASHBOARD INJECTION]
+metadata_path = PROJECT_ROOT / "data" / "models" / "prod" / "ensemble_metadata.json"
+if metadata_path.exists():
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        
+        meta["oos_metrics"] = result
+        
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2, ensure_ascii=False, default=str)
+        print(f"[DASHBOARD-INJECTION] OK: oos_metrics completos inyectados en {metadata_path.name}")
+    except Exception as e:
+        print(f"[DASHBOARD-INJECTION] ERROR al inyectar oos_metrics: {e}")
+else:
+    print(f"[DASHBOARD-INJECTION] WARN: {metadata_path.name} no encontrado. No se inyectaron métricas.")
+
 print(f"[OOS-REPLAY-2026-LOCAL] Tiempo total: {time.monotonic()-t0:.1f}s")

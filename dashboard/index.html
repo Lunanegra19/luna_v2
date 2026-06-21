@@ -385,9 +385,9 @@
                                     <div class="ensemble-title-text">
                                         <h3>
                                             Ensemble Portfolio (Consolidado OOS)
-                                            <span class="ensemble-inst-badge">INSTITUCIONAL</span>
+                                            <span class="ensemble-inst-badge">MEDIA ARITMÉTICA SEEDS</span>
                                         </h3>
-                                        <p>Resultados consolidados agregados de semillas de producción en ventanas fuera de muestra (OOS) alineados con el Estándar V2.</p>
+                                        <p>Media aritmética de las métricas OOS individuales de las semillas campeonas en ventanas fuera de muestra.</p>
                                     </div>
                                 </div>
                                 <div class="ensemble-metrics-grid">
@@ -425,10 +425,10 @@
                                     <div class="v2-sub-card">
                                         <div class="metric-header text-xs mb-5">
                                             <span class="text-semibold" style="color: #94a3b8; font-size: 11px;">Asignación de Capital Kelly (Half-Kelly Estático)</span>
-                                            <span class="text-cyan font-mono text-bold" style="float: right;">14.17% ACTIVO</span>
+                                            <span id="ensemble-kelly-label" class="text-cyan font-mono text-bold" style="float: right;">--% ACTIVO</span>
                                         </div>
                                         <div class="progress-bar-bg" style="height: 6px; background: rgba(255,255,255,0.03);">
-                                            <div class="progress-bar-fill progress-cyan" style="width: 14.17%; border-radius: 3px; box-shadow: 0 0 8px #06b6d4;"></div>
+                                            <div id="ensemble-kelly-bar" class="progress-bar-fill progress-cyan" style="width: 0%; border-radius: 3px; box-shadow: 0 0 8px #06b6d4;"></div>
                                         </div>
                                         <span class="text-xxs text-gray mt-5 block" style="font-size: 10px; color: #64748b; margin-top: 5px; display: block;">Evita Doble Kelly y sweeps ruidosos conforme a la norma de mitigación de Volatility Drag.</span>
                                     </div>
@@ -1042,7 +1042,7 @@
                                     </div>
                                     <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#94a3b8;">
                                         <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#06b6d4;"></span>
-                                        <strong style="color:#06b6d4;">SIM-2026</strong> — Señal simulada OOS (12 seeds, HMM prod, threshold 3/12)
+                                        <strong style="color:#06b6d4;">SIM-2026</strong> — Señal simulada OOS (<span id="oos-subtitle-params">12 seeds, HMM prod, threshold 3/12</span>)
                                     </div>
                                     <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:#94a3b8;">
                                         <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#6366f1;"></span>
@@ -1061,27 +1061,27 @@
                                     background:rgba(255,255,255,0.02);border-radius:10px;
                                     border:1px solid rgba(255,255,255,0.04);">
                                     <div style="text-align:center;">
-                                        <div style="font-size:20px;font-weight:700;color:#10b981;" id="modal-stat-real">0</div>
+                                        <div style="font-size:20px;font-weight:700;color:#10b981;" id="breakdown-stat-real">0</div>
                                         <div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;">Trades Reales</div>
                                     </div>
                                     <div style="text-align:center;">
-                                        <div style="font-size:20px;font-weight:700;color:#06b6d4;" id="modal-stat-sim">0</div>
+                                        <div style="font-size:20px;font-weight:700;color:#06b6d4;" id="breakdown-stat-sim">0</div>
                                         <div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;">Trades OOS Sim.</div>
                                     </div>
                                     <div style="text-align:center;">
-                                        <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="modal-stat-wr">—</div>
+                                        <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="breakdown-stat-wr">—</div>
                                         <div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;">Win Rate OOS</div>
                                     </div>
                                     <div style="text-align:center;">
-                                        <div style="font-size:20px;font-weight:700;color:#ef4444;" id="modal-stat-maxdd">—</div>
+                                        <div style="font-size:20px;font-weight:700;color:#ef4444;" id="breakdown-stat-maxdd">—</div>
                                         <div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;">Max DD Trade</div>
                                     </div>
                                     <div style="text-align:center;">
-                                        <div style="font-size:20px;font-weight:700;color:#a78bfa;" id="modal-stat-sharpe">—</div>
+                                        <div style="font-size:20px;font-weight:700;color:#a78bfa;" id="breakdown-stat-sharpe">—</div>
                                         <div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;">Sharpe OOS</div>
                                     </div>
                                     <div style="text-align:center;">
-                                        <div style="font-size:20px;font-weight:700;color:#fbbf24;" id="modal-stat-cycles">—</div>
+                                        <div style="font-size:20px;font-weight:700;color:#fbbf24;" id="breakdown-stat-cycles">—</div>
                                         <div style="font-size:9px;color:#64748b;text-transform:uppercase;margin-top:2px;">Ciclos 2026</div>
                                     </div>
                                 </div>
@@ -1503,8 +1503,8 @@
                                                 <span class="step-time font-mono">T+28.0s (18:00:28.0)</span>
                                                 <span class="badge badge-active step-badge" id="vps-step-badge-8">OKX Dispatch</span>
                                             </div>
-                                            <h4 class="step-title">8. Ejecución de Órdenes Híbridas en OKX Spot</h4>
-                                            <p class="step-desc">Se despacha la orden de mercado real a la API de OKX Spot Margin con firma segura. Latencia de red ultra-baja.</p>
+                                            <h4 class="step-title">8. Ejecución de Órdenes Híbridas en OKX Futures (Long-Only)</h4>
+                                            <p class="step-desc">Se despacha la orden de mercado real a la API de OKX Futures (Long-Only) con firma segura. Latencia de red ultra-baja.</p>
                                         </div>
                                     </div>
 
@@ -1802,7 +1802,7 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <div style="margin-top:8px;font-size:9px;color:#334155;text-align:right;">* PnL simulado basado en BTC/USDT spot · 1 BTC nocional · Sin apalancamiento</div>
+                            <div style="margin-top:8px;font-size:9px;color:#334155;text-align:right;">* PnL simulado basado en BTC/USDT futures · 1 BTC nocional · Sin apalancamiento</div>
                         </div>
 
                         <div class="card glass-card mt-20">
@@ -1976,150 +1976,102 @@
                             <div style="display: flex; align-items: flex-start; gap: 14px;">
                                 <span style="font-size: 24px; flex-shrink: 0; margin-top: 2px;">🛡️</span>
                                 <div style="flex: 1; min-width: 0;">
-                                    <h4 style="font-size: 11px; color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 5px 0;">Métricas Base del Consenso de Producción V2</h4>
+                                    <h4 style="font-size: 11px; color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 5px 0;">Métricas Base del Consenso Consolidado de Producción V2</h4>
                                     <!-- Subtítulo dinámico: fuente, base_ret, base_dd, Calmar, Half-Kelly -->
                                     <p id="kelly-consensus-subtitle" style="font-size: 10px; color: #94a3b8; margin: 0 0 8px 0; line-height: 1.5;">
-                                        Simulación y Kelly Sizer configurados dinámicamente según el portafolio consolidado por consenso (Semillas aprobadas: <strong style="color: #06b6d4;">99, 1337, 2025</strong>).
+                                        Simulación y Kelly Sizer configurados dinámicamente según el portafolio consolidado por consenso (Semillas aprobadas: <strong style="color: #06b6d4;" id="ensemble-active-seeds-text">Cargando semillas...</strong>).
                                     </p>
                                     <!-- Fila de referencia OOS Sim 2026 (se muestra solo cuando hay datos) -->
                                     <div id="kelly-oos-sim-ref" style="display:none; font-size: 10px; color: #94a3b8; padding: 5px 10px; background: rgba(167, 139, 250, 0.08); border-left: 2px solid rgba(167, 139, 250, 0.4); border-radius: 3px; line-height: 1.5;">
                                     </div>
                                     <!-- Nota metodológica fija -->
                                     <p style="font-size: 9px; color: #475569; margin: 8px 0 0 0; line-height: 1.4;">
-                                        ⚠️ <strong>Metodología:</strong> base_ret = retorno medio por ventana OOS del portafolio Half-Kelly (52.9% de exposición). 
+                                        ⚠️ <strong>Metodología:</strong> Corresponde al comportamiento conjunto del <strong>Ensamble Consolidado</strong> por quórum de señales (no a la media).
+                                        base_ret = retorno medio por ventana OOS del portafolio Half-Kelly (52.9% de exposición). 
                                         Las proyecciones escalan por leverage con corrección de Volatility Drag cuadrático (SOP V10 R6/R3).
-                                        Los valores OOS-Sim son informativos y no constituyen ejecución real (SOP R8: mín. 100 trades para inferencia estadística).
                                     </p>
                                 </div>
                                 <!-- KPIs dinámicos — ligados al base_ret/base_dd actual -->
                                 <div style="display: flex; gap: 18px; text-align: right; flex-shrink: 0; align-items: center;">
                                     <div style="display: flex; flex-direction: column; gap: 3px;">
                                         <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Retorno Base (OOS)</span>
-                                        <span style="font-size: 14px; font-weight: 800; color: #10b981; font-family: 'JetBrains Mono', monospace;">+11.78%</span>
+                                        <span id="val-kelly-base-ret" style="font-size: 14px; font-weight: 800; color: #10b981; font-family: 'JetBrains Mono', monospace;">+11.78%</span>
                                         <span style="font-size: 8px; color: #475569;">por ventana WFB</span>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 3px;">
-                                        <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Max Drawdown Base</span>
-                                        <span style="font-size: 14px; font-weight: 800; color: #ef4444; font-family: 'JetBrains Mono', monospace;">−5.38%</span>
-                                        <span style="font-size: 8px; color: #475569;">intra-ventana</span>
+                                        <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Peor Trade Base</span>
+                                        <span id="val-kelly-base-dd" style="font-size: 14px; font-weight: 800; color: #ef4444; font-family: 'JetBrains Mono', monospace;">−5.38%</span>
+                                        <span style="font-size: 8px; color: #475569;">del Ensamble</span>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 3px;">
                                         <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Calmar Consensuado</span>
-                                        <span style="font-size: 14px; font-weight: 800; color: #06b6d4; font-family: 'JetBrains Mono', monospace;">2.19</span>
+                                        <span id="val-kelly-base-calmar" style="font-size: 14px; font-weight: 800; color: #06b6d4; font-family: 'JetBrains Mono', monospace;">2.19</span>
                                         <span style="font-size: 8px; color: #475569;">Ret/MaxDD</span>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 3px;">
-                                        <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Half-Kelly Institucional</span>
-                                        <span style="font-size: 14px; font-weight: 800; color: #a78bfa; font-family: 'JetBrains Mono', monospace;">52.9%</span>
+                                        <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Half-Kelly Consolidado</span>
+                                        <span id="val-kelly-base-exposure" style="font-size: 14px; font-weight: 800; color: #a78bfa; font-family: 'JetBrains Mono', monospace;">52.9%</span>
                                         <span style="font-size: 8px; color: #475569;">exposición nominal</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid-2col">
-                            <!-- KELLY EXPOSURE SWEEP -->
-                            <div class="card glass-card">
-                                <h2 class="card-title">📊 1. Sweep de Exposición Kelly (Escalado sin Margen)</h2>
-                                <p class="card-subtitle">Exposición del balance base sin usar el apalancamiento del broker.</p>
-                                <table class="sweep-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Exposición Max</th>
-                                            <th>Multiplicador</th>
-                                            <th>Retorno (6M)</th>
-                                            <th>Drawdown Max</th>
-                                            <th>Ratio R/DD</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="kelly-sweep-rows">
-                                        <!-- Loaded dynamically -->
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- BROKER LEVERAGE SWEEP -->
-                            <div class="card glass-card">
-                                <h2 class="card-title">🚀 2. Apalancamiento en OKX (Spot Margin / Multi-Colateral)</h2>
-                                <p class="card-subtitle">Exposición apalancada regulada en España (CNMV/ESMA). Comisiones y deslizamiento realistas de SOP R6 (0.25% RT).</p>
-                                <table class="sweep-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Apalancamiento</th>
-                                            <th>Garantías</th>
-                                            <th>Retorno (6M)</th>
-                                            <th>Drawdown Max</th>
-                                            <th>Eficiencia</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="leverage-sweep-rows">
-                                        <!-- Loaded dynamically -->
-                                    </tbody>
-                                </table>
+                        <!-- SIMULADOR INTERACTIVO DE EXPOSICIÓN SIMPLIFICADO -->
+                        <div class="card glass-card mt-20">
+                            <h2 class="card-title sky-glow">🧮 PROYECCIONES DE CAPITAL (x1 / x2 APALANCAMIENTO)</h2>
+                            <p class="card-subtitle mb-15">Simulador exclusivo para operativa institucional (Sin Margen o Retail Segregado). Los cálculos asumen Kelly fraccional dinámico y reflejan el ensamble consolidado.</p>
+                            
+                            <div class="calculator-container" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
+                                <!-- Controles -->
+                                <div class="calc-inputs" style="background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                                    <div class="input-group">
+                                        <label for="input-balance" style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">Capital de la Cuenta (EUR):</label>
+                                        <input type="number" id="input-balance" value="3500" step="500" min="100" class="console-text-input" style="width: 100%; font-size: 16px; padding: 10px; margin-top: 5px; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 4px;">
+                                    </div>
+                                    <div class="input-group mt-15">
+                                        <label style="font-size: 10px; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-bottom: 8px; display: block;">Apalancamiento Permitido (SOP):</label>
+                                        <div style="display: flex; gap: 10px;">
+                                            <label style="flex: 1; text-align: center; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px; border-radius: 6px; cursor: pointer;">
+                                                <input type="radio" name="input-leverage-radio" value="1" checked style="margin-right: 5px;">
+                                                <span style="font-size: 12px; font-weight: 700; color: #10b981;">x1 (Spot)</span>
+                                            </label>
+                                            <label style="flex: 1; text-align: center; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); padding: 8px; border-radius: 6px; cursor: pointer;">
+                                                <input type="radio" name="input-leverage-radio" value="2" style="margin-right: 5px;">
+                                                <span style="font-size: 12px; font-weight: 700; color: #06b6d4;">x2 (Retail)</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 20px; font-size: 9px; color: #64748b; line-height: 1.4;">
+                                        <strong>Nota Institucional:</strong> El apalancamiento superior a x2 ha sido deshabilitado de la interfaz por política de prevención de arrastre de volatilidad y fricción de comisiones excesiva.
+                                    </div>
+                                </div>
+                                
+                                <!-- Resultados -->
+                                <div class="calc-results" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="result-tile" style="padding: 15px; display: flex; flex-direction: column; justify-content: center;">
+                                        <span class="tile-lbl" style="font-size: 10px;">Exposición Nocional por Trade</span>
+                                        <span class="tile-val highlight-cyan" id="calc-trade-exp" style="font-size: 22px;">--</span>
+                                        <span class="tile-sub" style="font-size: 9px;">Tamaño efectivo ajustado por Kelly</span>
+                                    </div>
+                                    <div class="result-tile" style="padding: 15px; display: flex; flex-direction: column; justify-content: center;">
+                                        <span class="tile-lbl" style="font-size: 10px;">Riesgo / Max Drawdown Estimado</span>
+                                        <span class="tile-val highlight-error" id="calc-dd-proj" style="font-size: 22px;">--</span>
+                                        <span class="tile-sub" style="font-size: 9px;">Peor caída histórica proyectada</span>
+                                    </div>
+                                    <div class="result-tile" style="padding: 15px; display: flex; flex-direction: column; justify-content: center; border-left: 3px solid rgba(16, 185, 129, 0.5);">
+                                        <span class="tile-lbl" style="font-size: 10px;">Retorno Neto Estimado (6 Meses)</span>
+                                        <span class="tile-val highlight-emerald" id="calc-ret-proj" style="font-size: 22px;">--</span>
+                                        <span class="tile-sub" style="font-size: 9px;">Ganancia absoluta tras deducir comisiones y fricción Taker.</span>
+                                    </div>
+                                    <div class="result-tile" style="padding: 15px; display: flex; flex-direction: column; justify-content: center; border-left: 3px solid rgba(167, 139, 250, 0.5);">
+                                        <span class="tile-lbl" style="font-size: 10px;">Retorno Anualizado Compuesto (CAGR)</span>
+                                        <span class="tile-val highlight-purple" id="calc-ret-annual" style="font-size: 22px;">--</span>
+                                        <span class="tile-sub" style="font-size: 9px;">Efecto bola de nieve asumiendo reinversión continua.</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
-                        <!-- INTERACTIVE CALCULATOR -->
-                        <div class="card glass-card mt-20">
-                            <h2 class="card-title">🧮 SIMULADOR INTERACTIVO DE EXPOSICIÓN DE CAPITAL</h2>
-                            <div class="calculator-container">
-                                <div class="calc-inputs">
-                                    <div class="input-group">
-                                        <label for="input-balance">Capital de la Cuenta (USD):</label>
-                                        <input type="number" id="input-balance" value="10000" step="1000" min="500">
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="input-leverage">Apalancamiento Configurado:</label>
-                                        <div class="slider-container">
-                                            <input type="range" id="input-leverage" min="1" max="10" value="3" class="slider-bar">
-                                            <span class="slider-value" id="val-calc-leverage">3x</span>
-                                        </div>
-                                    </div>
-                                    <div class="input-group">
-                                        <label for="input-kelly">Ajuste de Exposición Kelly (Cap):</label>
-                                        <div class="slider-container">
-                                            <input type="range" id="input-kelly" min="0.10" max="100.00" step="0.01" value="14.17" class="slider-bar">
-                                            <span class="slider-value" id="val-calc-kelly">14.17%</span>
-                                        </div>
-                                        <div style="margin-top: 8px;">
-                                            <button type="button" class="btn text-xxs" id="btn-snap-half-kelly" style="padding: 4px 8px; font-size: 10px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 4px; font-weight: 600; cursor: pointer; transition: all 0.2s; width: 100%; text-align: center;">
-                                                💎 Ajustar a Half-Kelly Estático (14.17%)
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="calc-results">
-                                    <div class="result-tile">
-                                        <span class="tile-lbl">Exposición por Trade</span>
-                                        <span class="tile-val highlight-cyan" id="calc-trade-exp">$150</span>
-                                        <span class="tile-sub">Tamaño nocional medio</span>
-                                    </div>
-                                    <div class="result-tile">
-                                        <span class="tile-lbl">Retorno Esperado Proyectado (6 Meses)</span>
-                                        <span class="tile-val highlight-emerald" id="calc-ret-proj">+24.54% ($2,454)</span>
-                                        <span class="tile-sub" id="calc-ret-annual">Anualizado: ~49.08%</span>
-                                    </div>
-                                    <div class="result-tile">
-                                        <span class="tile-lbl">Riesgo Máximo de Drawdown Proyectado</span>
-                                        <span class="tile-val highlight-error" id="calc-dd-proj">-10.82% (-$1,082)</span>
-                                        <span class="tile-sub">Límite de seguridad: -35%</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="kelly-chart-wrapper">
-                                <div class="kelly-chart-header">
-                                    <span>📈 PROYECCIÓN DE RETORNOS vs ARRASTRE DE VOLATILIDAD (VOLATILITY DRAG)</span>
-                                    <div class="kelly-chart-legends">
-                                        <span class="kelly-legend-item"><span class="kelly-legend-color green"></span> Sweet Spot (3x-5x)</span>
-                                        <span class="kelly-legend-item"><span class="kelly-legend-color red"></span> Drag Zone (>5x)</span>
-                                    </div>
-                                </div>
-                                <div class="kelly-canvas-container">
-                                    <canvas id="kelly-projections-chart" width="700" height="240" class="kelly-canvas"></canvas>
-                                </div>
-                            </div>
-                            </div>
 
                         <!-- ⚙️ SIMULADOR DE FRICCIÓN TRANSACCIONAL Y COMPARATIVA DE BROKERS (SOP R6) -->
                         <div class="card glass-card mt-20" id="broker-fee-simulator-card" style="margin-top: 20px;">
@@ -2136,11 +2088,11 @@
                                     <div class="input-group mb-15" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px;">
                                         <label for="input-broker-preset" style="font-size: 10px; color: #64748b;">Seleccionar Perfil de Broker / Comisión:</label>
                                         <select id="input-broker-preset" class="console-text-input" style="padding: 6px 10px; width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); color: #fff; border-radius: 6px; font-family: 'Outfit', sans-serif; font-size: 11px;">
-                                            <option value="okx-spot-maker">OKX Spot - Maker Standard (0.10% RT fee + 0.02% slippage)</option>
-                                            <option value="okx-spot-taker" selected>OKX Spot - Taker Standard (0.25% RT fee + 0.03% slippage)</option>
-                                            <option value="okx-spot-vip">OKX Spot - VIP Margin Maker (0.06% RT fee + 0.01% slippage)</option>
+                                            <option value="okx-spot-maker">OKX Futures - Maker Standard (0.10% RT fee + 0.02% slippage)</option>
+                                            <option value="okx-spot-taker" selected>OKX Futures - Taker Standard (0.25% RT fee + 0.03% slippage)</option>
+                                            <option value="okx-spot-vip">OKX Futures - VIP Maker (0.06% RT fee + 0.01% slippage)</option>
                                             <option value="luna-sop">Luna SOP Estándar (0.25% RT fijo)</option>
-                                            <option value="okx-spot-high">OKX Spot - High Taker Retail (0.30% RT fee + 0.05% slippage)</option>
+                                            <option value="okx-spot-high">OKX Futures - High Taker Retail (0.30% RT fee + 0.05% slippage)</option>
                                             <option value="custom">Personalizado (Usa los deslizadores de abajo)</option>
                                         </select>
                                     </div>
@@ -2148,7 +2100,7 @@
                                     <div class="input-group mb-15" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 4px;">
                                         <label for="input-broker-fee" style="font-size: 10px; color: #64748b;">Comisión Round-Trip (%) por Trade:</label>
                                         <div class="slider-container" style="display: flex; align-items: center; gap: 10px;">
-                                            <input type="range" id="input-broker-fee" min="0" max="200" value="15" class="slider-bar" style="flex: 1; accent-color: #f59e0b;">
+                                            <input type="range" id="input-broker-fee" min="0" max="200" value="25" class="slider-bar" style="flex: 1; accent-color: #f59e0b;">
                                             <span class="slider-value" id="val-broker-fee" style="min-width: 55px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #fff;">0.25%</span>
                                         </div>
                                     </div>
@@ -2317,7 +2269,7 @@
                                         <span class="sop-rule-badge compliant" id="sop-badge-r6" style="font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2);">CUMPLIDO</span>
                                     </div>
                                     <h3 class="sop-rule-title" style="font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 6px;">R6. Costos Realistas</h3>
-                                    <p class="sop-rule-desc" style="font-size: 11px; color: #64748b; line-height: 1.4;">Incluir costos de transacción realistas: mínimo 0.25% round-trip por trade (OKX Spot + deslizamiento).</p>
+                                    <p class="sop-rule-desc" style="font-size: 11px; color: #64748b; line-height: 1.4;">Incluir costos de transacción realistas: mínimo de 0.10% round-trip para operativas de Futuros en OKX, contemplando fees y slippage real de la plataforma.</p>
                                 </div>
                                 <div class="sop-rule-telemetry mt-15 border-top-divider pt-10" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; display: flex; justify-content: space-between; font-size: 10px;">
                                     <span class="spec-lbl" style="color: #64748b;">Comisión Round-Trip:</span>

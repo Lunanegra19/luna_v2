@@ -330,8 +330,41 @@ def main():
         "dry_run": args.dry_run,
         "exported_files_count_per_seed": exported_counts,
         "status": "APPROVED_FOR_PRODUCTION",
-        "run_mode": args.mode.upper()
+        "run_mode": args.mode.upper(),
+        "seed_metrics": []
     }
+    
+    # Extract individual metrics to embed in metadata
+    reports_dir = _ROOT / "data" / "reports"
+    if reports_dir.exists():
+        for s in active_seeds:
+            verdict_files = list(reports_dir.glob(f"*_seed{s}_FINAL_statistical_verdict.json"))
+            if not verdict_files:
+                verdict_files = list(reports_dir.glob(f"*seed{s}*_statistical_verdict.json"))
+            
+            if verdict_files:
+                latest_file = max(verdict_files, key=lambda f: f.stat().st_mtime)
+                try:
+                    with open(latest_file, "r", encoding="utf-8", errors="replace") as file:
+                        data = json.load(file)
+                    
+                    metrics = data.get("metrics", {})
+                    summary = data.get("summary", {})
+                    if not summary: summary = {}
+                    
+                    win_rate_val = metrics.get("win_rate", 0.0)
+                    if not win_rate_val:
+                        win_rate_val = (summary.get("win_rate_pct", 0.0) or 0.0) / 100.0
+                    
+                    metadata["seed_metrics"].append({
+                        "seed": s,
+                        "win_rate": round(float(win_rate_val) * 100, 2) if win_rate_val else 0.0,
+                        "max_dd": round(float(metrics.get("max_drawdown_pct", 0.0) or summary.get("max_drawdown_pct", 0.0)), 2),
+                        "calmar": round(float(metrics.get("calmar_ratio", 0.0) or summary.get("calmar_ratio", 0.0)), 2),
+                        "sharpe": round(float(metrics.get("sharpe_crudo", 0.0) or summary.get("sharpe_crudo", 0.0)), 3)
+                    })
+                except Exception as e:
+                    logger.warning(f"No se pudieron extraer métricas de la semilla {s}: {e}")
     
     try:
         with open(manifest_path, "w", encoding="utf-8") as f:

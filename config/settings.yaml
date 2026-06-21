@@ -7,6 +7,7 @@ _roadmap:
     shadow_min_wr: 0.55
   hmm:
     gmm_fallback: true
+    regimes_config: {}
     n_states_candidates:
     - 4
     - 5
@@ -16,6 +17,7 @@ _roadmap:
     stacking_fallback_dsr_threshold: 0.4
 execution:
   symbol: BTC/USDT:USDT
+  exchange_id: okx
   instrument_type: swap
   use_hybrid_execution: true
   hybrid_order_timeout_s: 30
@@ -158,12 +160,16 @@ fase2:
   use_monetary_loss: false
   use_ofi_features: true
   use_regime_agents: true
+  hmm_volatile_bull_exclude: false
+  use_autoencoder: true
 features:
   # [MEJORA-MATH-B 2026-06-18] CMI + MRMR
   sfi_mrmr_enabled: true
   sfi_knn_adaptive: true
   # [FIX-SOP-FALLBACK-02] Umbral estricto de pureza para Alpha Signals en SFI
   sfi_max_alpha_ratio: 0.80
+  in_features_dir: data/features
+  seq_features: []
   # Leyenda ARCH-03:
   # TIPO-1: Variables técnicas y de precio directo.
   # TIPO-2: Variables On-Chain y Macro (con lags defensivos).
@@ -835,3 +841,10 @@ filter_governor:
   max_relaxation_dvol_max: 2.0           # Maximum DVOL z-score allowed at max relaxation
   max_relaxation_meta_prob_delta: 0.08   # Max probability reduction for MetaLabeler threshold
   max_relaxation_meta_percentile_delta: 0.20 # Max percentile reduction for MetaLabeler rolling filter
+risk:
+  max_leverage_allowed: 20.0
+kelly_sizer:
+  max_position: 20.0
+  kelly_fraction: 0.25
+  pt_ratio: 2.0
+  sl_ratio: 1.0

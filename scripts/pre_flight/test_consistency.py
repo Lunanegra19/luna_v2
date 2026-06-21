@@ -243,3 +243,29 @@ def t119():
     assert mode == "dynamic_is", f"meta_v2_threshold_mode es '{mode}', DEBE ser 'dynamic_is'"
     return f"meta_v2_threshold_mode={mode}"
 
+@test("TEST-120 Anti-Blindness: 0 hardcoded fallbacks and 0 missing configs", section="consistency")
+def t120():
+    """Ejecuta los scripts institucionales audit_parametros_fijos.py y find_missing_config.py
+    para garantizar que se cumpla la política de No-Fallback y no haya variables fantasma."""
+    import subprocess
+    
+    # 1. Missing configs
+    res_missing = subprocess.run(
+        ["python", "tools/diagnostics/find_missing_config.py"],
+        capture_output=True, text=True, cwd=str(ROOT)
+    )
+    # The output should just be "Encontradas configuraciones faltantes:\n" without bullet points
+    if "- " in res_missing.stdout:
+        assert False, f"Hay configuraciones faltantes en settings.yaml:\n{res_missing.stdout}"
+        
+    # 2. Hardcoded fallbacks
+    res_audit = subprocess.run(
+        ["python", "tools/diagnostics/audit_parametros_fijos.py"],
+        capture_output=True, text=True, cwd=str(ROOT)
+    )
+    if "[ALTO]" in res_audit.stdout and "[ALTO] 0" not in res_audit.stdout:
+        assert False, f"Se han detectado defaults hardcodeados de severidad ALTA. Revisa tools/diagnostics/audit_parametros_fijos.py"
+    if "[CRITICO]" in res_audit.stdout and "[CRITICO] 0" not in res_audit.stdout:
+        assert False, f"Se han detectado defaults hardcodeados de severidad CRITICA."
+        
+    return "0 fallbacks críticos/altos, 0 configs faltantes (Anti-Blindness OK)"

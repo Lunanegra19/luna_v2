@@ -1289,7 +1289,7 @@ class LGBMTrainer:
 
 
 
-        # OBTENCIÃƒâ€œN METÃƒâ€œDICA DE TARGETS (Triple Barrier Method)
+        # OBTENCIÓN METÓDICA DE TARGETS (Triple Barrier Method)
 
 
 
@@ -1305,7 +1305,7 @@ class LGBMTrainer:
 
 
 
-            raise ValueError("No se encontrÃƒÂ³ la columna 'close' para generar Triple Barriers.")
+            raise ValueError("No se encontró la columna 'close' para generar Triple Barriers.")
 
 
 
@@ -1329,105 +1329,42 @@ class LGBMTrainer:
 
 
 
-        # BUG-6 FIX (P4-0-4, 2026-03-08): leer pt/sl de settings.yaml
-
-
-
-        # Coherencia con MetaLabelerV2Trainer que usa los mismos multiplicadores
-
-
-
-        # BUG-A01 FIX (2026-03-17): leer tbm_min_return de settings.yaml â€” era hardcoded 0.005.
-
-
+        # [FIX-LGBM-TBM-FALLBACK 2026-06-20] fallback a xgboost si no estan definidos en lightgbm
+        def get_tbm_param(name, default):
+            if hasattr(_cfg, 'lightgbm') and hasattr(_cfg.lightgbm, name):
+                val = getattr(_cfg.lightgbm, name)
+                if val is not None:
+                    return val
+            if hasattr(_cfg, 'xgboost') and hasattr(_cfg.xgboost, name):
+                val = getattr(_cfg.xgboost, name)
+                if val is not None:
+                    return val
+            return default
 
         try:
-
-
-
             from config.settings import cfg as _cfg
+            _pt      = float(get_tbm_param("pt_mult_min", 2.0))
+            _sl      = float(get_tbm_param("sl_mult_min", 1.0))
+            _min_ret = float(get_tbm_param("tbm_min_return", 0.005))
 
+            logger.info(f"[BUG-FIX-LGBM-TBM] TBM LightGBM: pt_mult={_pt}, sl_mult={_sl}, min_return={_min_ret} (de settings.yaml)")
+            print(f"[BUG-FIX-LGBM-TBM] TBM LightGBM: pt_mult={_pt}, sl_mult={_sl}, min_return={_min_ret} (de settings.yaml)")
 
+            _dynamic_barrier = bool(get_tbm_param("dynamic_barrier", False))
+            _event_sampling_h = int(get_tbm_param("event_sampling_hours", 1))
 
-            _pt      = float(_cfg.lightgbm.pt_mult_min)
+            logger.info(f"[BUG-FIX-LGBM-TBM] TBM LightGBM dynamic: dynamic_barrier={_dynamic_barrier}, event_sampling_hours={_event_sampling_h}")
+            print(f"[BUG-FIX-LGBM-TBM] TBM LightGBM dynamic: dynamic_barrier={_dynamic_barrier}, event_sampling_hours={_event_sampling_h}")
 
-
-
-            _sl      = float(_cfg.lightgbm.sl_mult_min)
-
-
-
-            _min_ret = float(_cfg.lightgbm.tbm_min_return)
-
-
-
-            logger.info(f"TBM LightGBM: pt_mult={_pt}, sl_mult={_sl}, min_return={_min_ret} (de settings.yaml)")
-
-
-
-        except Exception:
-
-
-
+        except Exception as e:
             _pt, _sl, _min_ret = 2.0, 1.0, 0.005
-
-
-
-            logger.warning("TBM LightGBM: usando defaults 2.0/1.0/0.005 (settings no disponible)")
-
-
-
-        # FIX-TBM-DYNAMIC-01: dynamic_barrier y event_sampling_hours configurables.
-
-
-
-        # dynamic_barrier=True usa horizonte ATR adaptativo (Mejora 4 implementada
-
-
-
-        # pero nunca activada hasta ahora). event_sampling_hours>1 reduce el
-
-
-
-        # solapamiento entre labels TBM al muestrear eventos cada N horas.
-
-
-
-        try:
-
-
-
-            _dynamic_barrier = bool(int(_cfg.xgboost) and
-
-
-
-                                    bool(_cfg.lightgbm.dynamic_barrier))
-
-
-
-            _event_sampling_h = int(_cfg.lightgbm.event_sampling_hours)
-
-
-
-        except Exception:
-
-
-
             _dynamic_barrier, _event_sampling_h = False, 1
-
-
+            logger.warning(f"[BUG-FIX-LGBM-TBM] TBM LightGBM exception during setup: usando defaults 2.0/1.0/0.005/False/1 (error: {e})")
+            print(f"[BUG-FIX-LGBM-TBM] TBM LightGBM exception during setup: usando defaults 2.0/1.0/0.005/False/1 (error: {e})")
 
         if _event_sampling_h > 1:
-
-
-
             events_idx = events_idx[::_event_sampling_h]
-
-
-
             logger.info(
-
-
 
                 f"[FIX-TBM-SAMPLE-01] event_sampling_hours={_event_sampling_h}: "
 
@@ -1441,12 +1378,23 @@ class LGBMTrainer:
 
 
 
-        _vbh = int(_cfg.lightgbm.vertical_barrier_hours) if hasattr(_cfg, 'xgboost') else 96
-        _dyn_min = int(bool(_cfg.lightgbm.dynamic_horizon_min_h)) if hasattr(_cfg, 'xgboost') else 48
-        # Vincular el techo maximo de la barrera dinamica al EMBARGO_H del SOP
-        _dyn_max = EMBARGO_H
-        _lin_decay = bool(_cfg.lightgbm.linear_decay_pt) if hasattr(_cfg, 'xgboost') else False
-        _pt_decay_frac = float(_cfg.lightgbm.pt_decay_fraction) if hasattr(_cfg, 'xgboost') else 0.75
+        # Cargar los parametros restantes usando get_tbm_param
+        try:
+            _vbh = int(get_tbm_param("vertical_barrier_hours", 96))
+            _dyn_min = int(get_tbm_param("dynamic_horizon_min_h", 48))
+            # Vincular el techo maximo de la barrera dinamica al EMBARGO_H del SOP
+            _dyn_max = EMBARGO_H
+            _lin_decay = bool(get_tbm_param("linear_decay_pt", False))
+            _pt_decay_frac = float(get_tbm_param("pt_decay_fraction", 0.75))
+            print(f"[BUG-FIX-LGBM-TBM] Remaining parameters loaded: vbh={_vbh}, dyn_min={_dyn_min}, dyn_max={_dyn_max}, lin_decay={_lin_decay}, pt_decay_frac={_pt_decay_frac}")
+        except Exception as e:
+            _vbh = 96
+            _dyn_min = 48
+            _dyn_max = EMBARGO_H
+            _lin_decay = False
+            _pt_decay_frac = 0.75
+            logger.warning(f"[BUG-FIX-LGBM-TBM] Error cargando vbh/dyn_min/lin_decay/pt_decay_frac: {e}. Usando defaults.")
+            print(f"[BUG-FIX-LGBM-TBM] Error cargando vbh/dyn_min/lin_decay/pt_decay_frac: {e}. Usando defaults.")
 
         _side_val = -1.0 if self.native_direction == "short" else 1.0
         _sides_series = pd.Series(_side_val, index=events_idx)
@@ -2579,10 +2527,7 @@ class LGBMTrainer:
 
 
             # [FIX-1C] min_gain_to_split: ganancia mínima para aceptar un split (regularización estructural).
-            # Default LightGBM=0.0 (acepta cualquier split). Rango [0,2] fuerza splits significativos.
             'min_gain_to_split': trial.suggest_float('min_gain_to_split', float(sp.min_gain_to_split_min), float(sp.min_gain_to_split_max)),
-
-
 
             # [FIX-1C] max_bin: bins para discretizar features. Menos bins = menos overfitting OOS.
             'max_bin': trial.suggest_int('max_bin', int(sp.max_bin_min), int(sp.max_bin_max)),

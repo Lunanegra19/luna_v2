@@ -22,14 +22,14 @@ class DeepFeatureAutoEncoder(nn.Module):
     Arquitectura de cuello de botella (Bottleneck) simétrica.
     Proyecta N dimensiones hacia bottleneck_size dimensiones, reteniendo geometrías no lineales.
     """
-    def __init__(self, input_dim: int, bottleneck_size: int = 32):
+    def __init__(self, input_dim: int, bottleneck_size: int = 32, h1: int = None, h2: int = None):
         super().__init__()
         
         # [LIVE-AE-FIX] Soporte dinámico para compatibilidad de checkpoints de V1 y V2.
         # Los checkpoints preentrenados usan proporciones (input_dim // 2, input_dim // 4) para las capas ocultas.
         # Para input_dim=492, esto da h1=246 y h2=123, coincidiendo exactamente con los pesos guardados.
-        h1 = input_dim // 2
-        h2 = input_dim // 4
+        if h1 is None: h1 = input_dim // 2
+        if h2 is None: h2 = input_dim // 4
         
         logger.info(f"✨ [LIVE-AE-FIX] AutoEncoder dinámico inicializado. Arquitectura: {input_dim} -> {h1} -> {h2} -> {bottleneck_size}")
         print(f"✨ [LIVE-AE-FIX] AutoEncoder dinámico inicializado. Arquitectura: {input_dim} -> {h1} -> {h2} -> {bottleneck_size}")
@@ -102,9 +102,21 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
         
         try:
             if '_LIVE_AE_CACHE' not in globals() or _LIVE_AE_CACHE is None:
+                # [LIVE-AE-FIX] Adaptacion para entorno VPS donde los modelos estan dentro de prod/seedXXX/
                 config_path = models_dir / "autoencoder_config.json"
                 scaler_path = models_dir / "autoencoder_scaler.joblib"
                 state_path = models_dir / "autoencoder_state.pt"
+                
+                if not config_path.exists():
+                    prod_dir = models_dir / "prod"
+                    if prod_dir.exists():
+                        seeds = [d for d in prod_dir.iterdir() if d.is_dir()]
+                        if seeds:
+                            first_seed = seeds[0]
+                            config_path = first_seed / "autoencoder_config.json"
+                            scaler_path = first_seed / "autoencoder_scaler.joblib"
+                            state_path = first_seed / "autoencoder_state.pt"
+                            logger.info(f"[LIVE-AE-FIX] Redirigiendo rutas a {first_seed.name}")
                 
                 logger.info(f"[LIVE-AE-FIX] Cargando checkpoints desde {models_dir}")
                 if not config_path.exists():
@@ -129,8 +141,20 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
                         logger.warning(f"[LIVE-AE-FIX] CUDA test failed: {e}. Fallback to CPU.")
                         device_loaded = torch.device('cpu')
                         
-                autoencoder_loaded = DeepFeatureAutoEncoder(input_dim=len(feature_cols_loaded), bottleneck_size=bottleneck_size).to(device_loaded)
-                autoencoder_loaded.load_state_dict(torch.load(state_path, map_location=device_loaded, weights_only=True))
+                autoencoder_state = torch.load(state_path, map_location=device_loaded, weights_only=True)
+                
+                # Extraemos la arquitectura directamente del checkpoint
+                h1_st = autoencoder_state['encoder.1.weight'].shape[0] if 'encoder.1.weight' in autoencoder_state else len(feature_cols_loaded) // 2
+                h2_st = autoencoder_state['encoder.5.weight'].shape[0] if 'encoder.5.weight' in autoencoder_state else len(feature_cols_loaded) // 4
+                lat_st = autoencoder_state['encoder.8.weight'].shape[0] if 'encoder.8.weight' in autoencoder_state else bottleneck_size
+
+                autoencoder_loaded = DeepFeatureAutoEncoder(
+                    input_dim=len(feature_cols_loaded), 
+                    bottleneck_size=lat_st,
+                    h1=h1_st,
+                    h2=h2_st
+                ).to(device_loaded)
+                autoencoder_loaded.load_state_dict(autoencoder_state)
                 autoencoder_loaded.eval()
                 
                 _LIVE_AE_CACHE = {
@@ -199,15 +223,19 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
             with torch.no_grad():
                 meta_features = autoencoder.encode(full_tensor).cpu().numpy()
                 
-            for i in range(bottleneck_size):
+            actual_bottleneck_size = meta_features.shape[1]
+            for i in range(actual_bottleneck_size):
                 df[f'ae_feat_{i}'] = meta_features[:, i]
                 
-            logger.success(f"[LIVE-AE-FIX] Inferencia rápida del AutoEncoder exitosa. {bottleneck_size} variables añadidas.")
-            print(f"✨ [LIVE-AE-FIX] Inferencia rápida exitosa. {bottleneck_size} features añadidas.")
+            logger.success(f"[LIVE-AE-FIX] Inferencia rápida del AutoEncoder exitosa. {actual_bottleneck_size} variables añadidas.")
+            print(f"✨ [LIVE-AE-FIX] Inferencia rápida exitosa. {actual_bottleneck_size} features añadidas.")
             return df
         except Exception as e:
             logger.critical(f"[LIVE-AE-FIX] Fallo crítico en bypass de AutoEncoder en vivo: {e}. Fallback a modo normal.")
             print(f"❌ [LIVE-AE-FIX] Error crítico: {e}")
+            if is_live:
+                epochs = 1
+                logger.warning("[LIVE-AE-FIX] Forzando epochs=1 por estar en LIVE mode tras fallo de bypass.")
 
     logger.info(f"🔮 Inicializando AutoEncoder Compression [Bottleneck={bottleneck_size}]")
     
@@ -307,6 +335,12 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
     
     # 2. Partición estricta SOP R1
     train_mask = data_feat.index <= pd.to_datetime(train_end_date, utc=True)
+    if is_live:
+        logger.warning(f"[LIVE-AE-FIX] Recortando conjunto de entrenamiento para evitar OOM en VPS.")
+        # Simula un entrenamiento rápido sobre los últimos 2000 ticks si falla el bypass
+        _live_tail_mask = data_feat.index >= (data_feat.index[train_mask][-2000] if train_mask.sum() > 2000 else data_feat.index[0])
+        train_mask = train_mask & _live_tail_mask
+        
     if train_mask.sum() == 0:
         logger.warning("[AE] No hay datos de Train disponibles. Omitiendo AutoEncoder para prevenir leakage.")
         return df

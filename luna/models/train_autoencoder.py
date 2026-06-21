@@ -179,19 +179,10 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
     logger.info("  [4] Entrenando red vía Device: {}", device)
     
     # [MEJORA-MATH-C] Anchored AE Drift Loss
-    try:
-        from config.settings import cfg as _cfg_ae
-        ae_anchored = bool(getattr(_cfg_ae.autoencoder, "ae_anchored_kl_loss", False))
-        kl_lambda = float(getattr(_cfg_ae.autoencoder, "ae_kl_lambda", 0.05))
-        kl_alarm = float(getattr(_cfg_ae.autoencoder, "ae_kl_drift_alarm_threshold", 0.5))
-    except Exception as _e_ae_cfg:
-        # [BUG-4-FIX 2026-06-18] Trazabilidad en fallback (RULE[fixbugsprints.md] + SOP R16)
-        print(f"[BUG-4-FIX][AE][WARNING] No se pudo leer params AE de cfg: {_e_ae_cfg}. "
-              f"Usando fallback: ae_anchored=False, kl_lambda=0.05, kl_alarm=0.5. Revisar settings.yaml.")
-        logger.warning("[BUG-4-FIX][AE] Fallback a AE sin ancla por error leyendo cfg: {}", _e_ae_cfg)
-        ae_anchored = False
-        kl_lambda = 0.05
-        kl_alarm = 0.5
+    from config.settings import cfg as _cfg_ae
+    ae_anchored = bool(_cfg_ae.autoencoder.ae_anchored_kl_loss)
+    kl_lambda = float(_cfg_ae.autoencoder.ae_kl_lambda)
+    kl_alarm = float(_cfg_ae.autoencoder.ae_kl_drift_alarm_threshold)
 
     anchored_model = None
     if ae_anchored:

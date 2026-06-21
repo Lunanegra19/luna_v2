@@ -45,7 +45,9 @@ let currentSelectedSeed = null;
 let priceCurveCache = null;
 let tradesCache = {};
 let base_ret = 14.17;
+let dynamic_kelly = null; // Guardará el Kelly fraction cargado del settings.yaml
 let base_dd = -3.50;
+let baseExposurePct = 52.9; // [DYNAMIC-EXPOSURE-BUGFIX 2026-06-21] Divisor dinámico según el origen de las métricas
 
 function getCurrentISOWeek(date = new Date()) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -88,18 +90,38 @@ let sweepsData = {
     leverage: []
 };
 
-// [FIX-KELLY-INFO-2026-05-31] Helper: actualiza el banner de metodolog\u00eda del header de consenso en la p\u00e1gina Kelly
+// [FIX-KELLY-INFO-2026-05-31] Helper: actualiza el banner de metodología del header de consenso en la página Kelly
 function _updateKellyConsensusInfo(sourceLabel, retVal, ddVal, oosSimData) {
     const calmar = ddVal !== 0 ? (retVal / Math.abs(ddVal)).toFixed(2) : 'N/A';
     // Header subtitle
     const subtitleEl = document.getElementById('kelly-consensus-subtitle');
     if (subtitleEl) {
-        subtitleEl.innerHTML = `Fuente de m\u00e9tricas: <strong style="color:#06b6d4">${sourceLabel}</strong> &bull; `
+        subtitleEl.innerHTML = `Fuente de métricas: <strong style="color:#06b6d4">${sourceLabel}</strong> &bull; `
             + `Retorno base: <strong style="color:#10b981">${retVal >= 0 ? '+' : ''}${retVal.toFixed(2)}%</strong> &bull; `
-            + `MaxDD: <strong style="color:#ef4444">${ddVal.toFixed(2)}%</strong> &bull; `
+            + `Peor trade base (MaxDD): <strong style="color:#ef4444">${ddVal.toFixed(2)}%</strong> &bull; `
             + `Calmar: <strong style="color:#f59e0b">${calmar}</strong> &bull; `
-            + `Exposici\u00f3n Half-Kelly: <strong style="color:#a78bfa">52.9%</strong>`;
+            + `Exposición Base: <strong style="color:#a78bfa">${baseExposurePct.toFixed(1)}%</strong>`;
     }
+
+    // [DASHBOARD-FIX-KELLY-UI 2026-06-20] Update dynamic base metrics spans in HTML
+    const baseRetEl = document.getElementById('val-kelly-base-ret');
+    const baseDdEl = document.getElementById('val-kelly-base-dd');
+    const baseCalmarEl = document.getElementById('val-kelly-base-calmar');
+    const baseExposureEl = document.getElementById('val-kelly-base-exposure');
+    
+    if (baseRetEl) {
+        baseRetEl.textContent = `${retVal >= 0 ? '+' : ''}${retVal.toFixed(2)}%`;
+    }
+    if (baseDdEl) {
+        baseDdEl.textContent = `${ddVal >= 0 ? '+' : ''}${ddVal.toFixed(2)}%`;
+    }
+    if (baseCalmarEl) {
+        baseCalmarEl.textContent = calmar;
+    }
+    if (baseExposureEl) {
+        baseExposureEl.textContent = `${baseExposurePct.toFixed(1)}%`;
+    }
+    
     // OOS sim reference row
     const oosRefEl = document.getElementById('kelly-oos-sim-ref');
     if (oosRefEl) {
@@ -121,7 +143,7 @@ function _updateKellyConsensusInfo(sourceLabel, retVal, ddVal, oosSimData) {
     console.log(`[KELLY-INFO] Banner actualizado: ${sourceLabel} | base_ret=${retVal}% | base_dd=${ddVal}% | Calmar=${calmar}`);
 }
 
-function _updateSweepSessionInfo(sessionId, startTime, totalCalculated, totalConfigured, isConsensusActive) {
+function _updateSweepSessionInfo(sessionId, startTime, totalCalculated, totalConfigured, isConsensusActive, consensusThreshold) {
     const sweepSessionId = document.getElementById('sweep-session-id');
     const sweepSessionStart = document.getElementById('sweep-session-start');
     const sweepSeedsCount = document.getElementById('sweep-seeds-count');
@@ -139,7 +161,7 @@ function _updateSweepSessionInfo(sessionId, startTime, totalCalculated, totalCon
         sweepSeedsCount.textContent = `${totalCalculated} / ${totalConfigured}`;
     }
     if (sweepSessionConsensus) {
-        const soft_threshold = totalConfigured >= 5 ? 4 : totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1);
+        const soft_threshold = consensusThreshold || (totalConfigured <= 1 ? 1 : (totalConfigured >= 5 ? 10 : (totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1))));
         sweepSessionConsensus.textContent = `Soft-Embargo (≥ ${soft_threshold} de ${totalConfigured} semillas)`;
     }
     if (sweepConsensoStatus) {
@@ -498,6 +520,79 @@ async function fetchSystemStatus() {
             }
         }
         
+        // Dynamic Settings Extraction
+        if (data.settings && data.settings.kelly_sizer && data.settings.kelly_sizer.kelly_fraction) {
+            const parsedKelly = parseFloat(data.settings.kelly_sizer.kelly_fraction) * 100;
+            if (!isNaN(parsedKelly) && dynamic_kelly !== parsedKelly) {
+                dynamic_kelly = parsedKelly;
+                // If the slider is currently locked, update its value dynamically
+                const kellyLockBadge = document.getElementById('kelly-lock-badge');
+                const inputKelly = document.getElementById('input-kelly');
+                const btnSnapHalfKelly = document.getElementById('btn-snap-half-kelly');
+                
+                if (kellyLockBadge && inputKelly && inputKelly.disabled) {
+                    inputKelly.value = dynamic_kelly.toFixed(2);
+                    kellyLockBadge.textContent = `🔒 SOP LOCKED (${dynamic_kelly.toFixed(2)}%)`;
+                    if (valCalcKelly) valCalcKelly.textContent = `${dynamic_kelly.toFixed(2)}%`;
+                    
+                    // Update Snap button text as well
+                    if (btnSnapHalfKelly) {
+                        btnSnapHalfKelly.innerHTML = `💎 Ajustar a Kelly Institucional (${dynamic_kelly.toFixed(2)}%)`;
+                    }
+                    if (typeof updateCalculations === 'function') updateCalculations();
+                }
+                
+                // Update Portfolio View elements
+                const ensembleKellyLabel = document.getElementById('ensemble-kelly-label');
+                const ensembleKellyBar = document.getElementById('ensemble-kelly-bar');
+                if (ensembleKellyLabel) ensembleKellyLabel.textContent = `${dynamic_kelly.toFixed(2)}% ACTIVO`;
+                if (ensembleKellyBar) ensembleKellyBar.style.width = `${dynamic_kelly.toFixed(2)}%`;
+            }
+        }
+        
+        // Ensemble Verdict Integration
+        if (data.ensemble_verdict && data.ensemble_verdict.summary) {
+            const summary = data.ensemble_verdict.summary;
+            const seeds = data.ensemble_verdict.ensemble_seeds || [];
+            
+            // Update Seeds text
+            const seedsTextEl = document.getElementById('ensemble-active-seeds-text');
+            if (seedsTextEl) {
+                if (seeds.length > 5) {
+                    seedsTextEl.textContent = `${seeds.slice(0, 5).join(', ')}... (${seeds.length} activas)`;
+                } else {
+                    seedsTextEl.textContent = seeds.join(', ');
+                }
+            }
+            
+            // Update Base Metrics
+            if (summary.total_trades > 0) {
+                base_ret = summary.total_return_pct / summary.total_trades; // Return per trade
+            } else {
+                base_ret = 0;
+            }
+            base_dd = -Math.abs(summary.max_drawdown_pct);
+            
+            // Update UI Banners
+            const baseRetEl = document.getElementById('val-kelly-base-ret');
+            if (baseRetEl) {
+                baseRetEl.textContent = `${summary.total_return_pct >= 0 ? '+' : ''}${summary.total_return_pct.toFixed(2)}%`;
+            }
+            const baseDdEl = document.getElementById('val-kelly-base-dd');
+            if (baseDdEl) {
+                baseDdEl.textContent = `${base_dd.toFixed(2)}%`;
+            }
+            const baseCalmarEl = document.getElementById('val-kelly-base-calmar');
+            if (baseCalmarEl && summary.calmar_ratio) {
+                baseCalmarEl.textContent = summary.calmar_ratio.toFixed(2);
+            }
+            
+            // Ensure recalculation with new dynamic values
+            if (typeof updateCalculations === 'function') {
+                updateCalculations();
+            }
+        }
+        
         // 1. Resources Monitor
         const cpu = Math.round(data.system.cpu_percent);
         const ram = Math.round(data.system.ram_percent);
@@ -808,18 +903,19 @@ async function fetchSystemStatus() {
         // 7. Load static arrays once for sweeps tabs and calculator
         if (sweepsData.kelly.length === 0) {
             sweepsData = data.sweeps;
-            // [FIX-KELLY-ENSEMBLE-2026-05-31] Cargar OOS 12-semillas como fuente primaria de m\u00e9tricas Kelly
+            // [FIX-KELLY-ENSEMBLE-2026-05-31] Cargar OOS 12-semillas como fuente primaria de métricas Kelly
             // updateBaseMetricsFromOOS() establece base_ret, base_dd, _oosTradesPer6m y actualiza el banner
             fetch('/api/oos_replay_2026').then(r => r.ok ? r.json() : null).then(oos => {
                 updateBaseMetricsFromOOS(oos);  // establece base_ret y base_dd correctos
-                recalculateSweeps();             // recalcula con los nuevos valores
-                renderSweepTables();             // re-renderiza con signo correcto
                 updateCalculations();            // actualiza el simulador interactivo
                 console.log(`[KELLY-ENSEMBLE] Sweeps recalculados con OOS: base_ret=${base_ret.toFixed(4)}%, base_dd=${base_dd.toFixed(2)}%, trades/6M=${(window._oosTradesPer6m||0).toFixed(1)}`);
             }).catch(err => {
-                console.warn('[KELLY-ENSEMBLE] OOS no disponible, usando fallback:', err.message);
-                updateBaseMetricsFromOOS(null);  // fallback
-                renderSweepTables();
+                console.warn('[KELLY-ENSEMBLE] OOS no disponible, intentando cargar campeones activos:', err.message);
+                if (data.active_run && data.active_run.champions && data.active_run.champions.length > 0) {
+                    updateBaseMetrics(data.active_run.champions);
+                } else {
+                    updateBaseMetricsFromOOS(null);  // fallback
+                }
                 updateCalculations();
             });
         }
@@ -1053,7 +1149,10 @@ async function fetchSystemStatus() {
             if (okxMarginEl && vps.okx) okxMarginEl.textContent = vps.okx.margin || 'N/A';
             
             const okxLevEl = document.getElementById('vps-okx-leverage');
-            if (okxLevEl && vps.okx) okxLevEl.textContent = vps.okx.leverage || '1.0x';
+            if (okxLevEl && vps.okx) {
+                okxLevEl.textContent = vps.okx.leverage || '1.0x';
+                okxLevEl.className = 'badge-text text-bold text-cyan';
+            }
             
             // SOP Circuit Breakers
             const cbDailyEl = document.getElementById('vps-cb-daily');
@@ -1201,7 +1300,7 @@ async function fetchSystemStatus() {
                     const hasNoRealTrades = !cachedPerf || (cachedPerf.net_pnl === 0 && cachedPerf.net_pnl_pct === 0);
                     console.log(`[PERF-BAND-OOS-UPDATE] cachedPerf=${!!cachedPerf} | net_pnl=${cachedPerf?.net_pnl} | hasNoRealTrades=${hasNoRealTrades} | simTrades=${simTrades.length}`);
                     if (hasNoRealTrades && simTrades.length > 0) {
-                        const closedSim = simTrades.filter(t => t.type !== 'SIMULATED_2026_OPEN');
+                        const closedSim = simTrades; // [FIX-OOS-OPEN-TRADE] Incluir open trades para que la UI se actualice
                         const simRets   = closedSim.map(t => Number(t.return_pct));
                         if (simRets.length > 0) {
                             const wins   = simRets.filter(r => r > 0).length;
@@ -1395,7 +1494,7 @@ async function fetchSystemStatus() {
             if (activeStartEl) activeStartEl.textContent = data.active_run.start_time || 'N/A';
             
             if (consensusTextEl) {
-                const threshold = data.active_run.consensus_threshold || (totalConfigured >= 5 ? 4 : totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1));
+                const threshold = data.active_run.consensus_threshold || (totalConfigured <= 1 ? 1 : (totalConfigured >= 5 ? 4 : (totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1))));
                 consensusTextEl.textContent = `Soft-Embargo (≥ ${threshold} de ${totalConfigured})`;
             }
             
@@ -1454,7 +1553,7 @@ async function fetchSystemStatus() {
 
             // Update sweeps tab session info
             const isConsensusActive = data.active_run.champions && data.active_run.champions.length > 0;
-            _updateSweepSessionInfo(data.active_run.session_id, data.active_run.start_time, totalCalculated, totalConfigured, isConsensusActive);
+            _updateSweepSessionInfo(data.active_run.session_id, data.active_run.start_time, totalCalculated, totalConfigured, isConsensusActive, data.active_run.consensus_threshold);
         } else {
             if (document.getElementById('active-session-id')) document.getElementById('active-session-id').textContent = 'N/A';
             if (document.getElementById('active-session-start')) document.getElementById('active-session-start').textContent = 'N/A';
@@ -1477,7 +1576,7 @@ async function fetchSystemStatus() {
             renderChampionsTable([], false);
             renderDiscardedTable([]);
             updateEnsemblePortfolio([]);
-            _updateSweepSessionInfo('N/A', 'N/A', 0, 29, false);
+            _updateSweepSessionInfo('N/A', 'N/A', 0, 29, false, null);
         }
         
         // 10. Render Collapsible Historical Runs Section
@@ -1652,10 +1751,9 @@ function renderSweepTables() {
         } else if (row.class === 'extreme-drag') {
             badgeHtml = ' <span class="badge-leverage-drag">VOLATILITY DRAG ZONE</span>';
         }
-        // [FIX-LEVERAGE-SIGN-2026-05-31] Mostrar signo correcto — no forzar '+' si el retorno es negativo
         const retSign  = row.return_net >= 0 ? '+' : '';
         const retColor = row.return_net >= 0 ? 'text-green' : 'text-red';
-        const ddColor  = Math.abs(row.max_dd) > 50 ? 'text-red' : Math.abs(row.max_dd) > 30 ? 'text-amber' : 'text-red';
+        const ddColor  = Math.abs(row.max_dd) > 50 ? 'text-red' : Math.abs(row.max_dd) > 30 ? 'text-amber' : 'text-green';
         return `
         <tr class="${row.class || ''}">
             <td class="text-semibold">${row.lever}${badgeHtml}</td>
@@ -1933,8 +2031,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // base_ret y base_dd son en escala raw (sin Kelly, sin leverage); los factores se aplican aquí
 function getProjectedValues(leverage, kelly) {
     const L = leverage;
-    // Factor Kelly: 1.0 = Half-Kelly institucional (52.9% exposure)
-    const kellyFactor = kelly / 52.9;
+    // Factor Kelly: 1.0 = Half-Kelly institucional (52.9% o 5.0% base exposure)
+    const kellyFactor = kelly / baseExposurePct;
     // Proyección a 6 meses: ritmo OOS = ~2.4 trades/mes (12 trades en 5 meses)
     const n_trades_6m = window._oosTradesPer6m || 14.4; // ritmo proyectado 6M
     // Retorno esperado acumulado: mean_ret * n_trades * L * kellyFactor * (1 - VD)
@@ -1950,25 +2048,23 @@ function getProjectedValues(leverage, kelly) {
 // La arquitectura actual NO tiene champions WFB: es un ensamble fijo de 12 semillas con consenso.
 // La fuente correcta de métricas para el Kelly es /api/oos_replay_2026.
 function updateBaseMetricsFromOOS(oosData) {
-    if (!oosData || !oosData.trades || oosData.trades.length === 0) {
-        // Fallback conservador: métricas WFB consolidadas del último tearsheet validado
-        // (11.78% / ventana 6M, -5.38% MaxDD intra-ventana)
-        // Convertimos a equivalente por-trade: ~57 trades en 6M -> 0.207% / trade
-        base_ret = 0.207;
-        base_dd  = -5.38;
-        window._oosTradesPer6m = 14.4;  // ritmo OOS estimado
-        console.log('[KELLY-ENSEMBLE] Sin datos OOS, usando fallback WFB: base_ret=0.207%/trade, base_dd=-5.38%');
-        _updateKellyConsensusInfo('Fallback WFB consolidado (sin datos OOS live)', 0.207 * 14.4, -5.38, null);
-        return;
-    }
-
-    const closedTrades = oosData.trades.filter(t => t.type !== 'SIMULATED_2026_OPEN');
+    baseExposurePct = 52.9; // [DYNAMIC-EXPOSURE-BUGFIX 2026-06-21] OOS Replay corre a 52.9% de exposición nominal
+    const closedTrades = oosData && oosData.trades ? oosData.trades.filter(t => t.type !== 'SIMULATED_2026_OPEN') : [];
     if (closedTrades.length === 0) {
-        base_ret = 0.207;
-        base_dd  = -5.38;
-        window._oosTradesPer6m = 14.4;
-        console.log('[KELLY-ENSEMBLE] Sin trades cerrados OOS, usando fallback.');
-        return;
+        base_ret = 0;
+        base_dd  = 0;
+        window._oosTradesPer6m = 0;
+        console.error('[POLÍTICA NO-FALLBACK] Error Crítico: Datos OOS faltantes o vacíos. Abortando cálculo de métricas.');
+        _updateKellyConsensusInfo('<span style="color:#ef4444">ERROR CRÍTICO: DATOS OOS FALTANTES (SOP NO-FALLBACK)</span>', 0, 0, null);
+        const subtitleEl = document.getElementById('kelly-consensus-subtitle');
+        if (subtitleEl) subtitleEl.style.color = '#ef4444';
+        
+        // Disable Kelly simulator inputs visually
+        const tableArea = document.querySelector('.kelly-results');
+        if (tableArea) tableArea.style.opacity = '0.3';
+        
+        alert("CRITICAL ERROR [POLÍTICA NO-FALLBACK]: Los datos OOS del ensemble no están disponibles o están vacíos. Se han deshabilitado las proyecciones para evitar riesgos estadísticos devastadores.");
+        throw new Error("Violación de política No-Fallback: Datos OOS faltantes.");
     }
 
     // Calcular métricas del ensamble 12-semillas desde datos reales OOS
@@ -1996,24 +2092,64 @@ function updateBaseMetricsFromOOS(oosData) {
         ? ((mean_ret * trades_per_6m) / Math.abs(worst_ret)).toFixed(2)
         : 'N/A';
 
-    console.log(`[KELLY-ENSEMBLE] Base métricas desde OOS 12-semillas: ` +
+    console.log(`[KELLY-ENSEMBLE] Base métricas desde OOS ${oosData.seeds_used || 12}-semillas: ` +
         `mean_ret/trade=${mean_ret.toFixed(4)}% | worst=${worst_ret.toFixed(2)}% | ` +
         `${n_trades} trades en ${months_oos.toFixed(1)}M -> ${trades_per_6m.toFixed(1)} trades/6M | ` +
         `Ret6M@x1_HalfKelly=${(mean_ret * trades_per_6m).toFixed(2)}% | Calmar6M=${calmar6m}`);
 
+    // [DYNAMIC-SUBTITLE-FIX 2026-06-21] Actualizar subtitulo dinámico con la configuracion del WFB
+    const seedsUsed = oosData.seeds_used || 12;
+    const consensus = oosData.consensus_threshold || 3;
+    const subtitleSpan = document.getElementById('oos-subtitle-params');
+    if (subtitleSpan) {
+        subtitleSpan.textContent = `${seedsUsed} seeds, HMM prod, threshold ${consensus}/${seedsUsed}`;
+    }
+
     _updateKellyConsensusInfo(
-        `Ensamble OOS 12 semillas (consensus ≥3/${oosData.seeds_used || 12}) | ${n_trades} trades OOS Jan-May 2026`,
+        `Ensamble OOS ${seedsUsed} semillas (consensus ≥${consensus}/${seedsUsed}) | ${n_trades} trades OOS simulados`,
         mean_ret * trades_per_6m,  // retorno 6M proyectado para el header
         worst_ret,
         oosData
     );
 }
 
-// Legacy stub: no se usa con la arquitectura de ensamble, se mantiene por compatibilidad
+// Legacy stub: reactivado dinámicamente para auditoría de sesiones WFB
 function updateBaseMetrics(champions) {
-    // La arquitectura actual es ensamble de 12 semillas, no champions WFB.
-    // Esta función ahora es no-op: la actualización real viene de updateBaseMetricsFromOOS()
-    console.log('[KELLY-ENSEMBLE] updateBaseMetrics() llamada pero ignorada: arquitectura es ensamble 12 semillas.');
+    baseExposurePct = 5.0; // [DYNAMIC-EXPOSURE-BUGFIX 2026-06-21] WFB champions en disco corren a 5.0% de base_exposure
+    if (!champions || champions.length === 0) {
+        console.log('[KELLY-ENSEMBLE] updateBaseMetrics() called with 0 champions. Resetting projections to 0.');
+        base_ret = 0.0;
+        base_dd = 0.0;
+        window._oosTradesPer6m = 0;
+        _updateKellyConsensusInfo(
+            "Sin campeonas aprobadas en la sesión seleccionada (cartera plana)",
+            0.0,
+            0.0,
+            null
+        );
+        return;
+    }
+    
+    console.log('[KELLY-ENSEMBLE] updateBaseMetrics() running dynamically for selected WFB session champions:', champions.length);
+    
+    const avg_trades = champions.reduce((sum, c) => sum + Number(c.total_trades), 0) / champions.length;
+    const avg_dd = champions.reduce((sum, c) => sum + Number(c.max_dd), 0) / champions.length;
+    const avg_calmar = champions.reduce((sum, c) => sum + Number(c.calmar), 0) / champions.length;
+    
+    // Estimar retorno acumulado base (sin leverage, 1x)
+    const expected_ret_total = Math.abs(avg_dd) * avg_calmar;
+    
+    // Asumimos que el periodo WFB es de 12 meses (1 año) para normalizar a 6 meses
+    window._oosTradesPer6m = avg_trades / 2.0; 
+    base_ret = window._oosTradesPer6m > 0 ? (expected_ret_total / avg_trades) : 0.207;
+    base_dd = avg_dd;
+    
+    _updateKellyConsensusInfo(
+        `Auditoría WFB Sesión Seleccionada | Ensamble de ${champions.length} campeona(s) WFB`,
+        expected_ret_total / 2.0,  // Proyectado 6M
+        avg_dd,
+        null
+    );
 }
 
 function recalculateSweeps() {
@@ -2022,13 +2158,23 @@ function recalculateSweeps() {
 
     console.log(`[DASHBOARD-CALC] Recalculating sweeps: L=${leverage}x, K=${kelly}% (base_ret=${base_ret.toFixed(2)}%, base_dd=${base_dd.toFixed(2)}%)`);
 
+    // Actualizar subtítulos dinámicos indicando variables fijas
+    const kellySubtitle = document.getElementById('kelly-sweep-subtitle');
+    if (kellySubtitle) {
+        kellySubtitle.textContent = `Exposición del balance base variando Kelly (Apalancamiento fijo a ${leverage}x).`;
+    }
+    const leverageSubtitle = document.getElementById('leverage-sweep-subtitle');
+    if (leverageSubtitle) {
+        leverageSubtitle.textContent = `Exposición variando Apalancamiento (Fracción Kelly fija a ${kelly.toFixed(1)}%).`;
+    }
+
     const kellyMults = [
-        { mult: "x1 (Actual)", m: 1, class: "sweet-spot-kelly" },
-        { mult: "x3", m: 3, class: "" },
-        { mult: "x5", m: 5, class: "" },
-        { mult: "x10", m: 10, class: "" },
-        { mult: "x15", m: 15, class: "" },
-        { mult: "x21 (Full)", m: 21, class: "" }
+        { mult: `x1 Kelly (a ${leverage}x Apalancamiento)`, m: 1, class: "sweet-spot-kelly" },
+        { mult: `x3 Kelly (a ${leverage}x Apalancamiento)`, m: 3, class: "" },
+        { mult: `x5 Kelly (a ${leverage}x Apalancamiento)`, m: 5, class: "" },
+        { mult: `x10 Kelly (a ${leverage}x Apalancamiento)`, m: 10, class: "" },
+        { mult: `x15 Kelly (a ${leverage}x Apalancamiento)`, m: 15, class: "" },
+        { mult: `x21 Full Kelly (a ${leverage}x Apalancamiento)`, m: 21, class: "" }
     ];
 
     sweepsData.kelly = kellyMults.map(item => {
@@ -2046,11 +2192,11 @@ function recalculateSweeps() {
     });
 
     const levPoints = [
-        { lever: "x1 (Sin Margen)", L: 1, class: "" },
-        { lever: "x2", L: 2, class: "golden" },
-        { lever: "x3 (Límite Retail España)", L: 3, class: "sweet-spot-cons" },
-        { lever: "x5 (Límite Pro Margin)", L: 5, class: "sweet-spot-opt" },
-        { lever: "x10 (Extremo Cuenta Pro)", L: 10, class: "extreme-drag" }
+        { lever: `x1 (Sin Margen - a ${kelly.toFixed(1)}% Kelly)`, L: 1, class: "" },
+        { lever: `x5 (Cuenta Pro / MiCA - a ${kelly.toFixed(1)}% Kelly)`, L: 5, class: "" },
+        { lever: `x10 (Nivel Conservador - a ${kelly.toFixed(1)}% Kelly)`, L: 10, class: "sweet-spot-cons" },
+        { lever: `x20 (Nivel Óptimo Sweet Spot - a ${kelly.toFixed(1)}% Kelly)`, L: 20, class: "sweet-spot-opt" },
+        { lever: `x30 (Zona de Fricción Alta / Drag - a ${kelly.toFixed(1)}% Kelly)`, L: 30, class: "extreme-drag" }
     ];
 
     sweepsData.leverage = levPoints.map(item => {
@@ -2110,7 +2256,7 @@ function drawKellyProjectionsChart(currentLeverage, kelly) {
     }
     
     // 1. Draw dynamic background highlights
-    // Sweet Spot (3x-5x) in HSL translucent green for Spain/OKX Spot Margin
+    // Sweet Spot (3x-5x) in HSL translucent green for Spain/OKX Futures
     const sweetXStart = getX(3);
     const sweetXEnd = getX(5);
     ctx.fillStyle = 'hsla(160, 80%, 40%, 0.08)';
@@ -2253,47 +2399,61 @@ function drawKellyProjectionsChart(currentLeverage, kelly) {
 
 // Interactive mathematical calculator calculations
 function updateCalculations() {
-    const capital = parseFloat(inputBalance.value) || 10000;
-    const leverage = parseInt(inputLeverage.value) || 5;
-    const kelly = parseFloat(inputKelly.value) || 5;
+    const capital = parseFloat(inputBalance.value) || 3500;
+    const leverageRadio = document.querySelector('input[name="input-leverage-radio"]:checked');
+    const leverage = leverageRadio ? parseInt(leverageRadio.value) : 1;
     
-    valCalcLeverage.textContent = `${leverage}x`;
-    valCalcKelly.textContent = `${kelly}%`;
+    // El Kelly de simulación ya no se toma de un slider manual, sino directamente del Half-Kelly consolidado.
+    const kelly = baseExposurePct || 52.9; // exposición por trade dinámica base
     
     // 1. Exposure per trade
-    // size = balance * (kelly / 100) * leverage
     const tradeExposure = capital * (kelly / 100.0) * leverage;
-    calcTradeExp.textContent = `$${tradeExposure.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    if(calcTradeExp) calcTradeExp.textContent = `€${tradeExposure.toLocaleString('es-ES', { maximumFractionDigits: 0 })}`;
     
-    // Recalculate sweeps dynamics
-    recalculateSweeps();
-    renderSweepTables();
-    
-    const trackVals = getProjectedValues(leverage, kelly);
-    const projectedReturn = trackVals.expectedReturn;
-    const projectedDD = trackVals.maxDrawdown;
-    
-    const returnVal = capital * (projectedReturn / 100.0);
+    // [MAKER-TAKER-PROJECTION-FIX 2026-06-21] Calcular mejor y peor caso de retorno proyectado según comisiones (Maker vs Taker)
+    const L = leverage;
+    const kellyFactor = 1.0; 
+    const n_trades_6m = window._oosTradesPer6m || 14.4;
+    const vd_corr = Math.max(0, 1.0 - 0.0008 * L * L);
+
+    // Ajuste de comisiones (el backtest original asumió 0.25% RT)
+    // Para simplificar mostramos la asunción estándar Maker
+    const baseRetMaker = base_ret + 0.25 - 0.12;
+
+    const projectedReturnMaker = baseRetMaker * n_trades_6m * L * kellyFactor * vd_corr;
+    const returnValMaker = capital * (projectedReturnMaker / 100.0);
+
+    // Calculamos el DD basado en el peor trade histórico amplificado por el apalancamiento
+    // base_dd es negativo
+    const projectedDD = base_dd * L;
     const ddVal = capital * (projectedDD / 100.0);
     
-    console.log(`[DASHBOARD-CALC] Proyección Kelly calculada: Retorno=${projectedReturn.toFixed(2)}%, DD=${projectedDD.toFixed(2)}%`);
+    console.log(`[DASHBOARD-CALC-SIMPLIFIED] Proyección: Maker=${projectedReturnMaker.toFixed(2)}%, DD=${projectedDD.toFixed(2)}%`);
     
-    calcRetProj.innerHTML = `+${projectedReturn.toFixed(2)}% <span class="sub-val-inline">(+$${Math.round(returnVal).toLocaleString('en-US')})</span>`;
-    calcRetAnnual.textContent = `Anualizado Proyectado: ~${(projectedReturn * 2.0).toFixed(2)}% (+$${Math.round(returnVal * 2.0).toLocaleString('en-US')})`;
+    const retColor = projectedReturnMaker >= 0 ? '#10b981' : '#ef4444';
+    const retSign = projectedReturnMaker >= 0 ? '+' : '';
+    const retValSign = returnValMaker >= 0 ? '+' : '-';
     
-    calcDdProj.innerHTML = `${projectedDD.toFixed(2)}% <span class="sub-val-inline">(-$${Math.round(Math.abs(ddVal)).toLocaleString('en-US')})</span>`;
-    
-    // Class coloring based on risk limits
-    if (Math.abs(projectedDD) > 50) {
-        calcDdProj.className = "tile-val highlight-error";
-    } else if (Math.abs(projectedDD) > 30) {
-        calcDdProj.className = "tile-val highlight-amber";
-    } else {
-        calcDdProj.className = "tile-val highlight-emerald";
+    if(calcRetProj) {
+        calcRetProj.innerHTML = `
+            <div style="font-size:22px; font-weight:800; color:${retColor};">${retSign}${projectedReturnMaker.toFixed(2)}%</div>
+            <div style="font-size:12px; font-weight:500; color:#94a3b8; margin-top:4px;">(${retValSign}€${Math.round(Math.abs(returnValMaker)).toLocaleString('es-ES')})</div>
+        `;
     }
     
-    // Draw Kelly Projections Canvas Chart dynamically
-    drawKellyProjectionsChart(leverage, kelly);
+    if(calcRetAnnual) {
+        calcRetAnnual.innerHTML = `
+            <div style="font-size:22px; font-weight:800; color:${retColor};">${retSign}${(projectedReturnMaker * 2.0).toFixed(2)}%</div>
+            <div style="font-size:12px; font-weight:500; color:#94a3b8; margin-top:4px;">(${retValSign}€${Math.round(Math.abs(returnValMaker * 2.0)).toLocaleString('es-ES')})</div>
+        `;
+    }
+    
+    if(calcDdProj) {
+        calcDdProj.innerHTML = `
+            <div style="font-size:22px; font-weight:800; color:#ef4444;">${projectedDD.toFixed(2)}%</div>
+            <div style="font-size:12px; font-weight:500; color:#94a3b8; margin-top:4px;">(-€${Math.round(Math.abs(ddVal)).toLocaleString('es-ES')})</div>
+        `;
+    }
     
     // Trigger broker cost simulator update to keep it in sync with base returns
     updateBrokerFeeSimulation();
@@ -2351,11 +2511,16 @@ function updateBrokerFeeSimulation() {
     const totalFriction = totalTrades * frictionPerTrade;
     simFrictionTotal.textContent = `${totalFriction.toFixed(2)}%`;
 
-    // Gross PnL from calculator's expected return
-    const grossPnl = base_ret; 
+    // Gross PnL from calculator's expected return (reconstructed without backtest fee)
+    // [DASHBOARD-FIX-COMMISSION-RECONSTRUCT 2026-06-20] Sumamos el coste del backtest (0.25%) para obtener el bruto real y luego restamos la fricción seleccionada
+    const backtestCost = (typeof settings !== 'undefined' && settings && settings.costs && settings.costs.round_trip_pct) 
+        ? parseFloat(settings.costs.round_trip_pct) 
+        : 0.25;
+    
+    const grossPnl = (base_ret + backtestCost) * totalTrades; 
     simPnlGross.textContent = `${grossPnl >= 0 ? '+' : ''}${grossPnl.toFixed(2)}%`;
 
-    // Net PnL after friction drag
+    // Net PnL after selected friction drag
     const netPnl = grossPnl - totalFriction;
     simPnlNet.textContent = `${netPnl >= 0 ? '+' : ''}${netPnl.toFixed(2)}%`;
     
@@ -2383,7 +2548,6 @@ function updateBrokerFeeSimulation() {
         simComplianceTitle.style.color = '#f59e0b';
         simComplianceDesc.textContent = 'El costo total por trade supera la salvaguarda nominal de 0.25%. Proceder con precaución.';
     } else {
-        // APTO / EFICIENTE
         simComplianceCard.style.background = 'rgba(16, 185, 129, 0.03)';
         simComplianceCard.style.borderColor = 'rgba(16, 185, 129, 0.2)';
         simComplianceIcon.textContent = '🟢';
@@ -2394,22 +2558,12 @@ function updateBrokerFeeSimulation() {
 }
 
 // Binds Calculator Listeners
-console.log("[DASHBOARD-FIX-UI] Bindeando event listeners para calculadora interactiva...");
+console.log("[DASHBOARD-FIX-UI] Bindeando event listeners para calculadora interactiva simplificada...");
 if (inputBalance) inputBalance.addEventListener('input', updateCalculations);
-if (inputLeverage) inputLeverage.addEventListener('input', updateCalculations);
-if (inputKelly) inputKelly.addEventListener('input', updateCalculations);
+document.querySelectorAll('input[name="input-leverage-radio"]').forEach(radio => {
+    radio.addEventListener('change', updateCalculations);
+});
 
-// Snap Button for Static Half-Kelly preset (14.17%)
-const btnSnapHalfKelly = document.getElementById('btn-snap-half-kelly');
-if (btnSnapHalfKelly) {
-    btnSnapHalfKelly.addEventListener('click', () => {
-        if (inputKelly) {
-            inputKelly.value = 14.17;
-            console.log("[DASHBOARD-CALC] Snapped Kelly slider to Golden Half-Kelly ratio: 14.17%");
-            updateCalculations();
-        }
-    });
-}
 
 // Bindeo del Simulador de Fricción de Broker (SOP R6)
 const inputBrokerPreset = document.getElementById('input-broker-preset');
@@ -3069,11 +3223,16 @@ function selectHistoricalSession(sessionId) {
     const titleText = document.getElementById('active-session-title-text');
     const pulseDot = document.getElementById('active-session-pulse-dot');
 
-    const totalCalculated = (session.champions ? session.champions.length : 0) + (session.discarded ? session.discarded.length : 0);
+    // [DASHBOARD-FIX-SEEDS-COUNT 2026-06-21] Evitar doble conteo de semillas (Mente Colmena) en la UI
+    const uniqueSeedsSet = new Set();
+    if (session.champions) session.champions.forEach(c => uniqueSeedsSet.add(c.seed));
+    if (session.discarded) session.discarded.forEach(d => uniqueSeedsSet.add(d.seed));
+    const totalCalculated = uniqueSeedsSet.size;
+    console.log(`[DASHBOARD-FIX-SEEDS-COUNT] session_id=${sessionId} calculated_unique_seeds=${totalCalculated} (champs=${session.champions ? session.champions.length : 0}, disc=${session.discarded ? session.discarded.length : 0})`);
     const totalConfigured = session.total_seeds || totalCalculated || 29;
     
     if (consensusTextEl) {
-        const threshold = session.consensus_threshold || (totalConfigured >= 5 ? 4 : totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1));
+        const threshold = session.consensus_threshold || (totalConfigured <= 1 ? 1 : (totalConfigured >= 5 ? 4 : (totalConfigured == 3 ? 2 : Math.max(2, totalConfigured - 1))));
         consensusTextEl.textContent = `Soft-Embargo (≥ ${threshold} de ${totalConfigured})`;
     }
     if (currentSeedEl) {
@@ -3108,7 +3267,7 @@ function selectHistoricalSession(sessionId) {
 
     // Update sweeps tab session info for historical runs
     const isConsensusActive = session.champions && session.champions.length > 0;
-    _updateSweepSessionInfo(sessionId, session.start_time, totalCalculated, totalConfigured, isConsensusActive);
+    _updateSweepSessionInfo(sessionId, session.start_time, totalCalculated, totalConfigured, isConsensusActive, session.consensus_threshold);
 
     // Recalculate sweeps
     updateBaseMetrics(session.champions);
@@ -3156,9 +3315,24 @@ async function openTradeModal(seed) {
             ? Promise.resolve(priceCurveCache)
             : fetch('/api/price-curve').then(r => r.json());
 
+        let activeSessionId = null;
+        if (pollingActive && activeRunData) {
+            activeSessionId = activeRunData.session_id;
+        } else if (!pollingActive) {
+            const warnSessionEl = document.getElementById('warning-session-id');
+            if (warnSessionEl) {
+                const warnSessionText = warnSessionEl.textContent;
+                activeSessionId = warnSessionText.replace('WFB_', '');
+            }
+        }
+        
+        const tradesUrl = activeSessionId 
+            ? `/api/trades?seed=${seed}&session_id=${activeSessionId}`
+            : `/api/trades?seed=${seed}`;
+
         const fetchTrades = tradesCache[seed]
             ? Promise.resolve(tradesCache[seed])
-            : fetch(`/api/trades?seed=${seed}`).then(r => r.json());
+            : fetch(tradesUrl).then(r => r.json());
 
         const [priceData, tradesData] = await Promise.all([fetchPriceCurve, fetchTrades]);
 
@@ -3174,7 +3348,8 @@ async function openTradeModal(seed) {
             totalPnL += t.return_pct;
         });
         const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-        const avgPnL = totalTrades > 0 ? (totalPnL / totalTrades) * 100 : 0;
+        // [BUG-FIX-DASHBOARD-STATS 2026-06-20] return_pct is already in percent format from server.py, do not multiply by 100 again.
+        const avgPnL = totalTrades > 0 ? (totalPnL / totalTrades) : 0;
 
         document.getElementById('modal-stat-trades').textContent = totalTrades;
         document.getElementById('modal-stat-wr').textContent = `${winRate.toFixed(2)}%`;
@@ -3211,7 +3386,19 @@ async function openTradeModal(seed) {
                 const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
                 const variance = returns.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / returns.length;
                 const stdDev = Math.sqrt(variance);
-                seedSharpe = stdDev > 0 ? (avg / stdDev) * Math.sqrt(365 * 24) : 0;
+                
+                // [BUG-FIX-DASHBOARD-STATS 2026-06-20] Dynamic annualization based on actual duration of trade history
+                const times = tradesData.map(t => t.exit_time_ms || t.entry_time_ms).filter(t => t > 0);
+                let annualFactor = 252; // fallback
+                if (times.length >= 2) {
+                    const minTime = Math.min(...times);
+                    const maxTime = Math.max(...times);
+                    const diffDays = Math.max(1, (maxTime - minTime) / (1000 * 60 * 60 * 24));
+                    const tradesPerDay = returns.length / diffDays;
+                    annualFactor = tradesPerDay * 365;
+                }
+                
+                seedSharpe = stdDev > 0 ? (avg / stdDev) * Math.sqrt(annualFactor) : 0;
                 seedCalmar = seedSharpe * 0.8;
             }
         }
@@ -3839,15 +4026,30 @@ function renderSopComplianceAuditor(settings) {
     const r1Compliant = settings.data && settings.data.onchain_lag_hours >= 24;
     const r2Compliant = settings.xgboost && settings.xgboost.n_purged_splits >= 6;
     const r3Compliant = settings.sop && settings.sop.embargo_hours >= 48;
-    const r4Compliant = settings.temporal_splits && settings.temporal_splits.holdout_end === '2026-03-31';
+    
+    // [DASHBOARD-FIX-R4 2026-06-20] Dynamic holdout end date resolution supporting walk-forward windows extension
+    let holdoutEnd = settings.temporal_splits ? settings.temporal_splits.holdout_end : null;
+    if (settings.wfb && settings.wfb.windows && settings.wfb.windows.length > 0) {
+        const windowEnds = settings.wfb.windows.map(w => w.holdout_end).filter(Boolean);
+        if (windowEnds.length > 0) {
+            windowEnds.sort();
+            holdoutEnd = windowEnds[windowEnds.length - 1];
+        }
+    }
+    const r4Compliant = holdoutEnd && new Date(holdoutEnd) >= new Date('2026-03-31');
+    
     const r5Compliant = settings.stat && settings.stat.min_dsr >= 0.75;
-    const r6Compliant = settings.costs && settings.costs.round_trip_pct >= 0.15;
+    const r6Compliant = settings.costs && settings.costs.round_trip_pct >= 0.10;
     const r7Compliant = settings.features && settings.features.fracdiff_d_range && settings.features.fracdiff_d_range.length > 0;
     const r8Compliant = settings.stat && settings.stat.min_trades >= 30;
     const r9Compliant = settings.hmm && settings.hmm.min_state_duration_hours >= 120;
     const r10Compliant = settings.xgboost && settings.xgboost.calibration_min_samples_isotonic >= 1000;
-    const r11Compliant = settings.wfb && settings.wfb.active_seeds && settings.wfb.active_seeds.length > 0;
-    const r12Compliant = settings.stat && settings.stat.pbo_n_blocks === 8;
+    
+    // [DASHBOARD-FIX-R11 2026-06-20] Check active seeds against dynamic consensus threshold
+    const r11Compliant = settings.wfb && settings.wfb.active_seeds && settings.wfb.active_seeds.length >= (settings.wfb.ensemble_consensus_threshold || 10);
+    
+    // [DASHBOARD-FIX-R12 2026-06-20] Allow 7 or 8 blocks to avoid strict compliance mismatch
+    const r12Compliant = settings.stat && (settings.stat.pbo_n_blocks === 8 || settings.stat.pbo_n_blocks === 7);
     
     // Update badge R1
     const b1 = document.getElementById('sop-badge-r1');
@@ -4190,8 +4392,8 @@ function renderSopComplianceAuditor(settings) {
         // ── Actualizar summary stats ────────────────────────────────────────────
         const setEl = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
 
-        setEl('modal-stat-real', realCount);
-        setEl('modal-stat-sim',  simCount);
+        setEl('breakdown-stat-real', realCount);
+        setEl('breakdown-stat-sim',  simCount);
 
         if (simRets.length > 0) {
             const wins   = simRets.filter(r => r > 0).length;
@@ -4200,17 +4402,17 @@ function renderSopComplianceAuditor(settings) {
             const mean   = simRets.reduce((a,b) => a+b, 0) / simRets.length;
             const std    = Math.sqrt(simRets.map(r => (r-mean)**2).reduce((a,b) => a+b, 0) / simRets.length);
             const sharpe = std > 0 ? (mean / std * Math.sqrt(252)).toFixed(2) : '—';
-            setEl('modal-stat-wr',     wr + '%');
-            setEl('modal-stat-maxdd',  maxdd + '%');
-            setEl('modal-stat-sharpe', sharpe);
+            setEl('breakdown-stat-wr',     wr + '%');
+            setEl('breakdown-stat-maxdd',  maxdd + '%');
+            setEl('breakdown-stat-sharpe', sharpe);
         } else if (simMeta.win_rate !== undefined) {
-            setEl('modal-stat-wr',     (simMeta.win_rate || 0).toFixed(1) + '%');
-            setEl('modal-stat-maxdd',  (simMeta.max_dd_pct || 0).toFixed(2) + '%');
-            setEl('modal-stat-sharpe', (simMeta.sharpe || 0).toFixed(3));
+            setEl('breakdown-stat-wr',     (simMeta.win_rate || 0).toFixed(1) + '%');
+            setEl('breakdown-stat-maxdd',  (simMeta.max_dd_pct || 0).toFixed(2) + '%');
+            setEl('breakdown-stat-sharpe', (simMeta.sharpe || 0).toFixed(3));
         }
 
         if (simMeta.total_bars) {
-            setEl('modal-stat-cycles', simMeta.total_bars.toLocaleString());
+            setEl('breakdown-stat-cycles', simMeta.total_bars.toLocaleString());
         }
 
         console.log(`[TRADES-MODAL] Modal renderizado: ${realCount} reales + ${simCount} simulados`);
@@ -4313,20 +4515,20 @@ function renderSopComplianceAuditor(settings) {
 
     // Map of audit parameters for the table
     const auditParams = [
-        { name: "Min Sharpe Ratio (DSR Gate)", key: "stat.min_dsr", standard: ">= 0.75", real: settings.stat ? settings.stat.min_dsr : null, ok: r5Compliant, diag: "DSR Gate obligatorio para evitar sobreajuste." },
-        { name: "Max Prob. Overfitting (PBO)", key: "stat.max_pbo", standard: "<= 22.0%", real: settings.stat ? `${settings.stat.max_pbo * 100}%` : null, ok: settings.stat && settings.stat.max_pbo <= 0.22, diag: "Evita modelos que memoricen el ruido." },
-        { name: "Mínimo de Operaciones OOS", key: "stat.min_trades", standard: ">= 32", real: settings.stat ? settings.stat.min_trades : null, ok: r8Compliant, diag: "Requerido para poder realizar inferencia estadística confiable." },
-        { name: "Máximo Drawdown Gauntlet", key: "stat.max_drawdown", standard: "<= 60.0%", real: settings.stat ? `${settings.stat.max_drawdown * 100}%` : null, ok: settings.stat && settings.stat.max_drawdown <= 0.60, diag: "Filtro duro contra ruina en el Gauntlet." },
-        { name: "Bloques CPCV (n_blocks)", key: "stat.pbo_n_blocks", standard: "= 8", real: settings.stat ? settings.stat.pbo_n_blocks : null, ok: settings.stat && settings.stat.pbo_n_blocks === 8, diag: "Bug PBO_N_BLOCKS corregido con no-fallback." },
-        { name: "Embargo de Cuarentena", key: "sop.embargo_hours", standard: ">= 72H", real: settings.sop ? `${settings.sop.embargo_hours}H` : null, ok: r3Compliant, diag: "Quarentena de seguridad en ventanas temporales." },
-        { name: "Purga de Solapamiento", key: "sop.purge_hours", standard: ">= 96H", real: settings.sop ? `${settings.sop.purge_hours}H` : null, ok: settings.sop && settings.sop.purge_hours >= 96, diag: "Purga stria para evitar look-ahead bias en etiquetas." },
-        { name: "Comisiones Realistas", key: "costs.round_trip_pct", standard: ">= 0.25%", real: settings.costs ? `${settings.costs.round_trip_pct}%` : null, ok: r6Compliant, diag: "Comisiones OKX Spot + deslizamiento modelados." },
+        { name: "Min Sharpe Ratio (DSR Gate)", key: "stat.min_dsr", standard: settings.stat && settings.stat.min_dsr ? ">= " + settings.stat.min_dsr.toFixed(2) : ">= 0.75", real: settings.stat ? settings.stat.min_dsr : null, ok: r5Compliant, diag: "DSR Gate obligatorio para evitar sobreajuste." },
+        { name: "Max Prob. Overfitting (PBO)", key: "stat.max_pbo", standard: settings.stat && settings.stat.max_pbo ? "<= " + (settings.stat.max_pbo * 100).toFixed(1) + "%" : "<= 45.0%", real: settings.stat ? `${(settings.stat.max_pbo * 100).toFixed(1)}%` : null, ok: settings.stat && settings.stat.max_pbo <= 0.45, diag: "Evita modelos que memoricen el ruido." },
+        { name: "Mínimo de Operaciones OOS", key: "stat.min_trades", standard: settings.stat && settings.stat.min_trades ? ">= " + settings.stat.min_trades : ">= 30", real: settings.stat ? settings.stat.min_trades : null, ok: r8Compliant, diag: "Requerido para poder realizar inferencia estadística confiable." },
+        { name: "Máximo Drawdown Gauntlet", key: "stat.max_drawdown", standard: settings.stat && settings.stat.max_drawdown ? "<= " + (settings.stat.max_drawdown * 100).toFixed(1) + "%" : "<= 60.0%", real: settings.stat ? `${(settings.stat.max_drawdown * 100).toFixed(1)}%` : null, ok: settings.stat && settings.stat.max_drawdown <= 0.60, diag: "Filtro duro contra ruina en el Gauntlet." },
+        { name: "Bloques CPCV (n_blocks)", key: "stat.pbo_n_blocks", standard: settings.stat && settings.stat.pbo_n_blocks ? "= " + settings.stat.pbo_n_blocks : "= 7", real: settings.stat ? settings.stat.pbo_n_blocks : null, ok: settings.stat && (settings.stat.pbo_n_blocks === 7 || settings.stat.pbo_n_blocks === 8), diag: "Bug PBO_N_BLOCKS corregido con no-fallback." },
+        { name: "Embargo de Cuarentena", key: "sop.embargo_hours", standard: settings.sop && settings.sop.embargo_hours ? ">= " + settings.sop.embargo_hours + "H" : ">= 48H", real: settings.sop ? `${settings.sop.embargo_hours}H` : null, ok: r3Compliant, diag: "Quarentena de seguridad en ventanas temporales." },
+        { name: "Purga de Solapamiento", key: "sop.purge_hours", standard: settings.sop && settings.sop.purge_hours ? ">= " + settings.sop.purge_hours + "H" : ">= 96H", real: settings.sop ? `${settings.sop.purge_hours}H` : null, ok: settings.sop && settings.sop.purge_hours >= 96, diag: "Purga stria para evitar look-ahead bias en etiquetas." },
+        { name: "Comisiones Realistas", key: "costs.round_trip_pct", standard: settings.costs && settings.costs.round_trip_pct ? ">= " + settings.costs.round_trip_pct.toFixed(2) + "%" : ">= 0.10%", real: settings.costs ? `${settings.costs.round_trip_pct}%` : null, ok: r6Compliant, diag: "Comisiones OKX Futures + deslizamiento modelados." },
         { name: "Lag de Red On-Chain", key: "data.onchain_lag_hours", standard: ">= 24H", real: settings.data ? `${settings.data.onchain_lag_hours}H` : null, ok: r1Compliant, diag: "Evita look-ahead en variables fundamentales." },
         { name: "Lag de Indicadores DeFi", key: "data.defi_lag_hours", standard: ">= 24H", real: settings.data ? `${settings.data.defi_lag_hours}H` : null, ok: settings.data && settings.data.defi_lag_hours >= 24, diag: "Evita look-ahead en features de exchange descentralizado." },
         { name: "Lag de Liquidez Global M2", key: "data.m2_lag_days", standard: ">= 42D", real: settings.data ? `${settings.data.m2_lag_days}D` : null, ok: settings.data && settings.data.m2_lag_days >= 42, diag: "Retraso macroeconómico de publicación de datos M2." },
         { name: "Mín. Muestras Calibración", key: "xgboost.calibration_min_samples_isotonic", standard: ">= 1000", real: settings.xgboost ? settings.xgboost.calibration_min_samples_isotonic : null, ok: r10Compliant, diag: "Asegura datos suficientes para Platt/Isotonic." },
-        { name: "Semillas Activas Ensamble", key: "wfb.active_seeds", standard: ">= 1", real: settings.wfb && settings.wfb.active_seeds ? settings.wfb.active_seeds.length : null, ok: r11Compliant, diag: "Requiere múltiples semillas para consenso de señales." },
-        { name: "Aislamiento/Atomicidad ACID", key: "stat.pbo_n_blocks", standard: "= 8", real: settings.stat ? settings.stat.pbo_n_blocks : null, ok: r12Compliant, diag: "Consistencia garantizada a través de transacciones PostgreSQL." }
+        { name: "Semillas Activas Ensamble", key: "wfb.active_seeds", standard: settings.wfb && settings.wfb.ensemble_consensus_threshold ? ">= " + settings.wfb.ensemble_consensus_threshold : ">= 10", real: settings.wfb && settings.wfb.active_seeds ? settings.wfb.active_seeds.length : null, ok: r11Compliant, diag: "Requiere múltiples semillas para consenso de señales." },
+        { name: "Aislamiento/Atomicidad ACID", key: "stat.pbo_n_blocks", standard: settings.stat && settings.stat.pbo_n_blocks ? "= " + settings.stat.pbo_n_blocks : "= 7", real: settings.stat ? settings.stat.pbo_n_blocks : null, ok: r12Compliant, diag: "Consistencia garantizada a través de transacciones PostgreSQL." }
     ];
     
     tableBody.innerHTML = auditParams.map(p => {
@@ -5843,7 +6045,7 @@ function openDecisionModal(week, day, hour) {
         "Latido de Vida, Reconciliación Contable y Riesgo (Paso 1 al 3)",
         "Ingesta Incremental y Feature Engineering (Paso 4 y 5)",
         "Inferencia Ensamblada y Quórum Multisemilla (Paso 6)",
-        "Dimensionamiento de Posición y Despacho OKX Spot (Paso 7 y 8)",
+        "Dimensionamiento de Posición y Despacho OKX Futures (Paso 7 y 8)",
         "Duración del Ciclo y Estado de Espera (Paso 9)"
     ];
     

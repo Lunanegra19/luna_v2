@@ -23,6 +23,77 @@ except Exception as e:
     np = None
 
 
+def safe_round(val, decimals=2):
+    if val is None:
+        return 0.0
+    try:
+        f_val = float(val)
+        if f_val != f_val or f_val == float('inf') or f_val == float('-inf'):
+            return 0.0
+        return round(f_val, decimals)
+    except (ValueError, TypeError):
+        return 0.0
+
+def get_metric(metric_dict, key, default=0.0):
+    if not metric_dict:
+        return default
+    val = metric_dict.get(key, default)
+    return default if val is None else val
+
+
+def get_seed_metrics_from_verdict(seed: int) -> dict:
+    reports_dir = PROJECT_ROOT / "data" / "reports"
+    if not reports_dir.exists():
+        return None
+    verdict_files = list(reports_dir.glob(f"*_seed{seed}_FINAL_statistical_verdict.json"))
+    if not verdict_files:
+        verdict_files = list(reports_dir.glob(f"*seed{seed}*_statistical_verdict.json"))
+    if not verdict_files:
+        return None
+    latest_file = max(verdict_files, key=lambda f: f.stat().st_mtime)
+    try:
+        with open(latest_file, "r", encoding="utf-8", errors="replace") as file:
+            data = json.load(file)
+        deploy_approved = data.get("deploy_approved", False)
+        metrics = data.get("metrics", {})
+        stat_audit = data.get("statistical_audit", {})
+        wfv_results = data.get("wfv_results", {})
+        windows_data = {}
+        for w_name, w_info in wfv_results.items():
+            win_rate_raw = w_info.get("win_rate", 0.0)
+            if win_rate_raw is None:
+                win_rate_raw = 0.0
+            windows_data[w_name] = {
+                "trades": w_info.get("n_trades", 0) or 0,
+                "win_rate": safe_round(win_rate_raw * 100, 1)
+            }
+        win_rate_val = metrics.get("win_rate", 0.0)
+        if win_rate_val is None or win_rate_val == 0.0:
+            summary_win_rate = data.get("summary", {})
+            if summary_win_rate is None:
+                summary_win_rate = {}
+            win_rate_val = (summary_win_rate.get("win_rate_pct", 0.0) or 0.0) / 100.0
+        if win_rate_val is None:
+            win_rate_val = 0.0
+        return {
+            "seed": seed,
+            "deploy_approved": deploy_approved,
+            "total_trades": int(get_metric(metrics, "total_trades", 0) or get_metric(data.get("summary"), "total_trades", 0)),
+            "win_rate": safe_round(win_rate_val * 100, 2),
+            "max_dd": safe_round(get_metric(metrics, "max_drawdown_pct", 0.0) or get_metric(data.get("summary"), "max_drawdown_pct", 0.0), 2),
+            "sharpe": safe_round(get_metric(metrics, "sharpe_crudo", 0.0) or get_metric(data.get("summary"), "sharpe_crudo", 0.0), 3),
+            "calmar": safe_round(get_metric(metrics, "calmar_ratio", 0.0) or get_metric(data.get("summary"), "calmar_ratio", 0.0), 2),
+            "dsr": safe_round(get_metric(stat_audit, "dsr", 0.0) or get_metric(data.get("summary"), "dsr", 0.0), 4),
+            "pbo": safe_round((get_metric(stat_audit, "estimated_pbo", 0.0) or (get_metric(data.get("summary"), "pbo_pct", 0.0) / 100.0)) * 100, 2),
+            "windows": windows_data,
+            "type": "gauntlet",
+            "timestamp": data.get("timestamp", "")
+        }
+    except Exception as e:
+        print(f"[DASHBOARD-ERROR] Error parsing statistical verdict {latest_file.name} dynamically: {e}")
+        return None
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(PROJECT_ROOT))
 
@@ -78,10 +149,11 @@ def load_env_vars():
             print(f"[DASHBOARD-SECURITY] CRITICAL: Error leyendo {env_file.name}: {e}")
     return vars_dict
 
-def get_active_yaml_settings() -> dict:
+def get_active_yaml_settings(session_id: str = None) -> dict:
     """
     Reads config/settings.yaml and parses active quantitative settings.
     Guards with a No-Fallback policy for critical statistics/risk gates.
+    If session_id is provided, attempts to load from the corresponding settings backup file.
     """
     import yaml
     from datetime import date, datetime
@@ -96,6 +168,18 @@ def get_active_yaml_settings() -> dict:
         return obj
 
     settings_path = PROJECT_ROOT / "config" / "settings.yaml"
+    if session_id:
+        backup_path = PROJECT_ROOT / "config" / f"settings_backup_wfb_{session_id}.yaml"
+        if backup_path.exists():
+            settings_path = backup_path
+            print(f"[DASHBOARD-SOP] Cargar parámetros históricos desde backup del run: {backup_path.name}")
+        else:
+            # Also search for backups ending in session_id
+            backup_files = list(PROJECT_ROOT.glob(f"config/settings_backup_wfb_{session_id}*.yaml"))
+            if backup_files:
+                settings_path = backup_files[0]
+                print(f"[DASHBOARD-SOP] Cargar parámetros históricos desde backup del run (glob): {settings_path.name}")
+
     if not settings_path.exists():
         print(f"[DASHBOARD-API-TRACK] [MEJORA-SOP-V10] CRITICAL: No existe settings.yaml en {settings_path}")
         raise FileNotFoundError(f"CRITICAL: No se pudo encontrar settings.yaml en {settings_path}")
@@ -107,6 +191,11 @@ def get_active_yaml_settings() -> dict:
         if not cfg:
             raise RuntimeError("CRITICAL: El archivo settings.yaml está vacío o inválido.")
             
+        # [DASHBOARD-FIX-UNIFY 2026-06-20] Unificar parámetros para evitar discrepancia raw vs unified en el validador
+        from config.settings import _unify_parameters
+        cfg = _unify_parameters(cfg)
+        print("[DASHBOARD-FIX-UNIFY] Enriched settings dict unified with settings.py rules.")
+        
         # Validation list for critical settings (No-Fallback policy)
         required_paths = [
             ("stat", "min_dsr"),
@@ -219,6 +308,11 @@ def get_active_processes():
             cmdline = p.info.get('cmdline') or []
             cmd_str = ' '.join(cmdline).lower()
             if 'python' in p.info.get('name', '').lower() or any('python' in cmd.lower() for cmd in cmdline):
+                # [FIX-PROCESS-SCAN-01 2026-06-20] Excluir procesos de consola/shell para evitar duplicados en Windows
+                p_name_lower = p.info.get('name', '').lower()
+                if any(x in p_name_lower for x in ['powershell', 'pwsh', 'cmd', 'conhost', 'terminal']):
+                    continue
+                    
                 pid = p.info['pid']
                 try:
                     create_time = p.create_time()
@@ -238,11 +332,15 @@ def get_active_processes():
             
     return orchestrators, workers, sfi_rankers, prod_orchestrators
 
-def get_latest_log_file(prefix: str) -> tuple[Path | None, str]:
+def get_latest_log_file(prefix: str, session_id: str = None) -> tuple[Path | None, str]:
     if not LOGS_DIR.exists():
         return None, "N/A"
     
-    log_files = list(LOGS_DIR.glob(f"{prefix}*.log"))
+    if session_id:
+        log_files = list(LOGS_DIR.glob(f"{prefix}*{session_id}*.log"))
+    else:
+        log_files = list(LOGS_DIR.glob(f"{prefix}*.log"))
+        
     if not log_files:
         return None, "N/A"
         
@@ -378,6 +476,14 @@ def parse_prod_ensemble_log(path: Path) -> dict:
                     info["current_seed"] = m.group(1)
                     info["current_seed_idx"] = int(m.group(2))
                     info["total_seeds"] = int(m.group(3))
+                    print(f"[DASHBOARD-FIX-PARSE] Detected processing seed: {info['current_seed']} ({info['current_seed_idx']}/{info['total_seeds']})")
+            elif "ENTRENAMIENTO DE SEMILLA" in line_str:
+                m = re.search(r"ENTRENAMIENTO DE SEMILLA\s*(\d+)\s*\((\d+)/(\d+)\)", line_str)
+                if m:
+                    info["current_seed"] = m.group(1)
+                    info["current_seed_idx"] = int(m.group(2))
+                    info["total_seeds"] = int(m.group(3))
+                    print(f"[DASHBOARD-FIX-PARSE] Detected processing seed (header): {info['current_seed']} ({info['current_seed_idx']}/{info['total_seeds']})")
                     
             # Detect processed/completed seeds (real success, real gauntlet rejection, or dry-run simulation)
             s_id = None
@@ -393,10 +499,15 @@ def parse_prod_ensemble_log(path: Path) -> dict:
                 m = re.search(r"Semilla\s*(\d+)", line_str)
                 if m:
                     s_id = int(m.group(1))
+            elif "entrenada y exportada con éxito" in line_str:
+                m = re.search(r"Semilla\s*(\d+)", line_str)
+                if m:
+                    s_id = int(m.group(1))
 
             if s_id is not None:
                 if s_id not in info["completed_seeds"]:
                     info["completed_seeds"].append(s_id)
+                    print(f"[DASHBOARD-FIX-PARSE] [SUCCESS] Detected completed seed: {s_id}")
                         
             # Detect active phase
             if "--- Iniciando Fase:" in line_str:
@@ -478,7 +589,7 @@ def get_active_session_id():
     if orchestrators:
         latest_worker, _ = get_latest_log_file("wfb_worker_")
         if latest_worker:
-            match = re.search(r"wfb_worker_(\d{8}_\d{6})", latest_worker.name)
+            match = re.search(r"(\d{8}_\d{6})", latest_worker.name)
             if match:
                 print(f"[DASHBOARD-SESSION-OK] Active process detected. Active Session ID: {match.group(1)}")
                 return match.group(1)
@@ -501,7 +612,7 @@ def fallback_closest_session(mtime, sessions_info):
         return sorted(list(sessions_info.keys()))[-1]
     return "unknown"
 
-def get_wfb_seeds_summary():
+def get_wfb_seeds_summary(selected_session_id=None):
     champions = []
     discarded = []
     
@@ -514,14 +625,14 @@ def get_wfb_seeds_summary():
     # Gauntlet verdicts sessions
     if reports_dir.exists():
         for f in reports_dir.glob("*_FINAL_statistical_verdict.json"):
-            match = re.search(r"WFB_(\d{8}_\d{6})", f.name)
+            match = re.search(r"(\d{8}_\d{6})", f.name)
             if match:
                 sessions_set.add(match.group(1))
 
     # Worker log sessions
     if LOGS_DIR.exists():
         for f in LOGS_DIR.glob("wfb_worker_*.log"):
-            match = re.search(r"wfb_worker_(\d{8}_\d{6})", f.name)
+            match = re.search(r"(\d{8}_\d{6})", f.name)
             if match:
                 sessions_set.add(match.group(1))
                 
@@ -586,39 +697,48 @@ def get_wfb_seeds_summary():
                 
                 windows_data = {}
                 for w_name, w_info in wfv_results.items():
+                    win_rate_raw = w_info.get("win_rate", 0.0)
+                    if win_rate_raw is None:
+                        win_rate_raw = 0.0
                     windows_data[w_name] = {
-                        "trades": w_info.get("n_trades", 0),
-                        "win_rate": round(w_info.get("win_rate", 0.0) * 100, 1)
+                        "trades": w_info.get("n_trades", 0) or 0,
+                        "win_rate": safe_round(win_rate_raw * 100, 1)
                     }
                 
                 win_rate_val = metrics.get("win_rate", 0.0)
-                if win_rate_val == 0.0:
-                    win_rate_val = data.get("summary", {}).get("win_rate_pct", 0.0) / 100.0
+                if win_rate_val is None or win_rate_val == 0.0:
+                    summary_win_rate = data.get("summary", {})
+                    if summary_win_rate is None:
+                        summary_win_rate = {}
+                    win_rate_val = (summary_win_rate.get("win_rate_pct", 0.0) or 0.0) / 100.0
+                if win_rate_val is None:
+                    win_rate_val = 0.0
                 
                 seed_info = {
                     "seed": seed,
                     "deploy_approved": deploy_approved,
-                    "total_trades": metrics.get("total_trades", 0) or data.get("summary", {}).get("total_trades", 0),
-                    "win_rate": round(win_rate_val * 100, 2),
-                    "max_dd": round(metrics.get("max_drawdown_pct", 0.0) or data.get("summary", {}).get("max_drawdown_pct", 0.0), 2),
-                    "sharpe": round(metrics.get("sharpe_crudo", 0.0) or data.get("summary", {}).get("sharpe_crudo", 0.0), 3),
-                    "calmar": round(metrics.get("calmar_ratio", 0.0) or data.get("summary", {}).get("calmar_ratio", 0.0), 2),
-                    "dsr": round(stat_audit.get("dsr", 0.0) or data.get("summary", {}).get("dsr", 0.0), 4),
-                    "pbo": round((stat_audit.get("estimated_pbo", 0.0) or (data.get("summary", {}).get("pbo_pct", 0.0) / 100.0)) * 100, 2),
+                    "total_trades": int(get_metric(metrics, "total_trades", 0) or get_metric(data.get("summary"), "total_trades", 0)),
+                    "win_rate": safe_round(win_rate_val * 100, 2),
+                    "max_dd": safe_round(get_metric(metrics, "max_drawdown_pct", 0.0) or get_metric(data.get("summary"), "max_drawdown_pct", 0.0), 2),
+                    "sharpe": safe_round(get_metric(metrics, "sharpe_crudo", 0.0) or get_metric(data.get("summary"), "sharpe_crudo", 0.0), 3),
+                    "calmar": safe_round(get_metric(metrics, "calmar_ratio", 0.0) or get_metric(data.get("summary"), "calmar_ratio", 0.0), 2),
+                    "dsr": safe_round(get_metric(stat_audit, "dsr", 0.0) or get_metric(data.get("summary"), "dsr", 0.0), 4),
+                    "pbo": safe_round((get_metric(stat_audit, "estimated_pbo", 0.0) or (get_metric(data.get("summary"), "pbo_pct", 0.0) / 100.0)) * 100, 2),
                     "windows": windows_data,
                     "type": "gauntlet",
                     "timestamp": data.get("timestamp", "")
                 }
                 
-                match = re.search(r"WFB_(\d{8}_\d{6})", f.name)
+                match = re.search(r"(\d{8}_\d{6})", f.name)
                 if match:
                     verdict_sid = match.group(1)
                 else:
                     verdict_sid = fallback_closest_session(f.stat().st_mtime, sessions_info)
                 
                 if verdict_sid in sessions_info:
-                    # Always include all gauntlet seeds in champions to compute Kelly and portfolio allocation over the consensus ensemble
+                    # [WFB-SESSION-FIX 2026-06-20] Con Mente Colmena, todas las semillas procesadas se añaden a campeonas
                     sessions_info[verdict_sid]["champions"].append(seed_info)
+                    print(f"[DASHBOARD-FIX-SEEDS] Semilla {seed} añadida a campeonas (Mente Colmena / Consenso).")
                     
                     if not deploy_approved:
                         fail_reasons = []
@@ -635,6 +755,7 @@ def get_wfb_seeds_summary():
                         
                         seed_info["discard_reason"] = "Rechazo Gauntlet: " + ", ".join(fail_reasons) if fail_reasons else "Rechazo Gauntlet Estadístico"
                         sessions_info[verdict_sid]["discarded"].append(seed_info)
+                        print(f"[DASHBOARD-FIX-SEEDS] Semilla {seed} añadida a descartadas. Razón: {seed_info['discard_reason']}")
                         
             except Exception as e:
                 print(f"[DASHBOARD-ERROR] Error parsing statistical verdict {f.name}: {e}")
@@ -729,7 +850,29 @@ def get_wfb_seeds_summary():
     
     # Identify which session IDs belong to the active run
     active_sids = set()
-    if orch_start_time is not None:
+    if selected_session_id:
+        if selected_session_id in sessions_info:
+            active_sids.add(selected_session_id)
+            # También agrupar sesiones consecutivas dentro de esa misma ejecución histórica si aplica
+            try:
+                sorted_sessions = sorted([s for s in session_list if re.match(r"^\d{8}_\d{6}$", s)], reverse=True)
+                if selected_session_id in sorted_sessions:
+                    idx = sorted_sessions.index(selected_session_id)
+                    last_ts = datetime.strptime(selected_session_id, "%Y%m%d_%H%M%S").timestamp()
+                    for i in range(idx + 1, len(sorted_sessions)):
+                        sid = sorted_sessions[i]
+                        try:
+                            sid_ts = datetime.strptime(sid, "%Y%m%d_%H%M%S").timestamp()
+                            if abs(last_ts - sid_ts) <= 14400: # 4 horas
+                                active_sids.add(sid)
+                                last_ts = sid_ts
+                            else:
+                                break
+                        except Exception:
+                            pass
+            except Exception as _e_grp_sel:
+                print(f"[DASHBOARD-SESSION-WARN] Error agrupando por margen temporal en sesión seleccionada: {_e_grp_sel}")
+    elif orch_start_time is not None:
         for sid, info in sessions_info.items():
             if info["timestamp"] >= (orch_start_time - 120):
                 active_sids.add(sid)
@@ -741,6 +884,26 @@ def get_wfb_seeds_summary():
             active_sid = session_list[-1]
         if active_sid:
             active_sids.add(active_sid)
+            # [WFB-SESSION-FIX 2026-06-20] Agrupar todas las sesiones en una cadena contigua (con diferencia individual <= 4 horas)
+            try:
+                sorted_sessions = sorted([s for s in session_list if re.match(r"^\d{8}_\d{6}$", s)], reverse=True)
+                if active_sid in sorted_sessions:
+                    idx = sorted_sessions.index(active_sid)
+                    last_ts = datetime.strptime(active_sid, "%Y%m%d_%H%M%S").timestamp()
+                    active_sids.add(active_sid)
+                    for i in range(idx + 1, len(sorted_sessions)):
+                        sid = sorted_sessions[i]
+                        try:
+                            sid_ts = datetime.strptime(sid, "%Y%m%d_%H%M%S").timestamp()
+                            if abs(last_ts - sid_ts) <= 14400: # 4 horas entre ejecuciones consecutivas
+                                active_sids.add(sid)
+                                last_ts = sid_ts
+                            else:
+                                break
+                        except Exception:
+                            pass
+            except Exception as _e_grp:
+                print(f"[DASHBOARD-SESSION-WARN] Error al agrupar sesiones activas por margen temporal: {_e_grp}")
             
     print(f"[DASHBOARD-SESSION] Active Group Session IDs: {list(active_sids)}")
 
@@ -781,50 +944,64 @@ def get_wfb_seeds_summary():
         is_active = len(orchs) > 0 or len(wrks) > 0
         champs_list = unique_champs
         
-        # Si no hay WFB activo local, y tampoco hay campeones en la sesión detectada,
-        # cargamos dinámicamente las semillas aprobadas de producción V2.
+        # [DASHBOARD-FIX] Carga dinámica de las semillas reales si no hay WFB activo ni campeones detectados
         if not is_active and not unique_champs:
-            champs_list = [
-                {
-                    "seed": 1337,
-                    "deploy_approved": True,
-                    "total_trades": 135,
-                    "win_rate": 48.15,
-                    "max_dd": -5.80,
-                    "sharpe": 0.744,
-                    "calmar": 1.42,
-                    "dsr": 0.7821,
-                    "pbo": 12.45,
-                    "windows": {},
-                    "type": "gauntlet"
-                },
-                {
-                    "seed": 2025,
-                    "deploy_approved": True,
-                    "total_trades": 132,
-                    "win_rate": 52.27,
-                    "max_dd": -5.10,
-                    "sharpe": 1.273,
-                    "calmar": 2.70,
-                    "dsr": 0.8542,
-                    "pbo": 8.35,
-                    "windows": {},
-                    "type": "gauntlet"
-                },
-                {
-                    "seed": 99,
-                    "deploy_approved": True,
-                    "total_trades": 118,
-                    "win_rate": 52.54,
-                    "max_dd": -5.40,
-                    "sharpe": 0.956,
-                    "calmar": 1.76,
-                    "dsr": 0.8123,
-                    "pbo": 10.15,
-                    "windows": {},
-                    "type": "gauntlet"
-                }
-            ]
+            prod_seeds = []
+            try:
+                meta_path = PROJECT_ROOT / "data" / "models" / "prod" / "ensemble_metadata.json"
+                if meta_path.exists():
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        loaded = json.load(f)
+                        prod_seeds = loaded.get("active_seeds", [])
+            except Exception as _e_pm:
+                print(f"[DASHBOARD-WARN] Error loading production seeds from metadata file: {_e_pm}")
+                
+            if not prod_seeds:
+                try:
+                    active_settings = get_active_yaml_settings(selected_session_id)
+                    prod_seeds = active_settings.get("wfb", {}).get("active_seeds", [])
+                except Exception:
+                    pass
+            if not prod_seeds:
+                prod_seeds = [1337, 2025, 99]
+                
+            champs_list = []
+            seed_metrics_map = {m["seed"]: m for m in loaded.get("seed_metrics", [])} if 'loaded' in locals() and loaded else {}
+            
+            for s in prod_seeds:
+                s_metrics = get_seed_metrics_from_verdict(s)
+                if s_metrics:
+                    champs_list.append(s_metrics)
+                elif s in seed_metrics_map:
+                    m = seed_metrics_map[s]
+                    champs_list.append({
+                        "seed": s,
+                        "deploy_approved": True,
+                        "total_trades": 0,
+                        "win_rate": m.get("win_rate", 0.0),
+                        "max_dd": m.get("max_dd", 0.0),
+                        "sharpe": m.get("sharpe", 0.0),
+                        "calmar": m.get("calmar", 0.0),
+                        "dsr": 0.0,
+                        "pbo": 0.0,
+                        "windows": {},
+                        "type": "production_metadata"
+                    })
+                else:
+                    champs_list.append({
+                        "seed": s,
+                        "deploy_approved": True,
+                        "total_trades": 0,
+                        "win_rate": 0.0,
+                        "max_dd": 0.0,
+                        "sharpe": 0.0,
+                        "calmar": 0.0,
+                        "dsr": 0.0,
+                        "pbo": 0.0,
+                        "windows": {},
+                        "type": "gauntlet"
+                    })
+
         # Extract active_seeds and current_seed dynamically
         active_seeds = []
         current_seed = ""
@@ -846,19 +1023,40 @@ def get_wfb_seeds_summary():
                 
         processed_seeds = sorted(list(set([c["seed"] for c in champs_list] + [d["seed"] for d in unique_disc])))
         
+        # [DASHBOARD-FIX] Cargar active_seeds de settings si el orquestador no está activo y no se han detectado comandos
+        if not active_seeds:
+            try:
+                active_settings = get_active_yaml_settings(selected_session_id)
+                active_seeds = active_settings.get("wfb", {}).get("active_seeds", [])
+            except Exception:
+                pass
+                
         if not is_active or not active_seeds:
-            active_seeds = processed_seeds
+            if not active_seeds:
+                active_seeds = processed_seeds
             
         total_seeds = len(active_seeds) if active_seeds else 29
         processed_seeds_count = len(processed_seeds)
         
         # Calculate consensus threshold
-        if total_seeds >= 5:
-            consensus_threshold = 4
-        elif total_seeds == 3:
-            consensus_threshold = 2
-        else:
-            consensus_threshold = max(2, total_seeds - 1)
+        # [DASHBOARD-FIX-CONSENSO 2026-06-20] Lee dinámicamente de settings.yaml
+        consensus_threshold = None
+        try:
+            active_settings = get_active_yaml_settings(selected_session_id)
+            consensus_threshold = active_settings.get("wfb", {}).get("ensemble_consensus_threshold")
+        except Exception as _e_conf:
+            print(f"[DASHBOARD-WARN] Error reading ensemble_consensus_threshold from settings: {_e_conf}")
+            
+        if not consensus_threshold:
+            if total_seeds <= 1:
+                consensus_threshold = 1
+            elif total_seeds >= 5:
+                consensus_threshold = 10 if total_seeds == 29 else max(4, int(total_seeds * 0.35))
+            elif total_seeds == 3:
+                consensus_threshold = 2
+            else:
+                consensus_threshold = max(2, total_seeds - 1)
+        print(f"[DASHBOARD-FIX-CONSENSO] Calculated consensus_threshold={consensus_threshold} for total_seeds={total_seeds}")
             
         active_run = {
             "session_id": newest_sid,  # Matches the currently running worker log timestamp
@@ -871,70 +1069,79 @@ def get_wfb_seeds_summary():
             "total_seeds": total_seeds,
             "current_seed": current_seed,
             "processed_seeds_count": processed_seeds_count,
-            "consensus_threshold": consensus_threshold
+            "consensus_threshold": min(consensus_threshold, total_seeds)
         }
         print(f"[DASHBOARD-TRACK] [WFB-METADATA-ENRICH] Active run WFB_{newest_sid} enriched. is_active={is_active}, total_seeds={total_seeds}, processed={processed_seeds_count}, current={current_seed or 'None'}")
     else:
-        # Cargar las 3 semillas aprobadas en producción de ensemble_metadata.json
+        # [DASHBOARD-FIX] Cargar las semillas aprobadas en producción de ensemble_metadata.json
         # de manera dinámica para que el frontend pueda utilizarlas en sus proyecciones de Kelly.
+        prod_seeds = []
+        try:
+            meta_path = PROJECT_ROOT / "data" / "models" / "prod" / "ensemble_metadata.json"
+            if meta_path.exists():
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    loaded = json.load(f)
+                    prod_seeds = loaded.get("active_seeds", [])
+        except Exception as _e_pm:
+            print(f"[DASHBOARD-WARN] Error loading production seeds: {_e_pm}")
+            
+        if not prod_seeds:
+            try:
+                active_settings = get_active_yaml_settings()
+                prod_seeds = active_settings.get("wfb", {}).get("active_seeds", [])
+            except Exception:
+                pass
+                
+        if not prod_seeds:
+            prod_seeds = [1337, 2025, 99]
+            
+        champs_list = []
+        for s in prod_seeds:
+            s_metrics = get_seed_metrics_from_verdict(s)
+            if s_metrics:
+                champs_list.append(s_metrics)
+            else:
+                champs_list.append({
+                    "seed": s,
+                    "deploy_approved": True,
+                    "total_trades": 0,
+                    "win_rate": 0.0,
+                    "max_dd": 0.0,
+                    "sharpe": 0.0,
+                    "calmar": 0.0,
+                    "dsr": 0.0,
+                    "pbo": 0.0,
+                    "windows": {},
+                    "type": "gauntlet"
+                })
+                
+        consensus_threshold = None
+        try:
+            active_settings = get_active_yaml_settings()
+            consensus_threshold = active_settings.get("wfb", {}).get("ensemble_consensus_threshold")
+        except Exception:
+            pass
+        if not consensus_threshold:
+            consensus_threshold = 10 if len(prod_seeds) == 29 else max(1, int(len(prod_seeds) * 0.35))
+            
         active_run = {
             "session_id": "PROD_ENSEMBLE",
             "start_time": "Ensamble de Producción V2 Activo en VPS",
             "timestamp": time.time(),
-            "champions": [
-                {
-                    "seed": 1337,
-                    "deploy_approved": True,
-                    "total_trades": 135,
-                    "win_rate": 48.15,
-                    "max_dd": -5.80,
-                    "sharpe": 0.744,
-                    "calmar": 1.42,
-                    "dsr": 0.7821,
-                    "pbo": 12.45,
-                    "windows": {},
-                    "type": "gauntlet"
-                },
-                {
-                    "seed": 2025,
-                    "deploy_approved": True,
-                    "total_trades": 132,
-                    "win_rate": 52.27,
-                    "max_dd": -5.10,
-                    "sharpe": 1.273,
-                    "calmar": 2.70,
-                    "dsr": 0.8542,
-                    "pbo": 8.35,
-                    "windows": {},
-                    "type": "gauntlet"
-                },
-                {
-                    "seed": 99,
-                    "deploy_approved": True,
-                    "total_trades": 118,
-                    "win_rate": 52.54,
-                    "max_dd": -5.40,
-                    "sharpe": 0.956,
-                    "calmar": 1.76,
-                    "dsr": 0.8123,
-                    "pbo": 10.15,
-                    "windows": {},
-                    "type": "gauntlet"
-                }
-            ],
+            "champions": champs_list,
             "discarded": [],
             "is_active": False,
-            "active_seeds": [99, 1337, 2025],
-            "total_seeds": 3,
+            "active_seeds": prod_seeds,
+            "total_seeds": len(prod_seeds),
             "current_seed": "",
-            "processed_seeds_count": 3,
-            "consensus_threshold": 2
+            "processed_seeds_count": len(prod_seeds),
+            "consensus_threshold": min(consensus_threshold, len(prod_seeds))
         }
-        print(f"[DASHBOARD-FIX-GRAPHIFY] [PROD-CHAMPIONS] Inactive WFB, loaded 3 approved seeds in active_run['champions']: {[c['seed'] for c in active_run['champions']]}. Added empty windows to prevent front-end TypeError crashes.")
+        print(f"[DASHBOARD-FIX-GRAPHIFY] [PROD-CHAMPIONS] Inactive WFB, loaded {len(prod_seeds)} approved seeds in active_run['champions'].")
         
     # Build historical_runs collection excluding active session IDs
-    # LUNA V2 FIX: Group consecutive historical sessions whose timestamps are within a maximum gap of 4 hours into a single run
-    print("[DASHBOARD-FIX-WFB] Grouping historical sessions by multi-seed WFB run (threshold: 4 hours)...")
+    # LUNA V2 FIX: Group consecutive historical sessions whose timestamps are within a maximum gap of 1 hour into a single run
+    print("[DASHBOARD-FIX-WFB] Grouping historical sessions by multi-seed WFB run (threshold: 1 hour)...")
     historical_sessions = []
     champions_total = len(unique_champs)
     discarded_total = len(unique_disc)
@@ -969,7 +1176,7 @@ def get_wfb_seeds_summary():
                 "all_session_ids": [sess["session_id"]]
             }
         else:
-            # Group consecutive seeds with gaps <= 4 hours
+            # [WFB-SESSION-FIX 2026-06-20] Group consecutive seeds with gaps <= 4 hours to avoid fragmentation
             time_gap = sess["timestamp"] - current_run["timestamp"]
             if time_gap <= 14400: # 4 hours
                 current_run["champions"].extend(sess["champions"])
@@ -977,6 +1184,7 @@ def get_wfb_seeds_summary():
                 current_run["all_session_ids"].append(sess["session_id"])
                 # Maintain the latest timestamp for subsequent gap checks
                 current_run["timestamp"] = sess["timestamp"]
+                print(f"[DASHBOARD-TRACK] [SESSION-GROUPING] Grouped seed session {sess['session_id']} into active run.")
             else:
                 # Store completed group and start a new run
                 grouped_runs.append(current_run)
@@ -1017,6 +1225,32 @@ def get_wfb_seeds_summary():
         run["champions"].sort(key=lambda x: x.get("calmar", 0.0), reverse=True)
         run["discarded"].sort(key=lambda x: x.get("seed", 0))
         
+        # [DASHBOARD-FIX-CONSENSO 2026-06-20] Calculate consensus threshold for historical runs
+        # [DASHBOARD-FIX-SEEDS-COUNT 2026-06-21] Evitar doble conteo de semillas en Mente Colmena
+        unique_seeds = set(c["seed"] for c in run["champions"]) | set(d["seed"] for d in run["discarded"])
+        total_seeds = len(unique_seeds)
+        print(f"[DASHBOARD-FIX-SEEDS-COUNT] run_id={run['session_id']} unique_seeds_count={total_seeds} (champs={len(run['champions'])}, disc={len(run['discarded'])})")
+        consensus_threshold = None
+        try:
+            active_settings = get_active_yaml_settings(run["session_id"])
+            consensus_threshold = active_settings.get("wfb", {}).get("ensemble_consensus_threshold")
+        except Exception:
+            pass
+        if not consensus_threshold:
+            if total_seeds <= 1:
+                consensus_threshold = 1
+            elif total_seeds >= 5:
+                consensus_threshold = 10 if total_seeds == 29 else max(4, int(total_seeds * 0.35))
+            elif total_seeds == 3:
+                consensus_threshold = 2
+            else:
+                consensus_threshold = max(2, total_seeds - 1)
+        if consensus_threshold is not None:
+            consensus_threshold = min(consensus_threshold, total_seeds)
+        run["consensus_threshold"] = consensus_threshold
+        run["total_seeds"] = total_seeds
+        print(f"[DASHBOARD-FIX-CONSENSO] Capped consensus_threshold={run['consensus_threshold']} for total_seeds={total_seeds} in historical run {run['session_id']}")
+        
         historical_runs.append(run)
         
     # Reverse to present the newest historical runs first in the accordions
@@ -1050,67 +1284,6 @@ def get_prod_runs_history():
         if match:
             active_sids.add(match.group(1))
 
-    # Predefined metrics for production seeds
-    PROD_CHAMPIONS_METRICS = [
-        {
-            "seed": 1337,
-            "deploy_approved": True,
-            "total_trades": 135,
-            "win_rate": 48.15,
-            "max_dd": -5.80,
-            "sharpe": 0.744,
-            "calmar": 1.42,
-            "dsr": 0.7821,
-            "pbo": 12.45,
-            "windows": {
-                "W1": {"trades": 25, "win_rate": 44.0},
-                "W2": {"trades": 28, "win_rate": 50.0},
-                "W3": {"trades": 32, "win_rate": 48.4},
-                "W4": {"trades": 22, "win_rate": 45.5},
-                "W5": {"trades": 28, "win_rate": 51.2}
-            },
-            "type": "gauntlet"
-        },
-        {
-            "seed": 2025,
-            "deploy_approved": True,
-            "total_trades": 132,
-            "win_rate": 52.27,
-            "max_dd": -5.10,
-            "sharpe": 1.273,
-            "calmar": 2.70,
-            "dsr": 0.8542,
-            "pbo": 8.35,
-            "windows": {
-                "W1": {"trades": 22, "win_rate": 50.0},
-                "W2": {"trades": 28, "win_rate": 53.6},
-                "W3": {"trades": 30, "win_rate": 51.7},
-                "W4": {"trades": 25, "win_rate": 52.0},
-                "W5": {"trades": 27, "win_rate": 54.1}
-            },
-            "type": "gauntlet"
-        },
-        {
-            "seed": 99,
-            "deploy_approved": True,
-            "total_trades": 118,
-            "win_rate": 52.54,
-            "max_dd": -5.40,
-            "sharpe": 0.956,
-            "calmar": 1.76,
-            "dsr": 0.8123,
-            "pbo": 10.15,
-            "windows": {
-                "W1": {"trades": 20, "win_rate": 50.0},
-                "W2": {"trades": 24, "win_rate": 54.2},
-                "W3": {"trades": 28, "win_rate": 53.6},
-                "W4": {"trades": 21, "win_rate": 50.0},
-                "W5": {"trades": 25, "win_rate": 54.8}
-            },
-            "type": "gauntlet"
-        }
-    ]
-
     for f in LOGS_DIR.glob("train_prod_ensemble_*.log"):
         match = re.search(r"train_prod_ensemble_(\d{8}_\d{6})", f.name)
         if not match:
@@ -1135,11 +1308,27 @@ def get_prod_runs_history():
             elif info["progress_percent"] < 100.0:
                 status = "INTERRUMPIDO"
                 
-            # Filter champions info for active seeds in this run
+            # [DASHBOARD-FIX-PROD-RUNS 2026-06-20] Dynamically load champions info for active seeds in this run
             run_champions = []
-            for c in PROD_CHAMPIONS_METRICS:
-                if c["seed"] in info["active_seeds"]:
-                    run_champions.append(c)
+            for s in info["active_seeds"]:
+                s_metrics = get_seed_metrics_from_verdict(s)
+                if s_metrics:
+                    run_champions.append(s_metrics)
+                else:
+                    run_champions.append({
+                        "seed": s,
+                        "deploy_approved": True,
+                        "total_trades": 0,
+                        "win_rate": 0.0,
+                        "max_dd": 0.0,
+                        "sharpe": 0.0,
+                        "calmar": 0.0,
+                        "dsr": 0.0,
+                        "pbo": 0.0,
+                        "windows": {},
+                        "type": "gauntlet"
+                    })
+            print(f"[DASHBOARD-TRACK] [PROD-RUNS] Loaded dynamic metrics for {len(run_champions)} seeds in prod run {sid}")
                  
             runs.append({
                 "session_id": sid,
@@ -1245,6 +1434,11 @@ def parse_multiplier_breakdown(reason_str: str) -> dict:
         if hmm_cap_match:
             result["hmm_regime"] = hmm_cap_match.group(1)
             result["hmm_cap"] = float(hmm_cap_match.group(2))
+        else:
+            # Fallback for HOLD decisions where sizer is not invoked
+            hmm_regime_match = re.search(r"HMM-REGIME:\s*([\w_]+)", reason_str)
+            if hmm_regime_match:
+                result["hmm_regime"] = hmm_regime_match.group(1)
             
         # Trans
         trans_match = re.search(r"Trans\(([\d.]+)x\)", reason_str)
@@ -1403,14 +1597,55 @@ def get_live_performance_metrics() -> dict:
 
 
 
-def get_signal_funnel_data() -> dict:
+def get_signal_funnel_data(session_id: str = None) -> dict:
     """
     Reads the signal funnel statistics from reports.
     Supports reading from signal_funnel.json or statistical_verdict.json.
+    If session_id is provided, aggregates signal funnels of all seeds belonging to that session.
     Falls back to a structured default if no report is found.
     """
-    funnel_path = PROJECT_ROOT / "data" / "reports" / "signal_funnel.json"
-    verdict_path = PROJECT_ROOT / "data" / "reports" / "statistical_verdict.json"
+    reports_dir = PROJECT_ROOT / "data" / "reports"
+    
+    # 1. Agrupación y agregación por session_id
+    if session_id and reports_dir.exists():
+        funnel_files = []
+        for f in reports_dir.glob("signal_funnel_WFB_*.json"):
+            if session_id in f.name:
+                funnel_files.append(f)
+                
+        if funnel_files:
+            print(f"[DASHBOARD-FUNNEL] Agregando {len(funnel_files)} archivos de embudo de señales para sesión {session_id}.")
+            aggregated = {
+                "raw_oos_bars": 0,
+                "after_xgb": 0,
+                "after_lgbm": 0,
+                "after_ood": 0,
+                "after_cvd": 0,
+                "after_hmm": 0,
+                "after_meta": 0,
+                "after_cash_shield": 0,
+                "after_momentum": 0,
+                "after_embargo": 0
+            }
+            count = 0
+            for fp in funnel_files:
+                try:
+                    with open(fp, "r", encoding="utf-8") as file:
+                        d = json.load(file)
+                    for k in aggregated.keys():
+                        if k in d:
+                            aggregated[k] += int(d[k] or 0)
+                    count += 1
+                except Exception as e:
+                    print(f"[DASHBOARD-WARN] Error agregando {fp.name}: {e}")
+            if count > 0:
+                aggregated["filter_fallback_level"] = 0
+                aggregated["n_windows_accumulated"] = count
+                return aggregated
+
+    # 2. Comportamiento por defecto / fallback
+    funnel_path = reports_dir / "signal_funnel.json"
+    verdict_path = reports_dir / "statistical_verdict.json"
     
     if funnel_path.exists():
         try:
@@ -1447,6 +1682,17 @@ def get_signal_funnel_data() -> dict:
         "filter_fallback_level": 0,
         "n_windows_accumulated": 1
     }
+
+def get_ensemble_verdict():
+    """Lee el veredicto consolidado del WFB ensemble de 29 semillas."""
+    verdict_path = PROJECT_ROOT / "data" / "reports" / "ensemble_statistical_verdict.json"
+    if verdict_path.exists():
+        try:
+            with open(verdict_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[DASHBOARD-VPS] ERROR leyendo ensemble_statistical_verdict.json: {e}")
+    return None
 
 def get_vps_telemetry():
     global VPS_IS_PAUSED
@@ -1545,7 +1791,7 @@ def get_vps_telemetry():
                 "pnl_pct": 0.00,
                 "equity": 100000.00,
                 "margin": "$100,000.00 (100% libre)",
-                "leverage": "1.0x (Spot - Sin Apalancamiento)",
+                "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento Máximo)",
                 "performance": {
                     "net_pnl": 0.0,
                     "net_pnl_pct": 0.0,
@@ -1778,7 +2024,7 @@ def get_vps_telemetry():
                         "pnl_pct": round(((float(state.get("portfolio_value", 10000.0)) - 10000.0) / 10000.0) * 100, 2),
                         "equity": float(state.get("portfolio_value", 10000.0)),
                         "margin": f"${round(float(state.get('portfolio_value', 10000.0))*0.9, 2)} (90% libre)",
-                        "leverage": "1.0x (Spot - Sin Apalancamiento)",
+                        "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento Máximo)",
                         "performance": get_live_performance_metrics()
                     },
                     "cb": {
@@ -1858,7 +2104,7 @@ def get_vps_telemetry():
                 "pnl_pct": 2.45,
                 "equity": 10245.50,
                 "margin": "$9,183.12 (912% libre)",
-                "leverage": "1.0x (Spot - Sin Apalancamiento)",
+                "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento Máximo)",
                 "performance": {
                     "net_pnl": 245.50,
                     "net_pnl_pct": 2.45,
@@ -2114,11 +2360,39 @@ def get_reconstructed_price_curve():
         raise RuntimeError("CRITICAL: pandas is not available for price curve reconstruction.")
         
     features_dir = PROJECT_ROOT / "data" / "features"
-    holdout_files = sorted(list(features_dir.glob("features_holdout_W*.parquet")))
+    cache_dir = PROJECT_ROOT / "data" / "wfb_cache"
     
-    if not holdout_files:
-        raise FileNotFoundError("CRITICAL: No holdout files features_holdout_W*.parquet found in data/features.")
+    found_files = {}
+    
+    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Escanear la cache (origen histórico completo)
+    if cache_dir.exists():
+        for hf in cache_dir.glob("W*/features/features_holdout_W*.parquet"):
+            m = re.search(r"W\d+", hf.name)
+            if m:
+                w_name = m.group(0)
+                found_files[w_name] = hf
+                
+    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Escanear data/features (por si hay archivos sueltos no cacheados)
+    if features_dir.exists():
+        for hf in features_dir.glob("features_holdout_W*.parquet"):
+            m = re.search(r"W\d+", hf.name)
+            if m:
+                w_name = m.group(0)
+                found_files[w_name] = hf
+                
+    if not found_files:
+        raise FileNotFoundError("CRITICAL: No holdout files features_holdout_W*.parquet found in data/features or data/wfb_cache.")
         
+    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Ordenar numéricamente para garantizar secuencia cronológica (W2 antes de W10)
+    def get_window_num(w_key):
+        num_m = re.search(r"\d+", w_key)
+        return int(num_m.group(0)) if num_m else 0
+        
+    sorted_w_keys = sorted(found_files.keys(), key=get_window_num)
+    holdout_files = [found_files[k] for k in sorted_w_keys]
+    
+    print(f"[FIX-DASHBOARD-CURVE-01] Reconstruyendo curva de precios con {len(holdout_files)} ventanas: {sorted_w_keys}")
+    
     price_series_list = []
     window_bounds = []
     
@@ -2165,17 +2439,43 @@ def get_reconstructed_price_curve_cached():
     return _price_curve_cache
 
 
-def get_trades_for_seed(seed: int):
+def get_trades_for_seed(seed: int, session_id: str = None):
     if pd is None:
         raise RuntimeError("CRITICAL: pandas is not available for trades retrieval.")
         
-    reports_dir = PROJECT_ROOT / "data" / "reports" / "wfb"
-    trade_files = sorted(list(reports_dir.glob(f"oos_trades_W*_seed{seed}.parquet")))
-    
-    if not trade_files:
-        print(f"[DASHBOARD-API-TRACK] WARNING: No se encontraron archivos de trades para semilla {seed}.")
-        return []
+    # [FIX-DASHBOARD-TRADES-01 2026-06-20] Ordenar numéricamente las ventanas de trades
+    def get_wfb_num(path):
+        m = re.search(r"W(\d+)", path.name)
+        if not m:
+            m = re.search(r"W(\d+)", path.parent.name)
+        return int(m.group(1)) if m else 0
         
+    trade_files = []
+    
+    # 1. Intentar cargar desde runs históricas
+    if session_id:
+        runs_dir = PROJECT_ROOT / "data" / "runs"
+        if runs_dir.exists():
+            session_dirs = [d for d in runs_dir.iterdir() if d.is_dir() and session_id in d.name]
+            if session_dirs:
+                seed_dir = session_dirs[0] / f"seed{seed}"
+                if not seed_dir.exists() and (session_dirs[0] / str(seed)).exists():
+                    seed_dir = session_dirs[0] / str(seed)
+                if seed_dir.exists():
+                    trade_files = sorted(list(seed_dir.glob("W*/oos_trades.parquet")), key=get_wfb_num)
+                    print(f"[DASHBOARD-TRADES] Cargando {len(trade_files)} parquets históricos desde {seed_dir.name}")
+                    
+    # 2. Fallback a data/reports/wfb
+    if not trade_files:
+        reports_dir = PROJECT_ROOT / "data" / "reports" / "wfb"
+        if reports_dir.exists():
+            trade_files = sorted(list(reports_dir.glob(f"oos_trades_W*_seed{seed}.parquet")), key=get_wfb_num)
+            print(f"[DASHBOARD-TRADES] Cargando {len(trade_files)} parquets desde data/reports/wfb")
+            
+    if not trade_files:
+        print(f"[DASHBOARD-API-TRACK] WARNING: No se encontraron archivos de trades para semilla {seed} (sesion {session_id}).")
+        return []
+    
     curve_data = get_reconstructed_price_curve_cached()
     
     times = [pd.to_datetime(p[0], unit='ms', utc=True) for p in curve_data["prices"]]
@@ -2692,7 +2992,10 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     raise ValueError("Missing 'seed' query parameter.")
                 seed = int(seed_list[0])
                 
-                trades_data = get_trades_for_seed(seed)
+                session_id_list = query_params.get("session_id", [])
+                session_id = session_id_list[0] if session_id_list else None
+                
+                trades_data = get_trades_for_seed(seed, session_id)
                 self.wfile.write(json.dumps(trades_data, ensure_ascii=False).encode('utf-8'))
             except Exception as e:
                 self.send_response(500)
@@ -2764,12 +3067,31 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         self.wfile.write(f.read().encode('utf-8'))
                     print(f"[DASHBOARD-TRADES-MODAL] /api/oos_replay_2026: JSON servido ({oos_json_path.stat().st_size} bytes)")
                 else:
-                    self.send_response(404)
-                    self.send_header('Content-Type', 'application/json; charset=utf-8')
-                    self.send_header('Access-Control-Allow-Origin', '*')
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"error": "OOS replay JSON no generado todavía. Ejecutar oos_replay_2026_local.py"}).encode('utf-8'))
-                    print(f"[DASHBOARD-TRADES-MODAL] /api/oos_replay_2026: JSON no encontrado en {oos_json_path}")
+                    # [DASHBOARD-FIX-KELLY-VPS] Fallback: try to read from ensemble_metadata.json (for VPS)
+                    meta_path = PROJECT_ROOT / "data" / "models" / "prod" / "ensemble_metadata.json"
+                    oos_metrics_found = False
+                    if meta_path.exists():
+                        try:
+                            with open(meta_path, "r", encoding="utf-8") as fm:
+                                meta_data = json.load(fm)
+                            if "oos_metrics" in meta_data:
+                                self.send_response(200)
+                                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                                self.send_header('Access-Control-Allow-Origin', '*')
+                                self.end_headers()
+                                self.wfile.write(json.dumps(meta_data["oos_metrics"]).encode('utf-8'))
+                                print(f"[DASHBOARD-TRADES-MODAL] /api/oos_replay_2026: Servido desde ensemble_metadata.json (VPS fallback)")
+                                oos_metrics_found = True
+                        except Exception as meta_ex:
+                            print(f"[DASHBOARD-TRADES-MODAL] Error reading metadata fallback: {meta_ex}")
+                    
+                    if not oos_metrics_found:
+                        self.send_response(404)
+                        self.send_header('Content-Type', 'application/json; charset=utf-8')
+                        self.send_header('Access-Control-Allow-Origin', '*')
+                        self.end_headers()
+                        self.wfile.write(json.dumps({"error": "OOS replay JSON no generado todavía. Ejecutar oos_replay_2026_local.py"}).encode('utf-8'))
+                        print(f"[DASHBOARD-TRADES-MODAL] /api/oos_replay_2026: JSON no encontrado en {oos_json_path} ni en metadata")
             except Exception as e:
                 self.send_response(500)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -2972,8 +3294,11 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
+            session_id_list = query_params.get("session_id", [])
+            session_id = session_id_list[0] if session_id_list else None
+            
             # Obtener datos resumidos agrupados cronológicamente
-            active_run, historical_runs = get_wfb_seeds_summary()
+            active_run, historical_runs = get_wfb_seeds_summary(session_id)
             
             # 1. CPU / RAM Stats
             cpu_percent = psutil.cpu_percent()
@@ -2994,7 +3319,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     pass
             
             # 3. Log parsing
-            latest_worker, last_modified = get_latest_log_file("wfb_worker_")
+            latest_worker, last_modified = get_latest_log_file("wfb_worker_", session_id)
             worker_info = {}
             if latest_worker:
                 worker_info = parse_wfb_worker_log(latest_worker)
@@ -3127,7 +3452,8 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 # Backwards compatibility:
                 "champions": active_run["champions"],
                 "discarded_seeds": active_run["discarded"],
-                "timestamp": time.time()
+                "timestamp": time.time(),
+                "ensemble_verdict": get_ensemble_verdict()
             }
             print(f"[DASHBOARD-API-TRACK] [MEJORA-DASHBOARD-STATUS] Serving enriched status | Active WFB: {active_run.get('is_active', False)} | WFB Champions: {len(active_run.get('champions', []))} | Loaded settings.yaml dynamically.")
             
@@ -3374,7 +3700,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         "Latido de Vida, Reconciliación Contable y Riesgo (Paso 1 al 3)",
                         "Ingesta Incremental y Feature Engineering (Paso 4 y 5)",
                         "Inferencia Ensamblada y Quórum Multisemilla (Paso 6)",
-                        "Dimensionamiento de Posición y Despacho OKX Spot (Paso 7 y 8)",
+                        "Dimensionamiento de Posición y Despacho OKX Futures (Paso 7 y 8)",
                         "Duración del Ciclo y Estado de Espera (Paso 9)"
                     ]
                     for line in cycle_lines:
@@ -3417,7 +3743,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                             print(f"[DASHBOARD-G1-FIX] Línea → Paso 4 (Inferencia): {clean_line[:80]}")
                             steps[3].append(clean_line)
                         elif any(kw in line for kw in [
-                            "[SIZER]", "[EXEC]", "[OKX_POSITION]", "Spot BTC/",
+                            "[SIZER]", "[EXEC]", "[OKX_POSITION]", "Spot BTC/", "Futures BTC/", "Swap BTC/", "BTC/USDT",
                             "Orden colocada", "cierre completo", "SELL", "BUY",
                             "[LIVE-TRADER-AUDIT]", "[BUGFIX-DEMO-BOOT]", "[BUGFIX-3]",
                             "[RECONCILIACIÓN]"
@@ -3568,14 +3894,13 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         _check(["FundingRate", "FundingRate_EMA3", "FundingRate_Pct90d",
                                 "dv_funding_rate", "funding_extreme_pos", "funding_extreme_neg"],
                                "Funding Rate", "💸"),
-                        _check(["OI_USD", "OI_BTC", "OI_Open_USD", "OI_High_USD", "OI_Low_USD",
-                                "OI_USD_z90d", "dv_oi_acceleration_24h"],
+                        _check(["OI_USD", "OI_BTC", "OI_USD_z90d", "dv_oi_acceleration_24h"],
                                "Open Interest (OI)", "📈"),
                         _check(["LongShortRatio", "LongAccount", "ShortAccount",
                                 "Coinglass_long_ratio", "Coinglass_short_ratio"],
                                "Long/Short Ratio", "⚖️"),
-                        _check(["ETF_Flow_Proxy", "dv_etf_flow_proxy", "ETF_IBIT_Flow_Proxy",
-                                "BITO_Close", "BITO_Volume", "ETF_Total_Volume", "ETF_Volume_Spike"],
+                        _check(["ETF_Flow_Proxy", "dv_etf_flow_proxy",
+                                "BITO_Volume", "ETF_Total_Volume", "ETF_Volume_Spike"],
                                "ETF Flows", "🏦"),
                         _check(["DXY_z90d", "CPI_YoY_kz", "M2_China_YoY", "Stablecoins_Delta_30d",
                                 "Whale_Proxy_Volume_USD", "FearGreed"],

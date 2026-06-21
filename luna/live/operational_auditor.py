@@ -36,11 +36,7 @@ class LiveOperationalAuditor:
             self.max_drift_minutes = min(90.0, self.max_drift_minutes)
             
             # Limite de apalancamiento
-            risk_section = cfg.get("risk", None)
-            if risk_section is not None:
-                self.max_leverage_allowed = float(risk_section.get("max_leverage_allowed", 20.0))
-            else:
-                self.max_leverage_allowed = 20.0
+            self.max_leverage_allowed = float(cfg.risk.max_leverage_allowed)
 
             # Límite de latencia del ciclo (No-Fallback Silencioso con valor seguro por defecto)
             try:

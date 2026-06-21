@@ -39,10 +39,18 @@ SETTINGS_PATH = _ROOT / "config" / "settings.yaml"
 WFB_OUT_DIR = _ROOT / "data" / "reports" / "wfb"
 
 import os
-_ts_wfb = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
+# [WFB-SESSION-FIX 2026-06-20] Usar ID de sesión maestro compartido desde el entorno si existe
+_ts_wfb = os.environ.get("LUNA_SESSION_ID")
+if not _ts_wfb:
+    _ts_wfb = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + f"_{os.getpid()}"
+
+# [WFB-SESSION-FIX 2026-06-20] Añadir sufijo de semilla para evitar colisión/bloqueo de escritura en el log
+_seed_id = os.environ.get("LUNA_SEED", "")
+_log_suffix = f"_seed{_seed_id}" if _seed_id else ""
+
 _log_dir_wfb = _ROOT / "logs"
 _log_dir_wfb.mkdir(exist_ok=True)
-logger.add(_log_dir_wfb / f"wfb_worker_{_ts_wfb}.log", rotation="50 MB", level="DEBUG", encoding="utf-8")
+logger.add(_log_dir_wfb / f"wfb_worker_{_ts_wfb}{_log_suffix}.log", rotation="50 MB", level="DEBUG", encoding="utf-8")
 
 # [GAP-11] Activar global_telemetry si está disponible en luna.utils
 try:

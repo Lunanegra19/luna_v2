@@ -471,17 +471,9 @@ def apply_triple_barrier(
             raise RuntimeError(f"Falta min_return y no se pudo leer cfg.xgboost.tbm_min_return en settings.yaml. Política No-Fallback: {e_tbm}")
 
     # 1c. Asymmetric TBM (Hipótesis A)
-    try:
-        from config.settings import cfg as _cfg_tbm
-        tbm_asymmetric = bool(getattr(_cfg_tbm.xgboost, "tbm_asymmetric", False))
-        tbm_asymmetry_ratio_cap = float(getattr(_cfg_tbm.xgboost, "tbm_asymmetry_ratio_cap", 2.0))
-    except Exception as e_tbm:
-        # [BUG-4-FIX 2026-06-18] Añadir trazabilidad al fallback (RULE[fixbugsprints.md])
-        print(f"[BUG-4-FIX][TBM][WARNING] No se pudo leer tbm_asymmetric de cfg: {e_tbm}. "
-              f"Usando fallback tbm_asymmetric=False (TBM simétrico). Revisar settings.yaml.")
-        logger.warning("[BUG-4-FIX][TBM] Fallback a TBM simétrico por error leyendo cfg: {}", e_tbm)
-        tbm_asymmetric = False
-        tbm_asymmetry_ratio_cap = 2.0
+    from config.settings import cfg as _cfg_tbm
+    tbm_asymmetric = bool(_cfg_tbm.xgboost.tbm_asymmetric)
+    tbm_asymmetry_ratio_cap = float(_cfg_tbm.xgboost.tbm_asymmetry_ratio_cap)
 
 
     if tbm_asymmetric:

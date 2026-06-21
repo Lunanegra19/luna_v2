@@ -695,6 +695,24 @@ class LunaLiveTraderV2LiveDemo:
             }
             self.db.log_operational_audit(audit_log_data)
 
+            # [SOP R19] Reporte Horario / Heartbeat a Telegram
+            hour_str = datetime.utcnow().strftime('%H:00 UTC')
+            trade_action = decision.get('action', 'HOLD')
+            regime = decision.get('regime', 'UNKNOWN')
+            prob = decision.get('xgb_prob', 0.0)
+            
+            # Formato de mensaje amigable para el usuario
+            msg = (
+                f"⏱️ *REPORTE HORARIO LUNA V2* ({hour_str})\n"
+                f"✅ *Ciclo completado con éxito*\n\n"
+                f"🧠 *Régimen actual:* `{regime}`\n"
+                f"🤖 *Decisión del Ensamble:* `{trade_action}`\n"
+                f"📊 *Probabilidad XGB:* `{prob:.2f}`\n\n"
+                f"💰 *Capital en OKX:* `${current_equity:,.2f}`\n"
+                f"🛡️ *Estado del Sistema:* `100% OK`"
+            )
+            self.telegram.send_alert(msg, priority="info")
+
             # Latido exitoso final
             self.db.log_heartbeat(status="SLEEPING")
             

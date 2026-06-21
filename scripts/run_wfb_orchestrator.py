@@ -7,6 +7,7 @@ import subprocess
 import re
 import json
 import argparse
+import datetime
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -292,6 +293,10 @@ def main():
                              "Permite re-entrenar XGBoost/MetaLabeler/AE sin recalcular el SFI (el paso mas costoso). "
                              "Util cuando solo se cambia meta_v2_rolling_percentile u otros parametros post-SFI.")
     args = parser.parse_args()
+
+    # [WFB-SESSION-FIX 2026-06-20] Master WFB session ID generated at startup to group sequential seeds
+    _ts_wfb = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    print(f"[WFB-SESSION-FIX] Generated master session ID: {_ts_wfb}")
 
     if args.smoke_test:
         os.environ["LUNA_SMOKE_TEST"] = "1"
@@ -673,23 +678,14 @@ def main():
                     cmd.append("--nocache")
                     print(f"[CACHE-INTEGRITY-01] Propagando --nocache al worker para seed={seed}")
 
-                # [SFICACHE-01] Propagar --sficache al worker: indica que los sfi_lock.json
-                # fueron restaurados por el orquestador y NO deben limpiarse por el worker.
-                if args.sficache:
-                    cmd.append("--sficache")
-                    print(f"[SFICACHE-01] Propagando --sficache al worker para seed={seed}")
-
-                if args.smoke_test:
-                    cmd.append("--smoke-test")
-
-    
-                print(f"[*] Lanzando subproceso WFB (Att {attempt}): {' '.join(cmd)}")
-                # [V2-FIX PROBLEMA 3] Propagar PYTHONPATH para garantizar que luna.* sea importable
+                 # [V2-FIX PROBLEMA 3] Propagar PYTHONPATH para garantizar que luna.* sea importable
                 _run_env = os.environ.copy()
                 _run_env["PYTHONPATH"] = str(_ROOT) + (os.pathsep + _run_env.get("PYTHONPATH", "") if _run_env.get("PYTHONPATH") else "")
                 _run_env["PYTHONUNBUFFERED"] = "1"
                 _run_env["PYTHONHASHSEED"] = str(seed)
                 _run_env["LUNA_SEED"] = str(seed)
+                # [WFB-SESSION-FIX 2026-06-20] Propagar ID de sesión maestro a los workers secuenciales
+                _run_env["LUNA_SESSION_ID"] = _ts_wfb
                 # [CACHE-INTEGRITY-01] Propagar LUNA_NOCACHE para que subprocesos anidados también la respeten
                 if args.nocache:
                     _run_env["LUNA_NOCACHE"] = "1"
@@ -700,15 +696,14 @@ def main():
                     _run_env["LUNA_SFICACHE"] = "1"
                 else:
                     _run_env.pop("LUNA_SFICACHE", None)
-
     
                 # [GAP-05/AUDIT-#25] Crear directorio canónico data/runs/WFB_{ts}/ con run_manifest.json
                 # e inyectar LUNA_ENSEMBLE_DIR para que wfb_worker.py y run_statistical_validation.py
                 # puedan hacer double-write de artefactos (oos_raw_probs, tearsheets, verdicts).
                 try:
                     import datetime as _dt_arch, json as _json_arch, shutil as _sh_arch
-                    _ens_ts = _dt_arch.datetime.now().strftime("%Y%m%d_%H%M%S")
-                    _ens_dir = _ROOT / "data" / "runs" / f"WFB_{_ens_ts}_seed{seed}"
+                    # [WFB-SESSION-FIX 2026-06-20] Usar el timestamp de sesión maestro en lugar de datetime.now()
+                    _ens_dir = _ROOT / "data" / "runs" / f"WFB_{_ts_wfb}_seed{seed}"
                     _ens_dir.mkdir(parents=True, exist_ok=True)
                     _settings_src = _ROOT / "config" / "settings.yaml"
                     if _settings_src.exists():

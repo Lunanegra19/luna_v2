@@ -1,4 +1,4 @@
-﻿"""
+"""
 feature_pipeline.py
 ===================
 Luna V1 Ã¢â‚¬â€ Feature Engineering (NÃƒÅ¡CLEO)
@@ -1262,6 +1262,20 @@ class FeaturePipeline:
                 df[out_col] = df[src_col].shift(lag_h)
                 logger.debug(f"MI-lag: {src_col} (lag={lag_h}H) -> {out_col}")
 
+        # [FIX-OOS-MISSING] Fallback para los lags faltantes detectados en oos_replay
+        for src_col, lag_h, out_col in [
+            ('MVRV_Proxy_z90d', 96, 'MVRV_Proxy_z90d_milag96h'),
+            ('cal_deribit_expiry_days', 1, 'cal_deribit_expiry_days_milag1h'),
+            ('DXY_Slope30d_z90d', 48, 'DXY_Slope30d_z90d_milag48h'),
+            ('M2_YoY_Chg_z90d', 120, 'M2_YoY_Chg_z90d_milag120h'),
+            ('ms_stablecoin_flow_30d', 24, 'Stablecoins_Delta_30d_milag24h'),
+            ('YieldCurve_Pct1y', 336, 'YieldCurve_Pct1y_milag336h'),
+            ('CPI_YoY_kz', 4, 'CPI_YoY_kz_milag4h')
+        ]:
+            if src_col in df.columns and out_col not in df.columns:
+                df[out_col] = df[src_col].shift(lag_h)
+                logger.debug(f"MI-lag (OOS): {src_col} (lag={lag_h}H) -> {out_col}")
+
         # Ã¢â€â‚¬Ã¢â€â‚¬ HashRate_14dMA: complementar con onchain_raw si mempool_raw incompleto Ã¢â€â‚¬Ã¢â€â‚¬
         # mempool_raw.HashRate_14dMA arranca en mar-2021 (NaN=23.8% en training).
         # onchain_raw.Hashrate_7dMA cubre desde 2020-01-01 con 0% NaN.
@@ -1330,7 +1344,7 @@ class FeaturePipeline:
 
         # â”€â”€ [HMM-FIX-ZSCORE-OOS 2026-06-07] GeneraciÃ³n Global de Features HMM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         try:
-            hmm_z_cols = ['btc_drawdown_from_ath', 'mt_vol_realized_4bar']
+            hmm_z_cols = ['btc_drawdown_from_ath', 'mt_vol_realized_4bar', 'close_fd']
             for col in hmm_z_cols:
                 if col in df.columns:
                     z_col = f"{col}_z90d"
@@ -1358,6 +1372,13 @@ class FeaturePipeline:
         # - El EWM de suavizado (span=24h) tambiÃ©n es causal (adjust=False)
         try:
             _hmm_pkl = _ROOT / "data" / "models" / "hmm_regime.pkl"
+            if not _hmm_pkl.exists():
+                _prod_dir = _ROOT / "data" / "models" / "prod"
+                if _prod_dir.exists():
+                    _seeds = list(_prod_dir.glob("seed*/hmm_regime.pkl"))
+                    if _seeds:
+                        _hmm_pkl = _seeds[0]
+
             if _hmm_pkl.exists():
                 import joblib as _jl
                 _hmm_data = _jl.load(_hmm_pkl)
@@ -1403,6 +1424,11 @@ class FeaturePipeline:
                             )
                         else:
                             logger.warning("[P2] HMM Velocity: no se encontrÃ³ estado BULL en state_map â€” feature omitida")
+
+                        # [UI-FIX] Inyectar HMM_Regime en el df global para que features_live.parquet lo persista
+                        # y el dashboard no lo marque como "Ausente".
+                        df["HMM_Regime"] = _hmm_model.predict(_X_scaled)
+                        
                     else:
                         logger.warning(f"[P2] HMM Velocity: solo {len(_hmm_feats_avail)} de {len(_hmm_features)} features disponibles en df")
             else:
@@ -2064,6 +2090,16 @@ class FeaturePipeline:
         logger.info("[FP] Paso 7 (cross-asset): +{} cols Ã¢â€ â€™ {} total",
                     df.shape[1] - _n_before, df.shape[1])
 
+        # Paso 7A: FracDiff dinámico (R7) ANTES de HMM (Paso 7B) porque HMM usa close_fd_z90d
+        if not skip_fracdiff:
+            _t = _time.monotonic()
+            _n_before = df.shape[1]
+            df = self.apply_fracdiff_dynamic(df)
+            logger.info("[FP] Paso 7A (fracdiff): +{} cols → {} total | {:.1f}s",
+                        df.shape[1] - _n_before, df.shape[1], _time.monotonic() - _t)
+        else:
+            logger.info("[FP] Paso 7A (fracdiff): OMITIDO (--skip-fracdiff)")
+
         # Paso 7B: Derived Macro + On-Chain features (mc_* / oc_* / dv_*)
         # Genera features equivalentes a Luna v2 V10 sin fetchers adicionales
         _n_before = df.shape[1]
@@ -2102,15 +2138,6 @@ class FeaturePipeline:
         except Exception as e:
             logger.error(f"[FP] Error en Paso 7D (Kalman post-derivadas): {e}")
 
-        # Paso 8: FracDiff dinÃƒÂ¡mico (R7)
-        if not skip_fracdiff:
-            _t = _time.monotonic()
-            _n_before = df.shape[1]
-            df = self.apply_fracdiff_dynamic(df)
-            logger.info("[FP] Paso 8 (fracdiff): +{} cols Ã¢â€ â€™ {} total | {:.1f}s",
-                        df.shape[1] - _n_before, df.shape[1], _time.monotonic() - _t)
-        else:
-            logger.info("[FP] Paso 8 (fracdiff): OMITIDO (--skip-fracdiff)")
 
         # Paso 9: Alpha Rules (R13)
         _n_before = df.shape[1]
