@@ -383,11 +383,11 @@
                                         📊
                                     </div>
                                     <div class="ensemble-title-text">
-                                        <h3>
-                                            Ensemble Portfolio (Consolidado OOS)
-                                            <span class="ensemble-inst-badge">MEDIA ARITMÉTICA SEEDS</span>
+                                        <h3 style="color: #fca5a5;">
+                                            Diagnóstico OOS de Motores (Media Aritmética)
+                                            <span class="ensemble-inst-badge" style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.3);">MÉTRICA BRUTA (NO OPERABLE)</span>
                                         </h3>
-                                        <p>Media aritmética de las métricas OOS individuales de las semillas campeonas en ventanas fuera de muestra.</p>
+                                        <p style="color: #fca5a5; opacity: 0.9;">Media aritmética bruta del rendimiento aislado de las redes campeonas (SIN Consenso). Útil para diagnosticar la salud de la IA y medir el 'Ruido' que descarta el Guardián.</p>
                                     </div>
                                 </div>
                                 <div class="ensemble-metrics-grid">
@@ -1963,20 +1963,14 @@
                         </div>
 
                         <!-- INTRODUCTORY STRATEGY INSIGHT -->
-                        <div class="strategy-banner" style="margin-bottom: 20px;">
-                            <div class="banner-icon">💎</div>
-                            <div class="banner-text">
-                                <h3>La "Golden Zone" de Apalancamiento Sostenible</h3>
-                                <p>Simulaciones cuantitativas demostraron que aplicar apalancamiento superior a 15x resulta en **parálisis matemática** por el arrastre geométrico de volatilidad (*Volatility Drag*). En producción, el Sweet Spot institucional sostenible se encuentra entre **5x y 10x**.</p>
-                            </div>
-                        </div>
+
 
                         <!-- 🛡️ WIDGET DE INFORMACIÓN DEL CONSENSO V2 (DINÁMICO) -->
                         <div class="card glass-card" style="padding: 16px 20px; margin-bottom: 20px; background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.18); border-radius: 10px;">
                             <div style="display: flex; align-items: flex-start; gap: 14px;">
                                 <span style="font-size: 24px; flex-shrink: 0; margin-top: 2px;">🛡️</span>
                                 <div style="flex: 1; min-width: 0;">
-                                    <h4 style="font-size: 11px; color: #fff; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 5px 0;">Métricas Base del Consenso Consolidado de Producción V2</h4>
+                                    <h4 style="font-size: 11px; color: #10b981; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 5px 0;">Operativa Real: Consenso del Ensamble V2 (Producción)</h4>
                                     <!-- Subtítulo dinámico: fuente, base_ret, base_dd, Calmar, Half-Kelly -->
                                     <p id="kelly-consensus-subtitle" style="font-size: 10px; color: #94a3b8; margin: 0 0 8px 0; line-height: 1.5;">
                                         Simulación y Kelly Sizer configurados dinámicamente según el portafolio consolidado por consenso (Semillas aprobadas: <strong style="color: #06b6d4;" id="ensemble-active-seeds-text">Cargando semillas...</strong>).
@@ -2009,8 +2003,8 @@
                                         <span style="font-size: 8px; color: #475569;">Ret/MaxDD</span>
                                     </div>
                                     <div style="display: flex; flex-direction: column; gap: 3px;">
-                                        <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Half-Kelly Consolidado</span>
-                                        <span id="val-kelly-base-exposure" style="font-size: 14px; font-weight: 800; color: #a78bfa; font-family: 'JetBrains Mono', monospace;">52.9%</span>
+                                        <span style="font-size: 9px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Full-Kelly Consolidado</span>
+                                        <span id="val-kelly-base-exposure" style="font-size: 14px; font-weight: 800; color: #a78bfa; font-family: 'JetBrains Mono', monospace;">100.0%</span>
                                         <span style="font-size: 8px; color: #475569;">exposición nominal</span>
                                     </div>
                                 </div>
@@ -2020,7 +2014,7 @@
                         <!-- SIMULADOR INTERACTIVO DE EXPOSICIÓN SIMPLIFICADO -->
                         <div class="card glass-card mt-20">
                             <h2 class="card-title sky-glow">🧮 PROYECCIONES DE CAPITAL (x1 / x2 APALANCAMIENTO)</h2>
-                            <p class="card-subtitle mb-15">Simulador exclusivo para operativa institucional (Sin Margen o Retail Segregado). Los cálculos asumen Kelly fraccional dinámico y reflejan el ensamble consolidado.</p>
+                            <p class="card-subtitle mb-15">Simulador exclusivo para operativa de FUTUROS en cuenta MINORISTA (Retail ESMA). Los cálculos asumen Kelly fraccional dinámico y reflejan el ensamble consolidado.</p>
                             
                             <div class="calculator-container" style="display: grid; grid-template-columns: 1fr 2fr; gap: 20px;">
                                 <!-- Controles -->
@@ -2034,11 +2028,11 @@
                                         <div style="display: flex; gap: 10px;">
                                             <label style="flex: 1; text-align: center; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px; border-radius: 6px; cursor: pointer;">
                                                 <input type="radio" name="input-leverage-radio" value="1" checked style="margin-right: 5px;">
-                                                <span style="font-size: 12px; font-weight: 700; color: #10b981;">x1 (Spot)</span>
+                                                <span style="font-size: 12px; font-weight: 700; color: #10b981;">x1 (Futuros sin apalancar)</span>
                                             </label>
                                             <label style="flex: 1; text-align: center; background: rgba(6, 182, 212, 0.1); border: 1px solid rgba(6, 182, 212, 0.3); padding: 8px; border-radius: 6px; cursor: pointer;">
                                                 <input type="radio" name="input-leverage-radio" value="2" style="margin-right: 5px;">
-                                                <span style="font-size: 12px; font-weight: 700; color: #06b6d4;">x2 (Retail)</span>
+                                                <span style="font-size: 12px; font-weight: 700; color: #06b6d4;">x2 (Futuros Retail ESMA)</span>
                                             </label>
                                         </div>
                                     </div>
@@ -2061,13 +2055,33 @@
                                     </div>
                                     <div class="result-tile" style="padding: 15px; display: flex; flex-direction: column; justify-content: center; border-left: 3px solid rgba(16, 185, 129, 0.5);">
                                         <span class="tile-lbl" style="font-size: 10px;">Retorno Neto Estimado (6 Meses)</span>
-                                        <span class="tile-val highlight-emerald" id="calc-ret-proj" style="font-size: 22px;">--</span>
-                                        <span class="tile-sub" style="font-size: 9px;">Ganancia absoluta tras deducir comisiones y fricción Taker.</span>
+                                        <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                            <div style="display:flex; flex-direction: column;">
+                                                <span style="font-size: 10px; color: #10b981; font-weight: bold;">MAKER (0.04%)</span>
+                                                <span class="tile-val highlight-emerald" id="calc-ret-proj" style="font-size: 18px;">--</span>
+                                                <span id="calc-eur-proj-maker" style="font-size: 11px; color: #9ca3af;">--</span>
+                                            </div>
+                                            <div style="display:flex; flex-direction: column; text-align: right;">
+                                                <span style="font-size: 10px; color: #ef4444; font-weight: bold;">TAKER (0.25%)</span>
+                                                <span class="tile-val" id="calc-ret-proj-taker" style="font-size: 18px; color: #ef4444; font-weight: 500;">--</span>
+                                                <span id="calc-eur-proj-taker" style="font-size: 11px; color: #9ca3af;">--</span>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="result-tile" style="padding: 15px; display: flex; flex-direction: column; justify-content: center; border-left: 3px solid rgba(167, 139, 250, 0.5);">
                                         <span class="tile-lbl" style="font-size: 10px;">Retorno Anualizado Compuesto (CAGR)</span>
-                                        <span class="tile-val highlight-purple" id="calc-ret-annual" style="font-size: 22px;">--</span>
-                                        <span class="tile-sub" style="font-size: 9px;">Efecto bola de nieve asumiendo reinversión continua.</span>
+                                        <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                            <div style="display:flex; flex-direction: column;">
+                                                <span style="font-size: 10px; color: #a78bfa; font-weight: bold;">MAKER</span>
+                                                <span class="tile-val highlight-purple" id="calc-ret-annual" style="font-size: 18px;">--</span>
+                                                <span id="calc-eur-annual-maker" style="font-size: 11px; color: #9ca3af;">--</span>
+                                            </div>
+                                            <div style="display:flex; flex-direction: column; text-align: right;">
+                                                <span style="font-size: 10px; color: #ef4444; font-weight: bold;">TAKER</span>
+                                                <span class="tile-val" id="calc-ret-annual-taker" style="font-size: 18px; color: #ef4444; font-weight: 500;">--</span>
+                                                <span id="calc-eur-annual-taker" style="font-size: 11px; color: #9ca3af;">--</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -2871,7 +2885,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=2.6.4"></script>
+    <script src="app.js?v=2.6.6"></script>
 </body>
 </html>
 

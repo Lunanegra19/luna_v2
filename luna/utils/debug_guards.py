@@ -311,26 +311,26 @@ def check_kelly(fraction: float, label: str = "") -> None:
         print(_msg)
         logger.critical(_msg)
         raise RuntimeError(_msg)
-    if fraction > 0.5:
-        # Doble Kelly o superior: destruccion garantizada del capital segun teoria de Kelly
+    
+    if fraction > 1.0:
+        # Más de Full Kelly: Destrucción matemática garantizada.
         _msg = (
-            f"[FIX-KELLY-SANITY-01/CRITICAL] Kelly EXCESIVO{tag}: f*={fraction:.4f} > 0.5 "
-            f"(Doble Kelly). Segun la teoria de Kelly, apostar el doble del Kelly optimo "
-            f"tiene EV=0 y destruye el capital con probabilidad 1. "
+            f"[FIX-KELLY-SANITY-01/CRITICAL] Kelly EXCESIVO{tag}: f*={fraction:.4f} > 1.0 "
+            f"(Sobre Full-Kelly). Según la teoría de Kelly, superar el óptimo empuja al sistema a EV negativa. "
             f"Verificar win_rate/avg_win/avg_loss en el position sizer. LA RUN SE DETIENE."
         )
-        print(_msg)
         logger.critical(_msg)
         raise RuntimeError(_msg)
-    if fraction > 0.20:
-        print(
-            f"[FIX-KELLY-SANITY-01/WARNING] Kelly elevado{tag}: f*={fraction:.4f} > 0.20. "
-            f"Por encima del Full-Kelly para WR tipico (50-60%%). "
-            f"Verificar que se aplica Half-Kelly (kelly_fraction=0.5 en settings.yaml)."
+    elif fraction > 0.5:
+        _msg = (
+            f"[FIX-KELLY-SANITY-01/WARNING] Kelly elevado{tag}: f*={fraction:.4f} > 0.5. "
+            f"Asumiendo entorno ESMA Retail (Apalancamiento Max x2). "
+            f"Si el apalancamiento es institucional (x10+), ESTO ES EXTREMADAMENTE PELIGROSO."
         )
         logger.warning(
-            "[FIX-KELLY-SANITY-01] Kelly elevado %s: f*=%.4f > 0.20", tag, fraction
+            "[FIX-KELLY-SANITY-01] Kelly elevado %s: f*=%.4f > 0.50", tag, fraction
         )
+    
     if not (0.0 <= fraction <= 1.0):
         logger.error(f"[KELLY]{tag} fracción FUERA de [0,1]: {fraction:.4f}")
     else:

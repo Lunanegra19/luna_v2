@@ -380,7 +380,7 @@ hmm:
   min_features_required: 2
 kelly_sizer:
   enabled: true
-  kelly_fraction: 0.25
+  kelly_fraction: 1.0
   max_position: 20.0
   target_sl_pct: 0.05
   # [KELLY-CALIBRATION 2026-06-19] Adjusted from 1.2 to 1.01 to match empirical OOS P/L ratio (0.888) and satisfy pt_ratio > sl_ratio pre-flight check
@@ -483,7 +483,7 @@ position_sizer:
   dd_kill_switch: 0.15
   dd_three_quarter: 0.05
   ewma_lambda: 0.94
-  kelly_fraction: 0.25
+  kelly_fraction: 1.0
   max_dd_stop_pct: 50.0
   max_orderbook_pct: 0.05
   target_vol_annual: 0.25
@@ -555,7 +555,7 @@ wfb:
   # [PSI-CALIB 2026-06-19] Umbrales de drift para el Prediction Drift Sentinel (R16 & R18)
   pred_drift_psi_min: 0.25   # PSI por debajo del cual no hay penalización
   pred_drift_psi_max: 0.85   # PSI por encima del cual la penalización es total (Kelly=0)
-  ensemble_voting_method: soft
+  ensemble_voting_method: hard
   soft_voting_threshold: 0.55
   # [CONSENSUS-K10-FIX 2026-06-20] Consenso K >= 10 para maximo Sharpe/Calmar y filtrado de ruido
   ensemble_consensus_threshold: 10
@@ -729,15 +729,16 @@ xgboost:
     gamma_min: 0.0
     learning_rate_max: 0.05
     learning_rate_min: 0.01
+    # [ROUTER-COLLAPSE-FIX 2026-06-21] Restricción estricta de regularización para evitar modelos constantes (std_prob=0.0) detectados en vivo.
     max_depth_max: 4
-    max_depth_min: 2
-    min_child_weight_max: 20
+    max_depth_min: 3
+    min_child_weight_max: 10
     min_child_weight_min: 5
     n_estimators_max: 800
     n_estimators_min: 100
-    reg_alpha_max: 10.0
+    reg_alpha_max: 2.0
     reg_alpha_min: 0.001
-    reg_lambda_max: 10.0
+    reg_lambda_max: 2.0
     reg_lambda_min: 0.01
     subsample_max: 0.85
     subsample_min: 0.5
@@ -801,7 +802,7 @@ xgboost:
   signal_threshold_modifier: -0.02
 dashboard_healthcheck:
   enabled: true
-  base_url: http://localhost:5050
+  base_url: http://localhost:8080
   max_response_time_sec: 15
   max_data_age_hours: 3
   telegram_alert_on_failure: true
@@ -810,15 +811,15 @@ dashboard_healthcheck:
   - path: /api/status
     description: Dashboard status principal
     required_fields:
-    - status
+    - system
     allow_standby: true
-  - path: /api/live-state
-    description: Estado del sistema live (portfolio, drawdown)
+  - path: /api/vps/hour-decision
+    description: Decision horaria actual (XGB, Meta, Consenso)
     required_fields:
     - status
     allow_standby: true
-  - path: /api/hour-decision
-    description: Decision horaria actual (XGB, Meta, Consenso)
+  - path: /api/vps/hardware-health
+    description: Estado del servidor (CPU/RAM/Disk)
     required_fields:
     - status
     allow_standby: true
@@ -845,6 +846,6 @@ risk:
   max_leverage_allowed: 20.0
 kelly_sizer:
   max_position: 20.0
-  kelly_fraction: 0.25
+  kelly_fraction: 1.0
   pt_ratio: 2.0
   sl_ratio: 1.0

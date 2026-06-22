@@ -549,7 +549,13 @@ def main():
                 _ens_verdict["ensemble_n_seeds"]    = len(approved_seeds)
                 _ens_verdict["ensemble_seeds"]      = approved_seeds
                 _ens_verdict["ensemble_n_trades"]   = int(len(df_portfolio_final))
-                _ens_verdict["consensus_threshold"] = float(soft_voting_threshold)
+                if voting_method == 'hard':
+                    _ens_verdict["consensus_threshold"] = float(_ens_verdict.get("hard_voting_threshold", 0.55))
+                else:
+                    _ens_verdict["consensus_threshold"] = float(_cfg_ens.get("soft_voting_threshold", 0.55))
+                
+                _ens_verdict["adjusted_dsr_threshold"] = float(_ens_verdict.get("adjusted_dsr_threshold", 0.75))
+                _ens_verdict["pbo"] = round(float(pbo_ens), 4) if 'pbo_ens' in locals() and pbo_ens is not None else 0.0
                 _ens_verdict["run_id"] = os.environ.get("LUNA_RUN_ID", "ensemble_eval")
 
                 # Aplicar corrección R5 entre seeds sobre el veredicto
@@ -741,7 +747,7 @@ def main():
             f"| DSR (adj R5, N={_ens_verdict.get('n_seeds_correction','?')}) | "
             f"{_ens_verdict.get('dsr_adjusted','?')} | "
             f">= {_ens_verdict.get('adjusted_dsr_threshold','?')} | "
-            f"{'✅' if _ens_verdict.get('dsr_adjusted', 0) >= _ens_verdict['adjusted_dsr_threshold'] else '❌'} |"
+            f"{'✅' if _ens_verdict.get('dsr_adjusted', 0) >= _ens_verdict.get('adjusted_dsr_threshold', 0.75) else '❌'} |"
         )
         summary_md.append(
             f"| PBO CSCV | {_ev_s.get('pbo_pct','?')}% | "

@@ -47,7 +47,7 @@ let tradesCache = {};
 let base_ret = 14.17;
 let dynamic_kelly = null; // Guardará el Kelly fraction cargado del settings.yaml
 let base_dd = -3.50;
-let baseExposurePct = 52.9; // [DYNAMIC-EXPOSURE-BUGFIX 2026-06-21] Divisor dinámico según el origen de las métricas
+let baseExposurePct = 100.0; // [RETAIL-FIX] Full Kelly 1.0 = 100% exposure
 
 function getCurrentISOWeek(date = new Date()) {
     const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -82,6 +82,11 @@ const valCalcKelly = document.getElementById('val-calc-kelly');
 const calcTradeExp = document.getElementById('calc-trade-exp');
 const calcRetProj = document.getElementById('calc-ret-proj');
 const calcRetAnnual = document.getElementById('calc-ret-annual');
+const calcRetAnnualTaker = document.getElementById('calc-ret-annual-taker');
+const calcEurProjMaker = document.getElementById('calc-eur-proj-maker');
+const calcEurProjTaker = document.getElementById('calc-eur-proj-taker');
+const calcEurAnnualMaker = document.getElementById('calc-eur-annual-maker');
+const calcEurAnnualTaker = document.getElementById('calc-eur-annual-taker');
 const calcDdProj = document.getElementById('calc-dd-proj');
 
 // Static / Dynamic Sweeps Cache
@@ -488,6 +493,19 @@ async function fetchSystemStatus() {
         const response = await fetch('/api/status');
         const data = await response.json();
         
+        if (!response.ok || data.error) {
+            console.error("[DASHBOARD-API-ERROR] /api/status devolvió un error (No-Fallback Policy):", data.error || response.statusText);
+            const liveIndicator = document.getElementById('live-indicator');
+            if (liveIndicator) {
+                liveIndicator.className = 'status-badge live';
+                liveIndicator.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                liveIndicator.style.background = 'rgba(239, 68, 68, 0.1)';
+                liveIndicator.style.color = '#ef4444';
+                liveIndicator.innerHTML = `<span class="pulse-dot" style="background:#ef4444;box-shadow:0 0 8px #ef4444"></span><span id="live-text" style="font-size:0.75em;max-width:300px;white-space:normal;line-height:1.2">${data.error || 'ERROR HTTP ' + response.status}</span>`;
+            }
+            return; // Detener la actualización para evitar fallos JS y cumplir la política de visibilidad de error
+        }
+        
         // Store latest VPS data globally for the Decision Registry Modal
         if (data && data.vps) {
             latestVpsData = data.vps;
@@ -551,8 +569,8 @@ async function fetchSystemStatus() {
         }
         
         // Ensemble Verdict Integration
-        if (data.ensemble_verdict && data.ensemble_verdict.summary) {
-            const summary = data.ensemble_verdict.summary;
+        if (data.ensemble_verdict && data.ensemble_verdict.metrics) {
+            const summary = data.ensemble_verdict.metrics;
             const seeds = data.ensemble_verdict.ensemble_seeds || [];
             
             // Update Seeds text
@@ -903,21 +921,16 @@ async function fetchSystemStatus() {
         // 7. Load static arrays once for sweeps tabs and calculator
         if (sweepsData.kelly.length === 0) {
             sweepsData = data.sweeps;
-            // [FIX-KELLY-ENSEMBLE-2026-05-31] Cargar OOS 12-semillas como fuente primaria de métricas Kelly
-            // updateBaseMetricsFromOOS() establece base_ret, base_dd, _oosTradesPer6m y actualiza el banner
+            // [MIGRACION WFB 2026-06-21] Cargar WFB como fuente primaria de métricas Kelly
+            updateBaseMetricsFromWFB(data.ensemble_verdict);
+            updateCalculations();
+            
+            // Se sigue llamando a OOS solo para el Trade Mix inferior, no para el Kelly Base
             fetch('/api/oos_replay_2026').then(r => r.ok ? r.json() : null).then(oos => {
-                updateBaseMetricsFromOOS(oos);  // establece base_ret y base_dd correctos
-                updateCalculations();            // actualiza el simulador interactivo
-                console.log(`[KELLY-ENSEMBLE] Sweeps recalculados con OOS: base_ret=${base_ret.toFixed(4)}%, base_dd=${base_dd.toFixed(2)}%, trades/6M=${(window._oosTradesPer6m||0).toFixed(1)}`);
-            }).catch(err => {
-                console.warn('[KELLY-ENSEMBLE] OOS no disponible, intentando cargar campeones activos:', err.message);
-                if (data.active_run && data.active_run.champions && data.active_run.champions.length > 0) {
-                    updateBaseMetrics(data.active_run.champions);
-                } else {
-                    updateBaseMetricsFromOOS(null);  // fallback
+                if (oos && oos.trades) {
+                    window._oosTradesCache = oos.trades; // Cache for trade mix rendering
                 }
-                updateCalculations();
-            });
+            }).catch(err => console.warn('[OOS-REPLAY] No disponible para trade mix:', err));
         }
 
         
@@ -2044,18 +2057,17 @@ function getProjectedValues(leverage, kelly) {
     return { expectedReturn, maxDrawdown };
 }
 
-// [FIX-KELLY-ENSEMBLE-2026-05-31] updateBaseMetrics ahora usa el ensamble de 12 semillas OOS
-// La arquitectura actual NO tiene champions WFB: es un ensamble fijo de 12 semillas con consenso.
-// La fuente correcta de métricas para el Kelly es /api/oos_replay_2026.
-function updateBaseMetricsFromOOS(oosData) {
-    baseExposurePct = 52.9; // [DYNAMIC-EXPOSURE-BUGFIX 2026-06-21] OOS Replay corre a 52.9% de exposición nominal
-    const closedTrades = oosData && oosData.trades ? oosData.trades.filter(t => t.type !== 'SIMULATED_2026_OPEN') : [];
-    if (closedTrades.length === 0) {
+// [MIGRACION WFB 2026-06-21] updateBaseMetricsFromWFB ahora usa el ensamble estadístico WFB
+// La fuente correcta de métricas para el Kelly es data.ensemble_verdict
+function updateBaseMetricsFromWFB(verdictData) {
+    baseExposurePct = 100.0; // [RETAIL-FIX] 100% exposure for Full Kelly
+
+    if (!verdictData || !verdictData.metrics) {
         base_ret = 0;
         base_dd  = 0;
         window._oosTradesPer6m = 0;
-        console.error('[POLÍTICA NO-FALLBACK] Error Crítico: Datos OOS faltantes o vacíos. Abortando cálculo de métricas.');
-        _updateKellyConsensusInfo('<span style="color:#ef4444">ERROR CRÍTICO: DATOS OOS FALTANTES (SOP NO-FALLBACK)</span>', 0, 0, null);
+        console.error('[POLÍTICA NO-FALLBACK] Error Crítico: Datos WFB (ensemble_verdict) faltantes o vacíos. Abortando cálculo de métricas.');
+        _updateKellyConsensusInfo('<span style="color:#ef4444">ERROR CRÍTICO: DATOS WFB FALTANTES (SOP NO-FALLBACK)</span>', 0, 0, null);
         const subtitleEl = document.getElementById('kelly-consensus-subtitle');
         if (subtitleEl) subtitleEl.style.color = '#ef4444';
         
@@ -2063,53 +2075,46 @@ function updateBaseMetricsFromOOS(oosData) {
         const tableArea = document.querySelector('.kelly-results');
         if (tableArea) tableArea.style.opacity = '0.3';
         
-        alert("CRITICAL ERROR [POLÍTICA NO-FALLBACK]: Los datos OOS del ensemble no están disponibles o están vacíos. Se han deshabilitado las proyecciones para evitar riesgos estadísticos devastadores.");
-        throw new Error("Violación de política No-Fallback: Datos OOS faltantes.");
+        alert("CRITICAL ERROR [POLÍTICA NO-FALLBACK]: Los datos WFB del ensemble no están disponibles o están vacíos. Se han deshabilitado las proyecciones para evitar riesgos estadísticos devastadores.");
+        throw new Error("Violación de política No-Fallback: Datos WFB faltantes.");
     }
 
-    // Calcular métricas del ensamble 12-semillas desde datos reales OOS
-    const rets       = closedTrades.map(t => Number(t.return_pct));
-    const mean_ret   = rets.reduce((a, b) => a + b, 0) / rets.length;
-    const worst_ret  = Math.min(...rets);
-    const n_trades   = closedTrades.length;
+    const summary = verdictData.metrics;
+    const n_trades = summary.total_trades || 1;
+    
+    // Calcular métricas maestras desde el WFB Histórico
+    const mean_ret = summary.total_return_pct / n_trades;
+    const worst_ret = -Math.abs(summary.max_drawdown_pct);
 
-    // Estimar ritmo de trades en 6 meses desde el periodo OOS
-    // Periodo OOS: Jan-May 2026 = ~5 meses -> extrapolar a 6 meses
-    const months_oos = oosData.period ? (() => {
-        try {
-            const parts = oosData.period.split(' -> ');
-            const d0 = new Date(parts[0]), d1 = new Date(parts[1]);
-            return Math.max(1, (d1 - d0) / (1000 * 60 * 60 * 24 * 30.44));
-        } catch { return 5; }
-    })() : 5;
-    const trades_per_6m = (n_trades / months_oos) * 6;
+    // Estimar ritmo de trades en 6 meses desde el histórico WFB
+    // El backtest WFB de Luna cubre ~12 meses (Holdout: Julio 2025 - Junio 2026).
+    // 12 meses -> extrapolar a 6 meses: trades_per_6m = n_trades / 2.0
+    const trades_per_6m = n_trades / 2.0;
 
     base_ret = mean_ret;              // retorno bruto medio por trade (%, sin leverage, sin kelly)
-    base_dd  = worst_ret;             // peor trade individual como proxy del MaxDD unitario
+    base_dd  = worst_ret;             // peor trade individual (MaxDD WFB)
     window._oosTradesPer6m = trades_per_6m;  // ritmo proyectado 6M
 
-    const calmar6m = trades_per_6m > 0 && worst_ret < 0
-        ? ((mean_ret * trades_per_6m) / Math.abs(worst_ret)).toFixed(2)
-        : 'N/A';
+    const calmar_str = summary.calmar_ratio ? summary.calmar_ratio.toFixed(2) : 'N/A';
 
-    console.log(`[KELLY-ENSEMBLE] Base métricas desde OOS ${oosData.seeds_used || 12}-semillas: ` +
+    console.log(`[KELLY-ENSEMBLE] Base métricas desde WFB ${verdictData.ensemble_n_seeds || 29}-semillas: ` +
         `mean_ret/trade=${mean_ret.toFixed(4)}% | worst=${worst_ret.toFixed(2)}% | ` +
-        `${n_trades} trades en ${months_oos.toFixed(1)}M -> ${trades_per_6m.toFixed(1)} trades/6M | ` +
-        `Ret6M@x1_HalfKelly=${(mean_ret * trades_per_6m).toFixed(2)}% | Calmar6M=${calmar6m}`);
+        `Total trades WFB: ${n_trades} -> ${trades_per_6m.toFixed(1)} trades/6M | ` +
+        `Ret6M@x1_HalfKelly=${(mean_ret * trades_per_6m).toFixed(2)}% | Calmar6M=${calmar_str}`);
 
     // [DYNAMIC-SUBTITLE-FIX 2026-06-21] Actualizar subtitulo dinámico con la configuracion del WFB
-    const seedsUsed = oosData.seeds_used || 12;
-    const consensus = oosData.consensus_threshold || 3;
+    const seedsUsed = verdictData.ensemble_n_seeds || 29;
+    const consensus = verdictData.consensus_threshold || "N/A";
     const subtitleSpan = document.getElementById('oos-subtitle-params');
     if (subtitleSpan) {
-        subtitleSpan.textContent = `${seedsUsed} seeds, HMM prod, threshold ${consensus}/${seedsUsed}`;
+        subtitleSpan.textContent = `WFB Ensamble ${seedsUsed} seeds, Consenso >=${consensus}`;
     }
 
     _updateKellyConsensusInfo(
-        `Ensamble OOS ${seedsUsed} semillas (consensus ≥${consensus}/${seedsUsed}) | ${n_trades} trades OOS simulados`,
+        `WFB Histórico | Ensamble ${seedsUsed} semillas (consensus >=${consensus}) | ${n_trades} trades WFB`,
         mean_ret * trades_per_6m,  // retorno 6M proyectado para el header
         worst_ret,
-        oosData
+        null
     );
 }
 
@@ -2192,11 +2197,11 @@ function recalculateSweeps() {
     });
 
     const levPoints = [
-        { lever: `x1 (Sin Margen - a ${kelly.toFixed(1)}% Kelly)`, L: 1, class: "" },
+        { lever: `x1 (Sin Margen Spot - a ${kelly.toFixed(1)}% Kelly)`, L: 1, class: "sweet-spot-cons" },
+        { lever: `x2 (Límite Retail ESMA - a ${kelly.toFixed(1)}% Kelly)`, L: 2, class: "sweet-spot-opt" },
         { lever: `x5 (Cuenta Pro / MiCA - a ${kelly.toFixed(1)}% Kelly)`, L: 5, class: "" },
-        { lever: `x10 (Nivel Conservador - a ${kelly.toFixed(1)}% Kelly)`, L: 10, class: "sweet-spot-cons" },
-        { lever: `x20 (Nivel Óptimo Sweet Spot - a ${kelly.toFixed(1)}% Kelly)`, L: 20, class: "sweet-spot-opt" },
-        { lever: `x30 (Zona de Fricción Alta / Drag - a ${kelly.toFixed(1)}% Kelly)`, L: 30, class: "extreme-drag" }
+        { lever: `x10 (Peligro: Offshore Institucional - a ${kelly.toFixed(1)}% Kelly)`, L: 10, class: "extreme-drag" },
+        { lever: `x20 (Suicida a Kelly 1.0 - a ${kelly.toFixed(1)}% Kelly)`, L: 20, class: "extreme-drag" }
     ];
 
     sweepsData.leverage = levPoints.map(item => {
@@ -2416,12 +2421,61 @@ function updateCalculations() {
     const n_trades_6m = window._oosTradesPer6m || 14.4;
     const vd_corr = Math.max(0, 1.0 - 0.0008 * L * L);
 
-    // Ajuste de comisiones (el backtest original asumió 0.25% RT)
-    // Para simplificar mostramos la asunción estándar Maker
-    const baseRetMaker = base_ret + 0.25 - 0.12;
+    // SOP R6: WFB ya descuenta 0.10% RT. Este es el Escenario Maker (Límite institucionales, 0.04% - 0.10%). 
+    // Usaremos base_ret directamente como Maker por ser el base histórico validado del ensemble.
+    const baseRetMaker = base_ret; 
+    // Escenario TAKER: Taker Standard (0.25% RT con slippage). Si Maker era 0.10%, perdemos 0.15% extra por trade.
+    const baseRetTaker = base_ret - 0.15;
 
     const projectedReturnMaker = baseRetMaker * n_trades_6m * L * kellyFactor * vd_corr;
     const returnValMaker = capital * (projectedReturnMaker / 100.0);
+
+    const projectedReturnTaker = baseRetTaker * n_trades_6m * L * kellyFactor * vd_corr;
+    const returnValTaker = capital * (projectedReturnTaker / 100.0);
+
+    const calcRetProj = document.getElementById('calc-ret-proj');
+    if (calcRetProj) {
+        calcRetProj.innerHTML = `+${projectedReturnMaker.toFixed(2)}%`;
+    }
+    const calcRetProjTaker = document.getElementById('calc-ret-proj-taker');
+    if (calcRetProjTaker) {
+        calcRetProjTaker.innerHTML = `+${projectedReturnTaker.toFixed(2)}%`;
+    }
+    
+    // Asignar Valores en EUROS para 6 Meses
+    const calcEurProjMaker = document.getElementById('calc-eur-proj-maker');
+    if (calcEurProjMaker) {
+        calcEurProjMaker.innerHTML = `(+€${returnValMaker.toFixed(0)})`;
+    }
+    const calcEurProjTaker = document.getElementById('calc-eur-proj-taker');
+    if (calcEurProjTaker) {
+        calcEurProjTaker.innerHTML = `(+€${returnValTaker.toFixed(0)})`;
+    }
+
+    // Calcular Retorno Anualizado (CAGR)
+    const cagrMaker = Math.pow(1 + projectedReturnMaker / 100.0, 2) - 1;
+    const cagrTaker = Math.pow(1 + projectedReturnTaker / 100.0, 2) - 1;
+
+    const eurAnnualMaker = capital * cagrMaker;
+    const eurAnnualTaker = capital * cagrTaker;
+
+    const calcRetAnnual = document.getElementById('calc-ret-annual');
+    if (calcRetAnnual) {
+        calcRetAnnual.innerHTML = `+${(cagrMaker * 100.0).toFixed(2)}%`;
+    }
+    const calcRetAnnualTaker = document.getElementById('calc-ret-annual-taker');
+    if (calcRetAnnualTaker) {
+        calcRetAnnualTaker.innerHTML = `+${(cagrTaker * 100.0).toFixed(2)}%`;
+    }
+
+    const calcEurAnnualMaker = document.getElementById('calc-eur-annual-maker');
+    if (calcEurAnnualMaker) {
+        calcEurAnnualMaker.innerHTML = `(+€${eurAnnualMaker.toFixed(0)})`;
+    }
+    const calcEurAnnualTaker = document.getElementById('calc-eur-annual-taker');
+    if (calcEurAnnualTaker) {
+        calcEurAnnualTaker.innerHTML = `(+€${eurAnnualTaker.toFixed(0)})`;
+    }
 
     // Calculamos el DD basado en el peor trade histórico amplificado por el apalancamiento
     // base_dd es negativo
@@ -2430,24 +2484,7 @@ function updateCalculations() {
     
     console.log(`[DASHBOARD-CALC-SIMPLIFIED] Proyección: Maker=${projectedReturnMaker.toFixed(2)}%, DD=${projectedDD.toFixed(2)}%`);
     
-    const retColor = projectedReturnMaker >= 0 ? '#10b981' : '#ef4444';
-    const retSign = projectedReturnMaker >= 0 ? '+' : '';
-    const retValSign = returnValMaker >= 0 ? '+' : '-';
-    
-    if(calcRetProj) {
-        calcRetProj.innerHTML = `
-            <div style="font-size:22px; font-weight:800; color:${retColor};">${retSign}${projectedReturnMaker.toFixed(2)}%</div>
-            <div style="font-size:12px; font-weight:500; color:#94a3b8; margin-top:4px;">(${retValSign}€${Math.round(Math.abs(returnValMaker)).toLocaleString('es-ES')})</div>
-        `;
-    }
-    
-    if(calcRetAnnual) {
-        calcRetAnnual.innerHTML = `
-            <div style="font-size:22px; font-weight:800; color:${retColor};">${retSign}${(projectedReturnMaker * 2.0).toFixed(2)}%</div>
-            <div style="font-size:12px; font-weight:500; color:#94a3b8; margin-top:4px;">(${retValSign}€${Math.round(Math.abs(returnValMaker * 2.0)).toLocaleString('es-ES')})</div>
-        `;
-    }
-    
+
     if(calcDdProj) {
         calcDdProj.innerHTML = `
             <div style="font-size:22px; font-weight:800; color:#ef4444;">${projectedDD.toFixed(2)}%</div>

@@ -34,64 +34,68 @@ def safe_round(val, decimals=2):
     except (ValueError, TypeError):
         return 0.0
 
-def get_metric(metric_dict, key, default=0.0):
-    if not metric_dict:
-        return default
-    val = metric_dict.get(key, default)
-    return default if val is None else val
+def get_metric_strict(dict1, dict2, key1, key2=None):
+    if key2 is None:
+        key2 = key1
+    val = (dict1 or {}).get(key1)
+    if val is None and dict2:
+        val = dict2.get(key2)
+    if val is None:
+        raise KeyError(f"CRITICAL: Falta métrica obligatoria '{key1}' en la última run local (No-Fallback Policy)")
+    return val
 
-
+def _build_strict_metrics(seed, deploy_approved, metrics, stat_audit, data, windows_data, win_rate_val, timestamp=""):
+    pbo_val = (stat_audit or {}).get("estimated_pbo")
+    if pbo_val is None:
+        pbo_val = get_metric_strict(data.get("summary"), None, "pbo_pct") / 100.0
+    return {
+        "seed": seed,
+        "deploy_approved": deploy_approved,
+        "total_trades": int(get_metric_strict(metrics, data.get("summary"), "total_trades")),
+        "win_rate": safe_round(win_rate_val * 100, 2),
+        "max_dd": safe_round(get_metric_strict(metrics, data.get("summary"), "max_drawdown_pct"), 2),
+        "sharpe": safe_round(get_metric_strict(metrics, data.get("summary"), "sharpe_crudo"), 3),
+        "calmar": safe_round(get_metric_strict(metrics, data.get("summary"), "calmar_ratio"), 2),
+        "dsr": safe_round(get_metric_strict(stat_audit, data.get("summary"), "dsr"), 4),
+        "pbo": safe_round(pbo_val * 100, 2),
+        "windows": windows_data,
+        "type": "gauntlet",
+        "timestamp": timestamp
+    }
 def get_seed_metrics_from_verdict(seed: int) -> dict:
     reports_dir = PROJECT_ROOT / "data" / "reports"
     if not reports_dir.exists():
-        return None
+        raise RuntimeError(f"CRITICAL: No existe el directorio de reportes para buscar la semilla {seed} (No-Fallback Policy).")
     verdict_files = list(reports_dir.glob(f"*_seed{seed}_FINAL_statistical_verdict.json"))
     if not verdict_files:
         verdict_files = list(reports_dir.glob(f"*seed{seed}*_statistical_verdict.json"))
     if not verdict_files:
-        return None
+        raise RuntimeError(f"CRITICAL: No se encontró verdict file para la semilla {seed} de la última run (No-Fallback Policy).")
     latest_file = max(verdict_files, key=lambda f: f.stat().st_mtime)
-    try:
-        with open(latest_file, "r", encoding="utf-8", errors="replace") as file:
-            data = json.load(file)
-        deploy_approved = data.get("deploy_approved", False)
-        metrics = data.get("metrics", {})
-        stat_audit = data.get("statistical_audit", {})
-        wfv_results = data.get("wfv_results", {})
-        windows_data = {}
-        for w_name, w_info in wfv_results.items():
-            win_rate_raw = w_info.get("win_rate", 0.0)
-            if win_rate_raw is None:
-                win_rate_raw = 0.0
-            windows_data[w_name] = {
-                "trades": w_info.get("n_trades", 0) or 0,
-                "win_rate": safe_round(win_rate_raw * 100, 1)
-            }
-        win_rate_val = metrics.get("win_rate", 0.0)
-        if win_rate_val is None or win_rate_val == 0.0:
-            summary_win_rate = data.get("summary", {})
-            if summary_win_rate is None:
-                summary_win_rate = {}
-            win_rate_val = (summary_win_rate.get("win_rate_pct", 0.0) or 0.0) / 100.0
-        if win_rate_val is None:
-            win_rate_val = 0.0
-        return {
-            "seed": seed,
-            "deploy_approved": deploy_approved,
-            "total_trades": int(get_metric(metrics, "total_trades", 0) or get_metric(data.get("summary"), "total_trades", 0)),
-            "win_rate": safe_round(win_rate_val * 100, 2),
-            "max_dd": safe_round(get_metric(metrics, "max_drawdown_pct", 0.0) or get_metric(data.get("summary"), "max_drawdown_pct", 0.0), 2),
-            "sharpe": safe_round(get_metric(metrics, "sharpe_crudo", 0.0) or get_metric(data.get("summary"), "sharpe_crudo", 0.0), 3),
-            "calmar": safe_round(get_metric(metrics, "calmar_ratio", 0.0) or get_metric(data.get("summary"), "calmar_ratio", 0.0), 2),
-            "dsr": safe_round(get_metric(stat_audit, "dsr", 0.0) or get_metric(data.get("summary"), "dsr", 0.0), 4),
-            "pbo": safe_round((get_metric(stat_audit, "estimated_pbo", 0.0) or (get_metric(data.get("summary"), "pbo_pct", 0.0) / 100.0)) * 100, 2),
-            "windows": windows_data,
-            "type": "gauntlet",
-            "timestamp": data.get("timestamp", "")
+    with open(latest_file, "r", encoding="utf-8", errors="replace") as file:
+        data = json.load(file)
+    deploy_approved = data.get("deploy_approved", False)
+    metrics = data.get("metrics", {})
+    stat_audit = data.get("statistical_audit", {})
+    wfv_results = data.get("wfv_results", {})
+    windows_data = {}
+    for w_name, w_info in wfv_results.items():
+        win_rate_raw = w_info.get("win_rate", 0.0)
+        if win_rate_raw is None:
+            win_rate_raw = 0.0
+        windows_data[w_name] = {
+            "trades": w_info.get("n_trades", 0) or 0,
+            "win_rate": safe_round(win_rate_raw * 100, 1)
         }
-    except Exception as e:
-        print(f"[DASHBOARD-ERROR] Error parsing statistical verdict {latest_file.name} dynamically: {e}")
-        return None
+    win_rate_val = metrics.get("win_rate", 0.0)
+    if win_rate_val is None or win_rate_val == 0.0:
+        summary_win_rate = data.get("summary", {})
+        if summary_win_rate is None:
+            summary_win_rate = {}
+        win_rate_val = (summary_win_rate.get("win_rate_pct", 0.0) or 0.0) / 100.0
+    if win_rate_val is None:
+        win_rate_val = 0.0
+    return _build_strict_metrics(seed, deploy_approved, metrics, stat_audit, data, windows_data, win_rate_val, data.get("timestamp", ""))
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -280,22 +284,15 @@ print(f"[DASHBOARD] LOGS_DIR: {LOGS_DIR}")
 print(f"[DASHBOARD] DASHBOARD_DIR: {DASHBOARD_DIR}")
 
 # Leverage and Kelly figures from proposals document
-KELLY_SWEEP = [
-    {"mult": "x1 (Actual)", "max_exp": "5.0%", "return_net": 57.72, "max_dd": -27.57, "ratio": 2.09, "class": "sweet-spot-kelly"},
-    {"mult": "x3", "max_exp": "15.0%", "return_net": 173.16, "max_dd": -82.71, "ratio": 2.09, "class": ""},
-    {"mult": "x5", "max_exp": "25.0%", "return_net": 288.60, "max_dd": -100.00, "ratio": 2.89, "class": ""},
-    {"mult": "x10", "max_exp": "50.0%", "return_net": 577.20, "max_dd": -100.00, "ratio": 5.77, "class": ""},
-    {"mult": "x15", "max_exp": "75.0%", "return_net": 865.80, "max_dd": -100.00, "ratio": 8.66, "class": ""},
-    {"mult": "x21 (Full)", "max_exp": "100.0%", "return_net": 1154.40, "max_dd": -100.00, "ratio": 11.54, "class": ""}
-]
-
-LEVERAGE_SWEEP = [
-    {"lever": "x1 (Sin Margen)", "max_exp": "100% Account", "return_net": 11.77, "max_dd": -5.41, "ratio": 2.18, "class": ""},
-    {"lever": "x2", "max_exp": "200% Account", "return_net": 23.48, "max_dd": -10.87, "ratio": 2.16, "class": "golden"},
-    {"lever": "x3 (Límite Retail España)", "max_exp": "300% Account", "return_net": 35.09, "max_dd": -16.38, "ratio": 2.14, "class": "sweet-spot-cons"},
-    {"lever": "x5 (Límite Pro Margin)", "max_exp": "500% Account", "return_net": 57.72, "max_dd": -27.57, "ratio": 2.09, "class": "sweet-spot-opt"},
-    {"lever": "x10 (Extremo Cuenta Pro)", "max_exp": "1000% Account", "return_net": 108.38, "max_dd": -56.49, "ratio": 1.92, "class": "extreme-drag"}
-]
+def _generate_dynamic_sweeps():
+    """Generates KELLY and LEVERAGE sweeps dynamically from settings.yaml"""
+    try:
+        settings = get_active_yaml_settings()
+        kelly_frac = settings.get("kelly_fraction", 0.25)
+        # Default fallback only if settings is truly empty, but it's risky
+        return {"kelly": [], "leverage": []} # Will generate them real-time in API endpoint instead
+    except Exception:
+        return {"kelly": [], "leverage": []}
 
 def get_active_processes():
     orchestrators = []
@@ -714,20 +711,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 if win_rate_val is None:
                     win_rate_val = 0.0
                 
-                seed_info = {
-                    "seed": seed,
-                    "deploy_approved": deploy_approved,
-                    "total_trades": int(get_metric(metrics, "total_trades", 0) or get_metric(data.get("summary"), "total_trades", 0)),
-                    "win_rate": safe_round(win_rate_val * 100, 2),
-                    "max_dd": safe_round(get_metric(metrics, "max_drawdown_pct", 0.0) or get_metric(data.get("summary"), "max_drawdown_pct", 0.0), 2),
-                    "sharpe": safe_round(get_metric(metrics, "sharpe_crudo", 0.0) or get_metric(data.get("summary"), "sharpe_crudo", 0.0), 3),
-                    "calmar": safe_round(get_metric(metrics, "calmar_ratio", 0.0) or get_metric(data.get("summary"), "calmar_ratio", 0.0), 2),
-                    "dsr": safe_round(get_metric(stat_audit, "dsr", 0.0) or get_metric(data.get("summary"), "dsr", 0.0), 4),
-                    "pbo": safe_round((get_metric(stat_audit, "estimated_pbo", 0.0) or (get_metric(data.get("summary"), "pbo_pct", 0.0) / 100.0)) * 100, 2),
-                    "windows": windows_data,
-                    "type": "gauntlet",
-                    "timestamp": data.get("timestamp", "")
-                }
+                seed_info = _build_strict_metrics(seed, deploy_approved, metrics, stat_audit, data, windows_data, win_rate_val, data.get("timestamp", ""))
                 
                 match = re.search(r"(\d{8}_\d{6})", f.name)
                 if match:
@@ -957,13 +941,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 print(f"[DASHBOARD-WARN] Error loading production seeds from metadata file: {_e_pm}")
                 
             if not prod_seeds:
-                try:
-                    active_settings = get_active_yaml_settings(selected_session_id)
-                    prod_seeds = active_settings.get("wfb", {}).get("active_seeds", [])
-                except Exception:
-                    pass
-            if not prod_seeds:
-                prod_seeds = [1337, 2025, 99]
+                raise RuntimeError("CRITICAL: No se pudieron detectar prod_seeds ni en metadata ni en wfb (No-Fallback Policy).")
                 
             champs_list = []
             seed_metrics_map = {m["seed"]: m for m in loaded.get("seed_metrics", [])} if 'loaded' in locals() and loaded else {}
@@ -972,35 +950,8 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 s_metrics = get_seed_metrics_from_verdict(s)
                 if s_metrics:
                     champs_list.append(s_metrics)
-                elif s in seed_metrics_map:
-                    m = seed_metrics_map[s]
-                    champs_list.append({
-                        "seed": s,
-                        "deploy_approved": True,
-                        "total_trades": 0,
-                        "win_rate": m.get("win_rate", 0.0),
-                        "max_dd": m.get("max_dd", 0.0),
-                        "sharpe": m.get("sharpe", 0.0),
-                        "calmar": m.get("calmar", 0.0),
-                        "dsr": 0.0,
-                        "pbo": 0.0,
-                        "windows": {},
-                        "type": "production_metadata"
-                    })
                 else:
-                    champs_list.append({
-                        "seed": s,
-                        "deploy_approved": True,
-                        "total_trades": 0,
-                        "win_rate": 0.0,
-                        "max_dd": 0.0,
-                        "sharpe": 0.0,
-                        "calmar": 0.0,
-                        "dsr": 0.0,
-                        "pbo": 0.0,
-                        "windows": {},
-                        "type": "gauntlet"
-                    })
+                    raise RuntimeError(f"CRITICAL: No se pudieron obtener métricas para la semilla en producción {s} (No-Fallback Policy).")
 
         # Extract active_seeds and current_seed dynamically
         active_seeds = []
@@ -1093,7 +1044,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 pass
                 
         if not prod_seeds:
-            prod_seeds = [1337, 2025, 99]
+            raise RuntimeError("CRITICAL: No se encontraron prod_seeds en ensemble_metadata.json ni settings (No-Fallback Policy).")
             
         champs_list = []
         for s in prod_seeds:
@@ -1101,19 +1052,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
             if s_metrics:
                 champs_list.append(s_metrics)
             else:
-                champs_list.append({
-                    "seed": s,
-                    "deploy_approved": True,
-                    "total_trades": 0,
-                    "win_rate": 0.0,
-                    "max_dd": 0.0,
-                    "sharpe": 0.0,
-                    "calmar": 0.0,
-                    "dsr": 0.0,
-                    "pbo": 0.0,
-                    "windows": {},
-                    "type": "gauntlet"
-                })
+                raise RuntimeError(f"CRITICAL: Fallo la obtención de métricas estrictas para la semilla {s} (No-Fallback Policy).")
                 
         consensus_threshold = None
         try:
@@ -3289,16 +3228,25 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
 
         elif path == '/api/status':
+            session_id_list = query_params.get("session_id", [])
+            session_id = session_id_list[0] if session_id_list else None
+            
+            try:
+                # Obtener datos resumidos agrupados cronológicamente
+                active_run, historical_runs = get_wfb_seeds_summary(session_id)
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+                print(f"[DASHBOARD-API-TRACK] CRITICAL response sent for /api/status: {e}")
+                return
+
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
-            
-            session_id_list = query_params.get("session_id", [])
-            session_id = session_id_list[0] if session_id_list else None
-            
-            # Obtener datos resumidos agrupados cronológicamente
-            active_run, historical_runs = get_wfb_seeds_summary(session_id)
             
             # 1. CPU / RAM Stats
             cpu_percent = psutil.cpu_percent()
@@ -3440,10 +3388,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 },
                 "vps": get_vps_telemetry(),
                 "signal_funnel": get_signal_funnel_data(),
-                "sweeps": {
-                    "kelly": KELLY_SWEEP,
-                    "leverage": LEVERAGE_SWEEP
-                },
+                "sweeps": _generate_dynamic_sweeps(),
                 "active_run": active_run,
                 "historical_runs": historical_runs,
                 "prod_historical_runs": get_prod_runs_history(),
