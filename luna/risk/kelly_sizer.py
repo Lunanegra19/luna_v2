@@ -422,10 +422,26 @@ def build_kelly_sizer_from_settings() -> KellyPositionSizer:
     """
     try:
         from config.settings import cfg
+        import os
         ks_cfg = getattr(cfg, "kelly_sizer", None)
         kwargs = {}
         if ks_cfg:
-            for k in ["kelly_fraction", "min_position", "max_position", "pt_ratio", "sl_ratio", "probability_cap", "target_sl_pct"]:
+            _dir = os.environ.get("LUNA_DIRECTION", "long").lower()
+            
+            # [SOP-R16][NO-FALLBACK] Extraccin estricta de kelly_fraction asimtrica
+            _k_val = None
+            if _dir == "short":
+                _k_val = getattr(ks_cfg, "kelly_fraction_short", None)
+                if _k_val is None:
+                    raise KeyError("[NO-FALLBACK] Falta 'kelly_fraction_short' en config/settings.yaml para el modelo Short!")
+            else:
+                _k_val = getattr(ks_cfg, "kelly_fraction", None)
+                if _k_val is None:
+                    raise KeyError("[NO-FALLBACK] Falta 'kelly_fraction' en config/settings.yaml para el modelo Long!")
+            
+            kwargs["kelly_fraction"] = float(_k_val)
+
+            for k in ["min_position", "max_position", "pt_ratio", "sl_ratio", "probability_cap", "target_sl_pct"]:
                 v = getattr(ks_cfg, k, None)
                 if v is not None:
                     kwargs[k] = float(v)

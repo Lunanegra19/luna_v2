@@ -625,7 +625,6 @@ class XGBoostTrainer:
         # 2. Computamos las barreras EWMA realistas para cada instante.
         if "close" not in df_final.columns:
             raise ValueError("No se encontrÃƒÂ³ la columna 'close' para generar Triple Barriers.")
-            
         logger.info("Etiquetando Dataset OOS usando el Triple Barrier Method (SOP R3/R4)...")
         from luna.features.tbm import apply_triple_barrier
         
@@ -635,7 +634,7 @@ class XGBoostTrainer:
         
         # BUG-6 FIX (P4-0-4, 2026-03-08): leer pt/sl de settings.yaml
         # Coherencia con MetaLabelerV2Trainer que usa los mismos multiplicadores
-        # BUG-A01 FIX (2026-03-17): leer tbm_min_return de settings.yaml â€” era hardcoded 0.005.
+        # BUG-A01 FIX (2026-03-17): leer tbm_min_return de settings.yaml — era hardcoded 0.005.
         try:
             from config.settings import cfg as _cfg
             _pt      = float(_cfg.xgboost.pt_mult_min)
@@ -656,7 +655,12 @@ class XGBoostTrainer:
         # Garantía causal: self.regime_name es el agente IS actual, sin look-ahead.
         if self.regime_name is not None:
             try:
-                _regime_profiles_raw = getattr(_cfg.xgboost, "regime_tbm_profiles", None)
+                _regime_profiles_raw = None
+                if getattr(self, "native_direction", None) == "short":
+                    _regime_profiles_raw = getattr(_cfg.xgboost, "regime_tbm_profiles_short", None)
+                if _regime_profiles_raw is None:
+                    _regime_profiles_raw = getattr(_cfg.xgboost, "regime_tbm_profiles", None)
+                    
                 if _regime_profiles_raw is not None:
                     # [TBM-REGIME-01 FIX] _Namespace recursivo → convertir a dict plano con vars()
                     # sin esto, la iteración y .get() fallan silenciosamente → fallback a global
@@ -723,7 +727,7 @@ class XGBoostTrainer:
             events_idx = events_idx[_chosen].sort_values()
             logger.info(
                 f"[FIX-TBM-SAMPLE-01] event_sampling_hours={_event_sampling_h}: "
-                f"{len(events_idx)} eventos (reducido de {len(df_final)} â€” menos solapamiento)"
+                f"{len(events_idx)} eventos (reducido de {len(df_final)} — menos solapamiento)"
             )
 
         try:
@@ -756,17 +760,18 @@ class XGBoostTrainer:
         )
         
         # tbm_result contiene las etiquetas (1=PT, -1=SL, 0=T1) en la columna "bin" o "meta_label". 
-        # La columna "bin" (1 si retornÃƒÂ³ pt_sl positivo vs SL, 0 timeout).
+        # La columna "bin" (1 si retornó pt_sl positivo vs SL, 0 timeout).
         # Para simplificar la base prediction de XGBoost, entraremos si "bin" es 1 o 'meta_label' es 1.
         # Combinemos el Dataframe final:
-        df_labeled = df_final.join(tbm_result[['bin', 'ret']], how='inner')
+        df_labeled = df_final.join(tbm_result[['bin', 'ret', 'holding_time_hours']], how='inner')
+        self.holding_time_hours = df_labeled['holding_time_hours']
         df_labeled["target"] = (df_labeled["bin"] == 1).astype(int)
         
-        # Calcular los retornos forward de simulaciÃƒÂ³n usando el 'ret' real obtenido del Triple Barrier Method
-        # para backtesting fidedigno (cuÃƒÂ¡nto ganÃƒÂ³ al tocar SL o PT en la vida real).
+        # Calcular los retornos forward de simulación usando el 'ret' real obtenido del Triple Barrier Method
+        # para backtesting fidedigno (cuánto ganó al tocar SL o PT en la vida real).
         df_labeled["simulated_fwd_ret_24h"] = df_labeled["ret"]
         
-        # Filtrar solo columnas vÃƒÂ¡lidas Ã¢â‚¬â€ excluir columnas 100% NaN antes del dropna
+        # Filtrar solo columnas válidas — excluir columnas 100% NaN antes del dropna
         feature_candidates = [c for c in features_list if c in df_labeled.columns]
         meta_cols = ['target', 'simulated_fwd_ret_24h']
         if "HMM_Semantic" in df_labeled.columns:
@@ -778,16 +783,16 @@ class XGBoostTrainer:
         # Excluir columnas de features que son 100% NaN (no generadas en este pipeline)
         fully_empty_feats = [c for c in feature_candidates if df_subset[c].isna().all()]
         if fully_empty_feats:
-            logger.warning(f"Features 100% vacÃƒÂ­as excluidas: {fully_empty_feats}")
+            logger.warning(f"Features 100% vacías excluidas: {fully_empty_feats}")
             df_subset = df_subset.drop(columns=fully_empty_feats)
         
         valid_features = [c for c in feature_candidates if c not in fully_empty_feats]
 
-        # Ã¢â€â‚¬Ã¢â€â‚¬ OpciÃƒÂ³n B: XGBoost maneja NaN nativamente (sin fillna, sin dropna agresivo)
-        # Solo eliminamos filas donde el TARGET o el RET de simulaciÃƒÂ³n sean NaN
+        # — Opción B: XGBoost maneja NaN nativamente (sin fillna, sin dropna agresivo)
+        # Solo eliminamos filas donde el TARGET o el RET de simulación sean NaN
         # (estos deben ser siempre completos para poder entrenar/evaluar).
         # Las features con NaN parcial (LongShortRatio, OI_USD, ETF prices, etc.)
-        # las deja pasar Ã¢â‚¬â€ XGBoost aprende la direcciÃƒÂ³n ÃƒÂ³ptima del split para NaN.
+        # las deja pasar — XGBoost aprende la dirección óptima del split para NaN.
         # Resultado: preservamos 43.793 filas en lugar de ~14.000 con dropna agresivo.
         df_clean = df_subset.dropna(subset=meta_cols)
         
@@ -859,7 +864,7 @@ class XGBoostTrainer:
         elif self.regime_list is not None:
             logger.warning("Filtro de Régimen solicitado pero HMM_Semantic no está en las features. Se entrenará con todos los datos.")
 
-        # Verificar que no hay features 100% NaN en el perÃƒÂ­odo de training
+        # Verificar que no hay features 100% NaN en el período de training
         nan_pct = df_clean[valid_features].isna().mean()
 
         # [FIX-NAN-BEAR-01] Descartar dinamicamente features con >40% de NaNs en este subset de regimen
@@ -881,7 +886,7 @@ class XGBoostTrainer:
         self.y = df_clean['target']
         self.close_rets = df_clean['simulated_fwd_ret_24h']
 
-        # â”€â”€ Debug guards post-load â”€â”€
+        # — Debug guards post-load —
         check_df_sanity(self.X, label="XGBoost.load_dataset.X")
         check_target_balance(self.y, label="XGBoost.target")
         log_memory_usage("post-load_dataset")
@@ -907,21 +912,21 @@ class XGBoostTrainer:
                 f"Probable causa: selected_features.json desactualizado o feature_pipeline.py no regenerado. "
                 f"Re-ejecutar Fase 3A (feature_pipeline) antes de entrenar."
             )
-        # Aviso si features_train no tiene columnas HMM â€” el modelo puede estar usando features incorrectas
+        # Aviso si features_train no tiene columnas HMM — el modelo puede estar usando features incorrectas
         for _hc in ["HMM_Regime", "HMM_Semantic"]:
             if _hc in _feats_expected and _hc not in df_labeled.columns:
                 logger.warning(
                     f"  [DATAFLOW-IMPORT-XGB-01] {_hc} requerida por features_list pero AUSENTE en train. "
                     f"El modelo XGBoost no podra usar el regimen HMM como feature."
                 )
-        # â”€â”€ [DATAFLOW-IMPORT-XGB-02] Dimensionality & Target audit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # — [DATAFLOW-IMPORT-XGB-02] Dimensionality & Target audit —————————————————————————
         _t_min, _t_max = self.X.index.min().date(), self.X.index.max().date()
         logger.success(
             f"[DATAFLOW-IMPORT-XGB-02] Dataset de Entrenamiento Cargado y Validado | "
             f"shape={self.X.shape} | fechas={_t_min} -> {_t_max} | "
             f"Target Balance: {self.y.sum()} / {len(self.y)} ({self.y.mean():.1%} positivos)"
         )
-        # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        # ——————————————————————————————————————————————————————————————————————————————————————
         # [REGIME-DIST-01] Distribucion IS + WR IS por regimen HMM.
         # self.X y self.y disponibles. Detecta regimenes degenerados antes de Optuna.
         try:
@@ -962,7 +967,7 @@ class XGBoostTrainer:
         return self.X, self.y
 
         
-    # LEGACY-01 ELIMINADO (2026-03-17): _create_wfa_splits() â€” nunca activo desde P1-6.
+    # LEGACY-01 ELIMINADO (2026-03-17): _create_wfa_splits() — nunca activo desde P1-6.
     # El WFA (Walk-Forward Analysis) fue reemplazado por CPCV Real en P1-6 (2026-03-07).
     # Ver historial en diario.md: Fix M-04 / P1-6.
 
@@ -973,8 +978,8 @@ class XGBoostTrainer:
         Con n_groups=10 (sop.cpcv_groups=10), k_test=2: C(10,2)=45 caminos OOS vs 8 del WFA.
         Con n_groups=6  (sop.cpcv_groups=6,  M-40):    C(6,2)=15  caminos OOS.
 
-        Esta funciÃ³n ES la activa en objective() desde P1-6 (2026-03-07).
-        Requiere ~5-6x mÃ¡s tiempo de cÃ³mputo que WFA â€” justificado para DSR.
+        Esta función ES la activa en objective() desde P1-6 (2026-03-07).
+        Requiere ~5-6x más tiempo de cómputo que WFA — justificado para DSR.
         """
         from itertools import combinations
         n_samples = len(self.X)
@@ -1034,12 +1039,12 @@ class XGBoostTrainer:
         import math as _math
         n_paths_total = _math.comb(current_cpcv_groups, 2)
         if current_cpcv_groups < 8:
-            # ARCH-03 warning (2026-03-17): menos de C(8,2)=28 paths â€” robustez estadÃ­stica baja.
-            # Con 15 paths el IC del DSR es ~3Ã— mÃ¡s amplio que con 45 paths â†’ mÃ¡s fÃ¡cil sobreajustar.
-            # Para aumentar: xgboost.n_purged_splits: 10 en settings.yaml (sin tocar cÃ³digo).
+            # ARCH-03 warning (2026-03-17): menos de C(8,2)=28 paths — robustez estadística baja.
+            # Con 15 paths el IC del DSR es ~3× más amplio que con 45 paths → más fácil sobreajustar.
+            # Para aumentar: xgboost.n_purged_splits: 10 en settings.yaml (sin tocar código).
             _eta_h = OPTUNA_TRIALS * n_paths_total * 4.0 / 3600  # ~4s/fold estimado
             logger.warning(
-                "[ARCH-03] CPCV_GROUPS=%d â†’ C(%d,2)=%d paths activos (ROBUSTEZ BAJA). "
+                "[ARCH-03] CPCV_GROUPS=%d → C(%d,2)=%d paths activos (ROBUSTEZ BAJA). "
                 "DSR con %d paths tiene IC ~3x mas amplio que con 45 paths. "
                 "Para produccion: n_purged_splits=10 en settings.yaml (ETA ~%.0fH con %d trials).",
                 current_cpcv_groups, current_cpcv_groups, n_paths_total,
@@ -1049,7 +1054,7 @@ class XGBoostTrainer:
             )
         else:
             logger.info(
-                "[CPCV REAL] %d grupos â†’ C(%d,2)=%d paths â€” robustez estadistica adecuada.",
+                "[CPCV REAL] %d grupos → C(%d,2)=%d paths — robustez estadistica adecuada.",
                 current_cpcv_groups, current_cpcv_groups, n_paths_total
             )
         logger.info("[CPCV REAL] Generados {} splits efectivos (descartados por purge/size).", len(splits))
@@ -1066,7 +1071,7 @@ class XGBoostTrainer:
           - T en la formula DSR representa el nro de obs usadas para calcular
             cada Sharpe individual del backtest, no el total acumulado.
           - T=sum (=45*12.000=540.000) inflaria el umbral sr_star artificialmente
-            penalizando estrategias buenas â€” seria INCORRECTO.
+            penalizando estrategias buenas — seria INCORRECTO.
           - T=mean(test_lengths) captura la longitud tipica de cada fold, que es
             exactamente el T del paper (Bailey & LdP 2014, eq.2).
         """
@@ -1086,7 +1091,7 @@ class XGBoostTrainer:
         sr_std_cross = 1.0
         gamma = 0.5772156649
 
-        # T = longitud temporal promedio de cada path OOS â€” ver docstring.
+        # T = longitud temporal promedio de cada path OOS — ver docstring.
         if test_lengths and len(test_lengths) > 0:
             T = int(np.mean(test_lengths))   # Correcto: longitud promedio por fold
         else:
@@ -1122,17 +1127,17 @@ class XGBoostTrainer:
 
     def _compute_sample_weights(self, index: pd.Index) -> np.ndarray:
         """
-        ARCH-02 fix (2026-03-17): decaimiento exponencial configurable por aÃ±o.
+        ARCH-02 fix (2026-03-17): decaimiento exponencial configurable por año.
 
-        weight_i = exp(-alpha Ã— aÃ±os_desde_train_end)
+        weight_i = exp(-alpha × años_desde_train_end)
 
-          alpha=0.0 â†’ uniforme (sin Ã©nfasis temporal, para diagnÃ³stico)
-          alpha=0.5 â†’ suave â€” ratio aÃ±o0:aÃ±o-1 â‰ˆ 1.6:1  (DEFAULT)
-          alpha=1.0 â†’ moderado â€” ratio â‰ˆ 2.7:1
-          alpha=1.6 â†’ agresivo â€” ratio â‰ˆ 5.0:1  (equivalente al esquema anterior 5x/1x)
+          alpha=0.0 → uniforme (sin énfasis temporal, para diagnóstico)
+          alpha=0.5 → suave — ratio año0:año-1 ≈ 1.6:1  (DEFAULT)
+          alpha=1.0 → moderado — ratio ≈ 2.7:1
+          alpha=1.6 → agresivo — ratio ≈ 5.0:1  (equivalente al esquema anterior 5x/1x)
 
-        Configurable en settings.yaml â†’ xgboost.weight_decay_alpha
-        Sin hardcodes de aÃ±os â€” completamente dinÃ¡mico a partir de train_end.
+        Configurable en settings.yaml → xgboost.weight_decay_alpha
+        Sin hardcodes de años — completamente dinámico a partir de train_end.
         """
         # [BUG-C1 FIX] Guard correcto: isinstance en lugar de hasattr(.year).
         # pd.DatetimeIndex SIEMPRE tiene .year, por lo que el guard original nunca activaba.
@@ -1169,12 +1174,29 @@ class XGBoostTrainer:
         years_ago = np.clip(_train_end_year - ts.year.to_numpy(), 0, None).astype(float)
         weights = np.exp(-_alpha * years_ago)
 
+        # [HOLDING-TIME-PENALTY] Penalización proporcional para Shorts (Mejora 3)
+        # El mercado baja por el ascensor. Shorts largos implican riesgo de Short Squeeze.
+        _dir = getattr(self, 'direction_mode', getattr(self, 'native_direction', 'both'))
+        if _dir == 'short' and hasattr(self, 'holding_time_hours'):
+            from config.settings import cfg as _cfg_ht
+            penalty_factor = float(_cfg_ht.xgboost.short_holding_time_penalty)
+                
+            _ht = self.holding_time_hours.loc[index].values
+            # Penalty inverso al holding_time. Más tiempo retenido = menos peso = la loss penaliza este trade.
+            _ht_penalty = np.exp(-penalty_factor * _ht)
+            weights *= _ht_penalty
+            
+            _verbose_debug = bool(int(_os.environ.get("LUNA_VERBOSE", "0")))
+            if _verbose_debug and not getattr(self.__class__, '_ht_logged', False):
+                logger.debug(f"[SHORT-HT-PENALTY] Aplicando penalización de Holding Time a Shorts. factor={penalty_factor}. Min multiplier: {np.min(_ht_penalty):.2f}x")
+                self.__class__._ht_logged = True
+
         _verbose_debug = bool(int(_os.environ.get("LUNA_VERBOSE", "0")))
         if _verbose_debug and not getattr(self.__class__, '_sw_logged', False):
             logger.debug(
                 "[R20-B/ARCH-02] sample_weights config: alpha=%.2f, train_end=%d "
-                "â†’ pesos unitarios [aÃ±o0=%.3f, aÃ±o-1=%.3f, aÃ±o-2=%.3f] "
-                "(este mensaje se emite UNA sola vez â€” throttle activo)",
+                "→ pesos unitarios [año0=%.3f, año-1=%.3f, año-2=%.3f] "
+                "(este mensaje se emite UNA sola vez — throttle activo)",
                 _alpha, _train_end_year,
                 np.exp(0.0), np.exp(-_alpha), np.exp(-2.0 * _alpha)
             )
@@ -1236,7 +1258,7 @@ class XGBoostTrainer:
 
     def objective(self, trial):
         """
-        FunciÃ³n objetivo Optuna: maximiza DSR sobre 45 paths CPCV.
+        Función objetivo Optuna: maximiza DSR sobre 45 paths CPCV.
 
         Función objetivo Optuna: maximiza DSR sobre 45 paths CPCV.
 
@@ -1338,7 +1360,7 @@ class XGBoostTrainer:
                 'colsample_bytree', sp.colsample_bytree_min, sp.colsample_bytree_max),
             'min_child_weight': trial.suggest_int(
                 'min_child_weight', _mcw_min, _mcw_max),
-            # RegularizaciÃ³n (BUG-R12-03): ausentes en versiÃ³n anterior
+            # Regularización (BUG-R12-03): ausentes en versión anterior
             'gamma':            trial.suggest_float(
                 'gamma', _dyn_gamma_min, _dyn_gamma_max),
             'reg_alpha':        trial.suggest_float(
@@ -1352,7 +1374,7 @@ class XGBoostTrainer:
                 getattr(self, '_spw_min', None) or sp.scale_pos_weight_min,
                 getattr(self, '_spw_max', None) or sp.scale_pos_weight_max,
             ),
-            # Fijos â€” no son hiperparÃ¡metros de modelo, son de arquitectura
+            # Fijos — no son hiperparámetros de modelo, son de arquitectura
             'objective':    'binary:logistic',
             'tree_method':  'hist',
             'n_jobs':       -1,
@@ -1424,16 +1446,23 @@ class XGBoostTrainer:
             _n_splits_is = 5
         else:
             _n_splits_is = 6
+
+        # [FIX-CV-CRASH 2026-06-22] Calcular test_size seguro para evitar ValueError de TimeSeriesSplit
+        _test_size_explicit = max(5, (_n_train_for_splits - _purge_gap) // (_n_splits_is + 1))
+        while _test_size_explicit * (_n_splits_is + 1) + _purge_gap > _n_train_for_splits and _n_splits_is > 1:
+            _n_splits_is -= 1
+            _test_size_explicit = max(5, (_n_train_for_splits - _purge_gap) // (_n_splits_is + 1))
+
         if trial.number == 0:
             print(  # RULE[fixbugsprints.md]
-                f"[FIX-CRIT-01-NSPLITS] n_splits_is={_n_splits_is} para n_train={_n_train_for_splits}"
-                f" | purge_gap={_purge_gap}H | T_test~{_n_train_for_splits // (_n_splits_is + 1)} eventos"
+                f"[FIX-CRIT-01-NSPLITS] n_splits_is={_n_splits_is} test_size={_test_size_explicit} para n_train={_n_train_for_splits}"
+                f" | purge_gap={_purge_gap}H"
             )
             logger.info(
-                "[FIX-CRIT-01-NSPLITS] Optuna TimeSeriesSplit: n_splits=%d | n_train=%d | gap=%dH",
-                _n_splits_is, _n_train_for_splits, _purge_gap
+                "[FIX-CRIT-01-NSPLITS] Optuna TimeSeriesSplit: n_splits=%d | test_size=%d | n_train=%d | gap=%dH",
+                _n_splits_is, _test_size_explicit, _n_train_for_splits, _purge_gap
             )
-        _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_purge_gap)
+        _tscv = TimeSeriesSplit(n_splits=_n_splits_is, gap=_purge_gap, test_size=_test_size_explicit)
 
         _is_scores = []
         _proba_is_std = []  # [FIX-PROB-CLUSTERING]
@@ -1483,7 +1512,7 @@ class XGBoostTrainer:
             _proba_is_std.append(np.std(_proba_is))  # [FIX-PROB-CLUSTERING]
             _y_val = self.y.iloc[_val_i].values
             
-            # Calcular mÃ©tricas principales (siempre calcular ambas para telemetría correcta)
+            # Calcular métricas principales (siempre calcular ambas para telemetría correcta)
             _brier_fold = brier_score_loss(_y_val, _proba_is)
             _logloss_fold = log_loss(_y_val, _proba_is)
             
@@ -1540,7 +1569,7 @@ class XGBoostTrainer:
                     test_lengths.append(len(trade_rets_clean))  # N = número de apuestas (trades) reales
 
             # Reportar a Optuna para pruning
-            # MedianPruner abortarÃ¡ trials ineficientes ahorrando 50% de cÃ³mputo extra.
+            # MedianPruner abortará trials ineficientes ahorrando 50% de cómputo extra.
             _dir = getattr(self.study, "direction", None)
             
             # Si optuna_metric es DSR, prunamos usando DSR parcial
@@ -1551,9 +1580,9 @@ class XGBoostTrainer:
                     _reported_val = -partial_dsr if _dir == optuna.study.StudyDirection.MINIMIZE else partial_dsr
                     trial.report(_reported_val, step=fold_i)
             else:
-                # Si Brier/Logloss, prunamos directamente con la mÃ©trica IS parcial
+                # Si Brier/Logloss, prunamos directamente con la métrica IS parcial
                 _reported_val = float(np.mean(_is_scores))
-                # La mÃ©trica IS se asume que se debe MINIMIZAR (brier, logloss)
+                # La métrica IS se asume que se debe MINIMIZAR (brier, logloss)
                 if _dir == optuna.study.StudyDirection.MAXIMIZE:
                     _reported_val = -_reported_val
                 trial.report(_reported_val, step=fold_i)
@@ -1561,7 +1590,7 @@ class XGBoostTrainer:
             if trial.should_prune():
                 raise optuna.TrialPruned()
 
-        # Al finalizar los 5 folds temporales, calculamos telemetrÃ­a global
+        # Al finalizar los 5 folds temporales, calculamos telemetría global
         _metric_val = float(np.mean(_is_scores)) if _is_scores else 1.0
         
         # [FIX-PROB-CLUSTERING] Detectar colapso de conviccion (asfixia del arbol)
@@ -1587,7 +1616,7 @@ class XGBoostTrainer:
 
         _dsr_safe = _dsr_telemetry if not np.isnan(_dsr_telemetry) and _dsr_telemetry > 0 else 0.0
         
-        # MÃ©trica compuesta o legacy
+        # Métrica compuesta o legacy
         if _optuna_metric in ('brier', 'logloss'):
             # [FIX-MATH-OPTUNA-03]: dsr_safe ya esta en escala [0.0, 1.0]. Dividirlo por 100.0
             # aniquilaba matematicamente la penalizacion sobre Brier/Logloss.
@@ -1686,7 +1715,7 @@ class XGBoostTrainer:
         return 5  # fallback mínimo absoluto
 
     def tune_hyperparameters(self):
-        logger.info(f"Iniciando Optuna Tuning ({self.n_trials} trials)... OptimizaciÃƒÂ³n: Deflated Sharpe")
+        logger.info(f"Iniciando Optuna Tuning ({self.n_trials} trials)... OptimizaciÃ³n: Deflated Sharpe")
 
         if len(self.X) < 500:
             logger.warning(f"[{self.regime_name}] Dataset minúsculo ({len(self.X)} filas < 500). Omitiendo Optuna tuning y usando fallback ultra-robusto (MEDIO-7).")
@@ -1725,7 +1754,7 @@ class XGBoostTrainer:
         _process = psutil.Process(_os.getpid())
 
         def _progress_callback(study: optuna.Study, trial: optuna.trial.FrozenTrial):
-            """Log progreso de Optuna â€” cada trial en VERBOSE, cada 10 en modo normal."""
+            """Log progreso de Optuna — cada trial en VERBOSE, cada 10 en modo normal."""
             n = trial.number + 1
             elapsed = time.time() - _t0
             trial_duration = trial.duration.total_seconds() if trial.duration else 0.0
@@ -1772,7 +1801,7 @@ class XGBoostTrainer:
         # REPRO-01 fix (2026-03-17): sampler determinista para reproducibilidad.
         # [FIX-RANDOM-STATE-01 2026-05-28] Priorizar LUNA_SEED del entorno sobre cfg.optuna_seed.
         # Con optuna_seed fijo en settings todas las seeds WFB exploraban el mismo espacio
-        # de hiperparámetros → sin diversidad en el ensemble.
+        # de hiperparámetros — sin diversidad en el ensemble.
         _luna_seed_env = _os.environ.get('LUNA_SEED', '')
         if _luna_seed_env.isdigit():
             _optuna_seed = int(_luna_seed_env)
@@ -1836,7 +1865,7 @@ class XGBoostTrainer:
         #   ideal = neg/pos  (ratio de clases real del training set)
         #   min   = ideal * 0.5   (permite downweight hasta la mitad)
         #   max   = min(2.0, ideal * 2.5)  SOP_LIMIT=2.0 (post-mortem M-79: SPW>2 colapsa WR)
-        # El YAML (scale_pos_weight_min/max) ya no es fuente de verdad â€” solo documentacion.
+        # El YAML (scale_pos_weight_min/max) ya no es fuente de verdad — solo documentacion.
         try:
             _spw_pos   = int((self.y == 1).sum())
             _spw_neg   = int((self.y == 0).sum())
@@ -1850,7 +1879,7 @@ class XGBoostTrainer:
                 f"[SPW-FIX] pos={_spw_pos} neg={_spw_neg} | SPW bloqueado a 1.0 absoluto para prevenir Asfixia de Edge"
             )
         except Exception as _e_spw:
-            logger.warning("[SPW-AUTO-01] Calculo automatico fallido ({}) â€” usando YAML settings.", _e_spw)
+            logger.warning("[SPW-AUTO-01] Calculo automatico fallido ({}) — usando YAML settings.", _e_spw)
             self._spw_min = None
             self._spw_max = None
 
@@ -1892,14 +1921,14 @@ class XGBoostTrainer:
         
     def _calibrate_threshold(self) -> float:
         """
-        MEJORA-R12-01 fix (2026-03-10): calibraciÃ³n automÃ¡tica del threshold XGB.
+        MEJORA-R12-01 fix (2026-03-10): calibración automática del threshold XGB.
 
         Barre thresholds sobre features_validation.parquet y selecciona el que
         maximiza el Expected Value esperado por trade:
-            EV(t) = P(win | prob > t) Ã— avg_win - P(loss | prob > t) Ã— avg_loss - cost
+            EV(t) = P(win | prob > t) × avg_win - P(loss | prob > t) × avg_loss - cost
         sujeto a: n_trades(t) >= threshold_min_trades (settings.yaml).
 
-        Fuente: features_validation.parquet (perÃ­odo semi-OOS, nunca en train).
+        Fuente: features_validation.parquet (período semi-OOS, nunca en train).
         Fallback: 0.50 si validation no disponible o < min_trades en todo el sweep.
 
         Returns
@@ -1927,10 +1956,10 @@ class XGBoostTrainer:
             t_max      = float(float(cal_cfg.threshold_sweep_max))
             t_step     = float(float(cal_cfg.threshold_sweep_step))
             min_trades = int(int(cal_cfg.threshold_min_trades))
-            # OPT-B (2026-03-22): densidad mÃ­nima de seÃ±ales respecto a t_min.
-            # [TIPO-3: CALCULADO] n_baseline = seÃ±ales@t_min. Si n(t) < n_baseline*density_pct,
+            # OPT-B (2026-03-22): densidad mínima de señales respecto a t_min.
+            # [TIPO-3: CALCULADO] n_baseline = señales@t_min. Si n(t) < n_baseline*density_pct,
             # el threshold se considera hiperselectivo y se descarta del sweep.
-            # M-80: 0.75 tenÃ­a densidad=12.2% â†’ con 30% mÃ­nimo habrÃ­a elegido ~0.61 (EV>0, N>600).
+            # M-80: 0.75 tenía densidad=12.2% — con 30% mínimo habría elegido ~0.61 (EV>0, N>600).
             min_density_pct = float(float(cal_cfg.threshold_min_density_pct))
         except Exception:
             t_min, t_max, t_step, min_trades, min_density_pct = 0.40, 0.75, 0.01, 30, 0.30
@@ -3627,4 +3656,6 @@ if __name__ == "__main__":
         logger.error(f"[FATAL UNCAUGHT] Script crashed at main level: {e}")
         logger.debug(traceback.format_exc())
         sys.exit(1)
+
+
 

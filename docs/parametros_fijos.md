@@ -79,3 +79,17 @@ Este documento registra de forma formal y auditable todos los parámetros fijos 
 * **Justificación Cuantitativa**: 
   * En la fase de `3_BEAR_CRASH`, la regla SOP obliga a purgar con embargos amplios (ej. 168.0H o 96.0H). Sin embargo, el mecanismo `Volatility Decaying Embargo` reduce dinámicamente este tiempo si la volatilidad (medida por ATR) colapsa drásticamente, volviendo el mercado extremadamente estable.
   * Se corrigió el módulo de `SignalFilter` (`apply_embargo`) para no tener un "piso mágico" (magic number) de caída de embargo, sino que este piso se lee desde `_cfg.xgboost.embargo_hours` de `settings.yaml` cumpliendo la política de No-Fallback. Esto fue validadado exitosamente con `test_luna_v2_embargo.py`, donde se comprobó que los huecos de tiempo entre operaciones cumplen este límite dinámico exacto de piso, reteniendo solo 11 señales de 150 (7.3% de supervivencia) con seguridad.
+
+
+---
+
+## wfb.ensemble_consensus_threshold_short (Dual Consensus Asimetrico)
+
+* **Clave en Configuracion**: wfb.ensemble_consensus_threshold_short
+* **Tipo**: int
+* **Valor Asignado**: 8
+* **Fix ID**: [DUAL-CONSENSUS-FIX 2026-06-22]
+* **Modulos que lo consumen**:
+  * scripts/evaluate_ensemble_wfb.py
+* **Justificacion Cuantitativa**: 
+  * Para mitigar la asimetria entre tendencias bajistas rapidas (ascensor) y tendencias alcistas lentas (escaleras). Las caidas repentinas tienden a causar mayor dispersion temporal en las senales XGBoost entre semillas (algunas predicen 1h antes, otras 1h despues). Exigir 10 semillas (umbral Long) censuraba trades reales. Bajar a 8 maximiza el Recall de eventos Short-Only asumiendo un fraccional Kelly de 0.25 para proteger el Drawdown.

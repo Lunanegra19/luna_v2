@@ -167,7 +167,7 @@ KALMAN_COLUMNS: List[str] = [
     "VIX", "DXY", "SP500", "Gold",
     "YieldCurve_10Y3M", "T10Y2Y",
     "M2_YoY_Chg", "M2_USA", "M2_UK",
-    "CPI_YoY", "FedFunds", "UnemployRate",
+    "CPI_YoY", "FedFundsRate", "UnemployRate",
     # On-chain
     "MVRV_Proxy",  # [FIX-NAMES-01 2026-06-02] Hashrate_7d_MA eliminado (no existe en parquet, 100% NaN)
     "Stablecoin_Cap", "SSR_ZScore",

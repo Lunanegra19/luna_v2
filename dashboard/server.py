@@ -348,6 +348,7 @@ def get_latest_log_file(prefix: str, session_id: str = None) -> tuple[Path | Non
 def parse_wfb_worker_log(path: Path) -> dict:
     info = {
         "seed": "Unknown",
+        "direction": "",
         "window": "Unknown",
         "active_phase": "Unknown",
         "last_lines": [],
@@ -357,6 +358,19 @@ def parse_wfb_worker_log(path: Path) -> dict:
         "completed_windows": 0
     }
     
+    # [FIX] Extract seed directly from the filename to guarantee accuracy (e.g. wfb_worker_..._seed42.log or _seed42_long.log)
+    import re
+    seed_num = "None"
+    match_filename = re.search(r"seed(\d+)(?:_(long|short))?", path.name)
+    if match_filename:
+        seed_num = match_filename.group(1)
+        if match_filename.group(2):
+            direction = match_filename.group(2).upper()
+            info["direction"] = direction
+            info["seed"] = f"{seed_num}_{direction}"
+        else:
+            info["seed"] = seed_num
+            
     try:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             lines = f.readlines()
@@ -425,7 +439,8 @@ def parse_wfb_worker_log(path: Path) -> dict:
             stage_progress += weight
             
         total_window_progress = (info["completed_windows"] * 100.0) + stage_progress
-        info["progress_percent"] = min(100.0, total_window_progress / 5.0) # 5 windows total per seed
+        # [FIX] En Luna V2 configurada para 365 días son exactamente 12 ventanas por semilla
+        info["progress_percent"] = min(100.0, total_window_progress / 12.0)
         
         # Print block for tracking in logs as per user rules
         print(f"[DASHBOARD-TRACK] Parsed log {path.name} | Seed: {info['seed']} | Window: {info['window']} | Phase: {info['active_phase']} | Progress: {info['progress_percent']:.1f}%")
@@ -675,13 +690,19 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 
                 seed = None
                 run_id = data.get("run_id", "")
-                seed_match = re.search(r"seed(\d+)", run_id)
+                seed_match = re.search(r"seed(\d+)(?:_(long|short))?", run_id)
                 if seed_match:
-                    seed = int(seed_match.group(1))
+                    seed_num = seed_match.group(1)
+                    direction = seed_match.group(2)
+                    seed = f"{seed_num}_{direction.upper()}" if direction else seed_num
                 else:
-                    seed_match_fn = re.search(r"seed(\d+)", f.name)
+                    seed_match_fn = re.search(r"seed(\d+)(?:_(long|short))?", f.name)
                     if seed_match_fn:
-                        seed = int(seed_match_fn.group(1))
+                        seed_num = seed_match_fn.group(1)
+                        direction = seed_match_fn.group(2)
+                        seed = f"{seed_num}_{direction.upper()}" if direction else seed_num
+                    else:
+                        continue
                 
                 if seed is None:
                     continue
@@ -2378,9 +2399,16 @@ def get_reconstructed_price_curve_cached():
     return _price_curve_cache
 
 
-def get_trades_for_seed(seed: int, session_id: str = None):
+def get_trades_for_seed(seed_raw: str, session_id: str = None, window_filter: str = None):
     if pd is None:
         raise RuntimeError("CRITICAL: pandas is not available for trades retrieval.")
+        
+    seed_num = str(seed_raw)
+    direction = None
+    if "_" in seed_num:
+        parts = seed_num.split("_", 1)
+        seed_num = parts[0]
+        direction = parts[1].lower()
         
     # [FIX-DASHBOARD-TRADES-01 2026-06-20] Ordenar numéricamente las ventanas de trades
     def get_wfb_num(path):
@@ -2397,9 +2425,9 @@ def get_trades_for_seed(seed: int, session_id: str = None):
         if runs_dir.exists():
             session_dirs = [d for d in runs_dir.iterdir() if d.is_dir() and session_id in d.name]
             if session_dirs:
-                seed_dir = session_dirs[0] / f"seed{seed}"
-                if not seed_dir.exists() and (session_dirs[0] / str(seed)).exists():
-                    seed_dir = session_dirs[0] / str(seed)
+                seed_dir = session_dirs[0] / f"seed{seed_num}"
+                if not seed_dir.exists() and (session_dirs[0] / seed_num).exists():
+                    seed_dir = session_dirs[0] / seed_num
                 if seed_dir.exists():
                     trade_files = sorted(list(seed_dir.glob("W*/oos_trades.parquet")), key=get_wfb_num)
                     print(f"[DASHBOARD-TRADES] Cargando {len(trade_files)} parquets históricos desde {seed_dir.name}")
@@ -2408,11 +2436,19 @@ def get_trades_for_seed(seed: int, session_id: str = None):
     if not trade_files:
         reports_dir = PROJECT_ROOT / "data" / "reports" / "wfb"
         if reports_dir.exists():
-            trade_files = sorted(list(reports_dir.glob(f"oos_trades_W*_seed{seed}.parquet")), key=get_wfb_num)
+            if direction:
+                trade_files = sorted(list(reports_dir.glob(f"oos_trades_W*_seed{seed_num}_{direction}.parquet")), key=get_wfb_num)
+            else:
+                trade_files = sorted(list(reports_dir.glob(f"oos_trades_W*_seed{seed_num}*.parquet")), key=get_wfb_num)
+            trade_files = [f for f in trade_files if "xgb_baseline" not in f.name]
             print(f"[DASHBOARD-TRADES] Cargando {len(trade_files)} parquets desde data/reports/wfb")
             
+    if trade_files and window_filter:
+        trade_files = [f for f in trade_files if f"_{window_filter}_" in f.name or f.name.startswith(f"oos_trades_{window_filter}_")]
+        print(f"[DASHBOARD-TRADES] Filtrado por ventana {window_filter}, {len(trade_files)} archivos restantes.")
+            
     if not trade_files:
-        print(f"[DASHBOARD-API-TRACK] WARNING: No se encontraron archivos de trades para semilla {seed} (sesion {session_id}).")
+        print(f"[DASHBOARD-API-TRACK] WARNING: No se encontraron archivos de trades para semilla {seed_raw} (sesion {session_id}).")
         return []
     
     curve_data = get_reconstructed_price_curve_cached()
@@ -2929,12 +2965,15 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 seed_list = query_params.get("seed", [])
                 if not seed_list:
                     raise ValueError("Missing 'seed' query parameter.")
-                seed = int(seed_list[0])
+                seed_raw = seed_list[0]
                 
                 session_id_list = query_params.get("session_id", [])
                 session_id = session_id_list[0] if session_id_list else None
                 
-                trades_data = get_trades_for_seed(seed, session_id)
+                window_list = query_params.get("window", [])
+                window_filter = window_list[0] if window_list else None
+                
+                trades_data = get_trades_for_seed(seed_raw, session_id, window_filter)
                 self.wfile.write(json.dumps(trades_data, ensure_ascii=False).encode('utf-8'))
             except Exception as e:
                 self.send_response(500)
@@ -3294,6 +3333,41 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 worker_info["active_phase"] = "Inactivo"
                 worker_info["seed"] = "None"
                 worker_info["window"] = "None"
+
+            # [FIX] Active seed finished windows parsing
+            worker_info["finished_windows"] = {}
+            if worker_info.get("seed") and worker_info.get("seed") != "None":
+                wfb_reports_dir = PROJECT_ROOT / "data" / "reports" / "wfb"
+                if wfb_reports_dir.exists():
+                    try:
+                        worker_ctime = latest_worker.stat().st_ctime if latest_worker else 0
+                        for f in wfb_reports_dir.glob(f"gate_G2_W*_seed{seed_num}.json"):
+                            if f.stat().st_mtime < worker_ctime - 300:
+                                continue
+                            try:
+                                with open(f, "r", encoding="utf-8") as jf:
+                                    g2_data = json.load(jf)
+                                    if "metrics" in g2_data:
+                                        w_name = g2_data.get("window_id")
+                                        w_metrics = g2_data.get("metrics", {})
+                                        if w_name:
+                                            b_agent = w_metrics.get("brier_by_agent", {})
+                                            worker_info["finished_windows"][w_name] = {
+                                                "brier": round(float(w_metrics.get("brier_mean", 0.0)), 4),
+                                                "brier_max": round(float(w_metrics.get("brier_max", 0.0)), 4),
+                                                "dsr": round(float(w_metrics.get("dsr_mean", 0.0)), 2),
+                                                "proba_std": round(float(w_metrics.get("proba_std_mean", 0.0)), 4),
+                                                "brier_bull": round(float(b_agent.get("bull", 0.0)), 4),
+                                                "brier_bear": round(float(b_agent.get("bear", 0.0)), 4),
+                                                "brier_range": round(float(b_agent.get("range", 0.0)), 4),
+                                                "n_agents": int(w_metrics.get("n_signature_files", 0)),
+                                                "n_disabled": int(w_metrics.get("n_disabled_agents", 0)),
+                                                "passed": g2_data.get("passed", False)
+                                            }
+                            except Exception as parse_err:
+                                print(f"[DASHBOARD-ERROR] Error parsing {f.name}: {parse_err}")
+                    except Exception as err:
+                        print(f"[DASHBOARD-ERROR] Error reading active seed windows: {err}")
                 
             # Production Ensemble log parsing
             latest_prod, prod_last_modified = get_latest_log_file("train_prod_ensemble_")

@@ -518,7 +518,7 @@ class LunaEnsembleLiveInference:
                     # Preparar secuencias temporales para el extractor rolling
                     seq_len_cfg = 48  # seq_len estandar de settings.yaml
                     if len(df_seed) >= seq_len_cfg:
-                        seq_features = int(active_meta._seq_features)
+                        seq_features = active_meta._seq_features
                         if not seq_features:
                             # [BUGFIX-MEMBER-SHIELD] Filtrar estrictamente columnas numéricas para evitar castear HMM_Semantic (RULE[fixbugsprints.md])
                             seq_features = [c for c in df_seed.columns if c not in ["HMM_Semantic", "HMM_Regime", "timestamp"] and df_seed[c].dtype.kind in ("i", "u", "f")]

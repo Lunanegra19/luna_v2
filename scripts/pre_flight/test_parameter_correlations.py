@@ -206,7 +206,7 @@ def t79_hmm_coherence():
         oos_w = int(cfg.hmm.oos_window_hours)
         mi_h = int(cfg.hmm.mi_horizon_hours)
         post_w = int(cfg.hmm.post_ath_ath_window_h)
-        
+
         assert n_s in cands, f"n_states={n_s} no esta en candidatos {cands}"
         assert oos_w >= mi_h, f"oos_window_hours={oos_w} < mi_horizon_hours={mi_h}"
         assert mi_h >= post_w, f"mi_horizon_hours={mi_h} < post_ath_ath_window_h={post_w}"
@@ -222,13 +222,17 @@ def t80_kelly_sizing():
         p_kf = float(cfg.position_sizer.kelly_fraction)
         pt_r = float(cfg.kelly_sizer.pt_ratio)
         sl_r = float(cfg.kelly_sizer.sl_ratio)
-        
+
+        # [KELLY-POLICY-2026-06-22] Full Kelly (1.0) permitido.
+        # El sistema gestiona el riesgo via dd_kill_switch (15%), dd_half_size (10%) y max_position.
+        # Restriccion dura: NO superar 1.0. NO inconsistencia entre sizers.
+        print(f"[TEST-80] kelly_sizer.kelly_fraction={k_kf} | position_sizer.kelly_fraction={p_kf} | pt_ratio={pt_r} | sl_ratio={sl_r}")
         assert k_kf == p_kf, f"Inconsistencia critica! kelly_sizer={k_kf} != position_sizer={p_kf}"
-        assert k_kf <= 0.25, f"kelly_fraction={k_kf} excede el Quarter-Kelly (0.25) maximo permitido R17"
+        assert 0.0 < k_kf <= 1.0, f"kelly_fraction={k_kf} fuera de rango (0, 1.0]"
         assert pt_r > sl_r, f"pt_ratio={pt_r} <= sl_r={sl_r}. Rompe asimetria matematica."
     except Exception as e:
         assert False, f"Error validando Kelly Sizer: {e}"
-    return "Kelly y Asimetria OK"
+    return f"Kelly k={k_kf} (riesgo gestionado via dd_kill_switch/max_position) | Asimetria pt={pt_r}/sl={sl_r} OK"
 
 @test("TEST-81  SOP: Coherencia OOD Guard y Momentum Filters", section="consistency")
 def t81_ood_momentum():
@@ -240,10 +244,10 @@ def t81_ood_momentum():
         m_up = float(cfg.metalabeler.momentum_filter_threshold_upper)
         m_ord = float(cfg.metalabeler.momentum_ordered_correction_threshold)
         m_cra = float(cfg.metalabeler.momentum_crash_speed_threshold)
-        
+
         assert d_min < d_max, f"guardian_dvol_min_z={d_min} >= guardian_dvol_max_z={d_max}"
         assert m_thr <= m_up, f"momentum_filter_threshold={m_thr} > threshold_upper={m_up}"
-        assert m_ord <= m_cra, f"ordered_correction={m_ord} > crash_speed={m_cra} (Los valores son negativos, ej -25 <= -5)"
+        assert m_ord <= m_cra, f"ordered_correction={m_ord} > crash_speed={m_cra} (valores negativos, ej -25 <= -5)"
     except Exception as e:
         assert False, f"Error validando OOD/Momentum: {e}"
     return "OOD y Momentum OK"

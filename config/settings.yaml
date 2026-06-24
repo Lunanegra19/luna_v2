@@ -24,6 +24,8 @@ execution:
   funding_drag_enabled: true
   funding_rate_8h: 0.0001
 autoencoder:
+  # [FIX-AUTOENCODER-BOTTLENECK 2026-06-23] Parámetro explícito para tamaño de latent space
+  ae_bottleneck_dim: 64
   # [MEJORA-MATH-C 2026-06-18] Anchored Contrastive KL Loss
   ae_anchored_kl_loss: true
   ae_kl_lambda: 0.05
@@ -125,7 +127,8 @@ session_gate:
   - 3_BEAR_CRASH_D
   log_blocked: true
 fase2:
-  direction_mode: long
+  # [DUAL-BOT-01 2026-06-22] Activar ejecución dual en el orquestador
+  direction_mode: both
   hmm_predictive: true
   lgbm_signal_min_prob: 0.0
   regime_mapping:
@@ -380,7 +383,8 @@ hmm:
   min_features_required: 2
 kelly_sizer:
   enabled: true
-  kelly_fraction: 1.0
+  kelly_fraction: 1.0  # Full Kelly - sistema propio con gestin de riesgo explcita va dd_kill_switch y max_position
+  kelly_fraction_short: 0.25  # [DUAL-BOT] Riesgo reducido para el lado Short (Quarter-Kelly) para evitar liquidaciones por Short Squeezes
   max_position: 20.0
   target_sl_pct: 0.05
   # [KELLY-CALIBRATION 2026-06-19] Adjusted from 1.2 to 1.01 to match empirical OOS P/L ratio (0.888) and satisfy pt_ratio > sl_ratio pre-flight check
@@ -541,14 +545,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2026-02-28
+  hmm_train_end: 2025-06-30
   hmm_train_start: '2020-01-01'
-  holdout_end: 2026-03-31
-  holdout_start: 2026-03-01
-  train_end: 2025-12-31
+  holdout_end: 2025-07-31
+  holdout_start: 2025-07-01
+  train_end: 2025-04-30
   train_start: '2017-08-17'
-  validation_end: 2026-02-28
-  validation_start: 2026-01-01
+  validation_end: 2025-06-30
+  validation_start: 2025-05-01
 wfb:
   # [ENSEMBLE-WINDOWS-FIX 2026-06-19] Semillas deben completar exactamente este número de ventanas para el ensamble
   ensemble_required_windows: 12  # Cantidad requerida de ventanas completadas
@@ -679,17 +683,19 @@ wfb:
     train_end: '2026-02-28'
     val_end: '2026-04-30'
     val_start: '2026-03-01'
-  - holdout_end: '2026-06-19'
+  - holdout_end: '2026-06-22'
     holdout_start: '2026-06-01'
     id: W12
     train_end: '2026-03-31'
     val_end: '2026-05-31'
     val_start: '2026-04-01'
 xgboost:
+  # [HOLDING-TIME-PENALTY 2026-06-22] Penalización del LogLoss para Shorts en funcion del tiempo abierto (2.5% x hora)
+  short_holding_time_penalty: 0.025
   # [MEJORA-MATH-A 2026-06-18] Asymmetric TBM
   tbm_asymmetric: true
   tbm_asymmetry_ratio_cap: 2.0
-  ev_tolerance_pct: 0.01
+  ev_tolerance_pct: 0.0
   optuna_trials: 100
   calibration_min_samples_isotonic: 50000
   calibration_fallback_method: sigmoid
@@ -752,7 +758,7 @@ xgboost:
     bull:
       max_depth_cap: 4
       gamma_floor: 0.0
-  optuna_seed: 28019
+  optuna_seed: 42
   pt_decay_fraction: 0.75
   pt_mult_max: 2.2
   pt_mult_min: 1.8
@@ -766,6 +772,17 @@ xgboost:
     range:
       pt_mult_min: 2.0
       sl_mult_min: 1.0
+  # [DUAL-BOT] Perfiles TBM asimtricos para el modelo Short (cadas rpidas, rebotes fuertes)
+  regime_tbm_profiles_short:
+    bear:
+      pt_mult_min: 1.8
+      sl_mult_min: 1.5
+    bull:
+      pt_mult_min: 1.5
+      sl_mult_min: 1.8
+    range:
+      pt_mult_min: 1.8
+      sl_mult_min: 1.2
   signal_prob_max: 1.0
   sl_mult_max: 1.5
   sl_mult_min: 1.5
@@ -778,7 +795,7 @@ xgboost:
   # Politica No-Fallback: si falta este param, predict_oos.py lanza RuntimeError.
   tbm_hard_stop_pct: 0.025
   threshold_min_density_pct: 0.15
-  threshold_min_trades: 5
+  threshold_min_trades: 30
   threshold_sweep_max: 0.72
   threshold_sweep_min: 0.45
   threshold_sweep_step: 0.005
@@ -844,8 +861,3 @@ filter_governor:
   max_relaxation_meta_percentile_delta: 0.20 # Max percentile reduction for MetaLabeler rolling filter
 risk:
   max_leverage_allowed: 20.0
-kelly_sizer:
-  max_position: 20.0
-  kelly_fraction: 1.0
-  pt_ratio: 2.0
-  sl_ratio: 1.0

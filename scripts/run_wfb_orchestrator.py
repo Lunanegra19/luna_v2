@@ -288,6 +288,8 @@ def main():
     parser.add_argument("--force-resume", action="store_true", help="Forzar --resume incluso en el primer intento de la primera seed")
     parser.add_argument("--smoke-test", action="store_true", help="[DEV] Modo extra rapido para validar el pipeline (inyecta LUNA_SMOKE_TEST=1)")
     parser.add_argument("--nocache", action="store_true", help="Forzar eliminación total de la caché WFB antes de empezar")
+    parser.add_argument("--nocache-short", action="store_true", help="Forzar eliminación de la caché SOLO para el modelo Short")
+    parser.add_argument("--nocache-long", action="store_true", help="Forzar eliminación de la caché SOLO para el modelo Long")
     parser.add_argument("--sficache", action="store_true",
                         help="[SFICACHE-01] Implica --nocache pero preserva los sfi_lock.json de ventanas anteriores. "
                              "Permite re-entrenar XGBoost/MetaLabeler/AE sin recalcular el SFI (el paso mas costoso). "
@@ -471,8 +473,8 @@ def main():
             print("[SFICACHE-01] --sficache activo: implica --nocache para limpiar todo EXCEPTO sfi_lock.json.")
             args.nocache = True
 
-    if args.nocache:
-        print("[!] --nocache detectado. Limpiando WFB cache...")
+    if args.nocache or args.nocache_short or args.nocache_long:
+        print(f"[!] --nocache detectado (global={args.nocache}, short={args.nocache_short}, long={args.nocache_long}). Limpiando WFB cache...")
         # shutil ya importado a nivel de módulo (línea 14) — no reimportar localmente (causaba UnboundLocalError)
         cache_dir = Path(__file__).parent.parent / "data" / "wfb_cache"
 
@@ -489,8 +491,11 @@ def main():
             print(f"[SFICACHE-01] {len(_sfi_backups)} sfi_lock.json respaldados antes del borrado de cache.")
 
         if cache_dir.exists():
-            shutil.rmtree(cache_dir, ignore_errors=True)
-            print("[!] data/wfb_cache eliminado correctamente.")
+            if args.nocache:
+                shutil.rmtree(cache_dir, ignore_errors=True)
+                print("[!] data/wfb_cache eliminado completamente (Global Nocache).")
+            else:
+                print(f"[!] data/wfb_cache se mantiene parcialmente para conservar el SFI base (Selective Nocache).")
 
         # [SFICACHE-01] Restaurar sfi_lock.json tras el borrado
         if args.sficache and _sfi_backups:
@@ -519,22 +524,40 @@ def main():
         models_dir = Path(__file__).parent.parent / "data" / "models"
         if models_dir.exists():
             _stale = [f for f in models_dir.iterdir() if f.is_file()]
+            _count_deleted = 0
             for f in _stale:
                 try:
-                    f.unlink()
+                    if args.nocache:
+                        f.unlink()
+                        _count_deleted += 1
+                    elif args.nocache_short and "short" in f.name:
+                        f.unlink()
+                        _count_deleted += 1
+                    elif args.nocache_long and "long" in f.name:
+                        f.unlink()
+                        _count_deleted += 1
                 except Exception:
                     pass
-            print(f"[CACHE-HYGIENE-01] {len(_stale)} artefactos eliminados de data/models/ (modelos residuales).")
+            print(f"[CACHE-HYGIENE-01] {_count_deleted} artefactos eliminados de data/models/ (modelos residuales).")
         
         predictions_dir = Path(__file__).parent.parent / "data" / "predictions"
         if predictions_dir.exists():
             _stale_pred = [f for f in predictions_dir.glob("*.parquet")]
+            _count_pred = 0
             for f in _stale_pred:
                 try:
-                    f.unlink()
+                    if args.nocache:
+                        f.unlink()
+                        _count_pred += 1
+                    elif args.nocache_short and "short" in f.name:
+                        f.unlink()
+                        _count_pred += 1
+                    elif args.nocache_long and "long" in f.name:
+                        f.unlink()
+                        _count_pred += 1
                 except Exception:
                     pass
-            print(f"[CACHE-HYGIENE-01] {len(_stale_pred)} predicciones antiguas eliminadas de data/predictions/")
+            print(f"[CACHE-HYGIENE-01] {_count_pred} predicciones antiguas eliminadas de data/predictions/")
 
         # [FIX-BENCH-01] El dynamic_benchmark.json es un artefacto de la run anterior.
         # Con --nocache el modelo se reentrena desde cero (arquitectura o params distintos),
@@ -671,12 +694,13 @@ def main():
                     print(f"[*] Lanzando orquestador en modo FRESH RUN (sin --resume)...")
 
                 # [CACHE-INTEGRITY-01] Propagar --nocache al worker via CLI y env var
-                # Esto garantiza que el worker limpie su caché de seed aunque el orquestador
-                # ya haya eliminado wfb_cache/ a nivel global. La env var LUNA_NOCACHE=1
-                # es la señal canónica que el worker detecta aunque no reciba el arg CLI.
                 if args.nocache:
                     cmd.append("--nocache")
                     print(f"[CACHE-INTEGRITY-01] Propagando --nocache al worker para seed={seed}")
+                if getattr(args, "nocache_short", False):
+                    cmd.append("--nocache-short")
+                if getattr(args, "nocache_long", False):
+                    cmd.append("--nocache-long")
 
                  # [V2-FIX PROBLEMA 3] Propagar PYTHONPATH para garantizar que luna.* sea importable
                 _run_env = os.environ.copy()
@@ -691,6 +715,11 @@ def main():
                     _run_env["LUNA_NOCACHE"] = "1"
                 else:
                     _run_env.pop("LUNA_NOCACHE", None)  # Asegurar que no herede nocache de runs anteriores
+                
+                if getattr(args, "nocache_short", False):
+                    _run_env["LUNA_NOCACHE_SHORT"] = "1"
+                if getattr(args, "nocache_long", False):
+                    _run_env["LUNA_NOCACHE_LONG"] = "1"
                 # [SFICACHE-01] Propagar LUNA_SFICACHE para subprocesos anidados
                 if args.sficache:
                     _run_env["LUNA_SFICACHE"] = "1"
@@ -721,112 +750,137 @@ def main():
                 except Exception as _e_arch:
                     print(f"[AUDIT-#25] No se pudo crear data/runs/ canónico (no bloqueante): {_e_arch}")
     
-                process = subprocess.Popen(cmd, env=_run_env, cwd=str(_ROOT))
-    
-                # ── EARLY-STOP MONITOR MULTI-VENTANA ──────────────────────────
-                # Cada 2 minutos, detectamos si aparecio un nuevo parquet de ventana.
-                # En cuanto hay datos nuevos, evaluamos el early-stop acumulativo:
-                # el upper-bound optimista (ventanas restantes perfectas) debe
-                # superar al benchmark de seed777 * 0.95 para continuar.
-                windows_seen: set = set()
-                wfb_dir = _ROOT / "data" / "reports" / "wfb"
-    
-                while process.poll() is None:  # proceso todavia activo
-                    time.sleep(120)  # revisar cada 2 minutos
-    
-                    # Detectar ventanas nuevas (excepto la última, donde ya no tiene sentido podar)
-                    for w in range(1, _N_WINDOWS):
-                        if w in windows_seen:
-                            continue
-                        w_path = wfb_dir / f"oos_trades_W{w}_seed{seed}.parquet"
-                        if w_path.exists():
-                            # AUDIT BUG-EARLYSTOP-01: verificar rango de fechas antes de evaluar early-stop
-                            # Un parquet corrupto (de otra ventana/seed) puede tener trades validos
-                            # pero con timestamps incorrectos, causando poda erronea.
-                            _valid_parquet = True
-                            try:
-                                # O(1) lectura de schema para evitar leer la metadata completa dos veces
-                                _cols = pd.read_parquet(w_path, columns=[]).columns
-                                _target_col = ["timestamp"] if "timestamp" in _cols else []
-                                _df_es = pd.read_parquet(w_path, columns=_target_col)
-                                if len(_df_es) == 0:
-                                    _valid_parquet = False
-                                    print(f"[EARLY-STOP] W{w} parquet existe pero tiene 0 filas — ignorando.")
-                            except Exception as _e_es:
-                                _valid_parquet = False
-                                print(f"[EARLY-STOP] W{w} parquet no legible ({_e_es}) — ignorando.")
-    
-                            if _valid_parquet:
-                                windows_seen.add(w)
-                                print(f"\n[EARLY-STOP] W{w} detectada para seed{seed}. Evaluando early-stop acumulativo...")
+                # [DUAL-BOT-01] Leer direction_mode de settings para saber cuántas veces invocar al worker
+                try:
+                    from config.settings import cfg as _cfg_dir
+                    _dir_mode = str(_cfg_dir.fase2.direction_mode).lower()
+                except Exception as _e_dir:
+                    print(f"[DUAL-BOT-01] Aviso: No se pudo leer fase2.direction_mode de settings.yaml. Default=long. ({_e_dir})")
+                    _dir_mode = "long"
+                
+                _directions_to_run = ["long", "short"] if _dir_mode == "both" else [_dir_mode]
+                _iter_success = True
+                _iter_pruned = False
 
-                                # [PIPELINE-INTEGRITY] Post-window integrity check
-                                # Se ejecuta automaticamente al detectar cada nueva ventana
+                for _d_idx, _current_dir in enumerate(_directions_to_run):
+                    _iter_env = _run_env.copy()
+                    _iter_env["LUNA_DIRECTION"] = _current_dir
+                    
+                    print(f"\n[DUAL-BOT] Lanzando wfb_worker.py para seed={seed} direction={_current_dir.upper()} ({_d_idx+1}/{len(_directions_to_run)})")
+                    process = subprocess.Popen(cmd, env=_iter_env, cwd=str(_ROOT))
+        
+                    # ── EARLY-STOP MONITOR MULTI-VENTANA ──────────────────────────
+                    # Cada 2 minutos, detectamos si aparecio un nuevo parquet de ventana.
+                    # En cuanto hay datos nuevos, evaluamos el early-stop acumulativo:
+                    # el upper-bound optimista (ventanas restantes perfectas) debe
+                    # superar al benchmark de seed777 * 0.95 para continuar.
+                    windows_seen: set = set()
+                    wfb_dir = _ROOT / "data" / "reports" / "wfb"
+        
+                    while process.poll() is None:  # proceso todavia activo
+                        time.sleep(120)  # revisar cada 2 minutos
+        
+                        # Detectar ventanas nuevas (excepto la última, donde ya no tiene sentido podar)
+                        for w in range(1, _N_WINDOWS):
+                            if w in windows_seen:
+                                continue
+                            w_path = wfb_dir / f"oos_trades_W{w}_seed{seed}.parquet"
+                            if w_path.exists():
+                                # AUDIT BUG-EARLYSTOP-01: verificar rango de fechas antes de evaluar early-stop
+                                # Un parquet corrupto (de otra ventana/seed) puede tener trades validos
+                                # pero con timestamps incorrectos, causando poda erronea.
+                                _valid_parquet = True
                                 try:
-                                    from luna.pipeline_integrity import PipelineIntegrityChecker as _PIC
-                                    _trades_check = pd.read_parquet(w_path)
-                                    _window_label = f"W{w}_seed{seed}"
-                                    _pic_result = _PIC.post_window_check(_trades_check, _window_label)
-                                    if _pic_result.get("cal_bug") is True:
-                                        print(
-                                            f"[PIPELINE-INTEGRITY] *** ALERTA CRITICA {_window_label}: "
-                                            f"FIX-CALIB-BINARY-01 detectado. "
-                                            f"xgb_prob_cal==raw en 100%% trades. "
-                                            f"Resultados de esta ventana NO son fiables. ***"
-                                        )
-                                except Exception as _e_pic:
-                                    print(f"[PIPELINE-INTEGRITY] Error en post_window_check W{w}: {_e_pic}")
-
-                                should_stop, reason = _check_multi_window_early_stop(seed, sorted(windows_seen))
-                                if should_stop:
-                                    print(f"[EARLY-STOP] Terminando proceso seed{seed} (PID {process.pid})...")
-                                    _kill_process_tree(process.pid)
-
-                                    # [FIX-EARLYSTOP-MERGE-01 2026-06-03] Ejecutar merge_and_validate+Gauntlet
-                                    # para seeds podadas con N>=30 trades.
-                                    # ROOT CAUSE del bug documentado: early-stop mata el worker antes de
-                                    # merge_and_validate, dejando 0 evaluaciones del Gauntlet tras 8+ seeds.
-                                    # SOLUCION: relanzar wfb_worker con --merge-only inmediatamente tras el kill.
-                                    # El mode merge-only crea EMPTY.flags para ventanas no ejecutadas y
-                                    # llama merge_and_validate + Gauntlet sin adquirir lock ni backup.
-                                    print(f"[FIX-EARLYSTOP-MERGE-01] Evaluando si seed{seed} tiene N>=30 trades para Gauntlet...")
+                                    # O(1) lectura de schema para evitar leer la metadata completa dos veces
+                                    _cols = pd.read_parquet(w_path, columns=[]).columns
+                                    _target_col = ["timestamp"] if "timestamp" in _cols else []
+                                    _df_es = pd.read_parquet(w_path, columns=_target_col)
+                                    if len(_df_es) == 0:
+                                        _valid_parquet = False
+                                        print(f"[EARLY-STOP] W{w} parquet existe pero tiene 0 filas — ignorando.")
+                                except Exception as _e_es:
+                                    _valid_parquet = False
+                                    print(f"[EARLY-STOP] W{w} parquet no legible ({_e_es}) — ignorando.")
+        
+                                if _valid_parquet:
+                                    windows_seen.add(w)
+                                    print(f"\n[EARLY-STOP] W{w} detectada para seed{seed}. Evaluando early-stop acumulativo...")
+    
+                                    # [PIPELINE-INTEGRITY] Post-window integrity check
+                                    # Se ejecuta automaticamente al detectar cada nueva ventana
                                     try:
-                                        _prune_score = _compute_partial_score(seed, sorted(windows_seen))
-                                        _n_prune = _prune_score.get("n_trades_seen", 0)
-                                        print(f"[FIX-EARLYSTOP-MERGE-01] seed{seed} podada con {_n_prune} trades en W{sorted(windows_seen)}.")
-                                        if _n_prune >= 30:
-                                            print(f"[FIX-EARLYSTOP-MERGE-01] N={_n_prune} >= 30 — activando merge_and_validate+Gauntlet para seed{seed}...")
-                                            _merge_cmd_es = [sys.executable, "scripts/wfb_worker.py",
-                                                             "--seed", str(seed), "--merge-only"]
-                                            print(f"[FIX-EARLYSTOP-MERGE-01] Comando: {' '.join(_merge_cmd_es)}")
-                                            try:
-                                                _merge_r_es = subprocess.run(
-                                                    _merge_cmd_es, env=_run_env, cwd=str(_ROOT), timeout=300
-                                                )
-                                                print(f"[FIX-EARLYSTOP-MERGE-01] merge_and_validate exit={_merge_r_es.returncode} para seed{seed}.")
-                                            except subprocess.TimeoutExpired:
-                                                print(f"[FIX-EARLYSTOP-MERGE-01] TIMEOUT (300s) merge_and_validate seed{seed} — continuando.")
-                                            except Exception as _e_merge_es:
-                                                print(f"[FIX-EARLYSTOP-MERGE-01] ERROR merge_and_validate seed{seed}: {_e_merge_es} — continuando.")
-                                        else:
-                                            print(f"[FIX-EARLYSTOP-MERGE-01] N={_n_prune} < 30 — muestra insuficiente, Gauntlet no aplica.")
-                                    except Exception as _e_prune_score:
-                                        print(f"[FIX-EARLYSTOP-MERGE-01] ERROR evaluando trades para seed{seed}: {_e_prune_score}")
+                                        from luna.pipeline_integrity import PipelineIntegrityChecker as _PIC
+                                        _trades_check = pd.read_parquet(w_path)
+                                        _window_label = f"W{w}_seed{seed}"
+                                        _pic_result = _PIC.post_window_check(_trades_check, _window_label)
+                                        if _pic_result.get("cal_bug") is True:
+                                            print(
+                                                f"[PIPELINE-INTEGRITY] *** ALERTA CRITICA {_window_label}: "
+                                                f"FIX-CALIB-BINARY-01 detectado. "
+                                                f"xgb_prob_cal==raw en 100%% trades. "
+                                                f"Resultados de esta ventana NO son fiables. ***"
+                                            )
+                                    except Exception as _e_pic:
+                                        print(f"[PIPELINE-INTEGRITY] Error en post_window_check W{w}: {_e_pic}")
+    
+                                    should_stop, reason = _check_multi_window_early_stop(seed, sorted(windows_seen))
+                                    if should_stop:
+                                        print(f"[EARLY-STOP] Terminando proceso seed{seed} (PID {process.pid})...")
+                                        _kill_process_tree(process.pid)
+    
+                                        # [FIX-EARLYSTOP-MERGE-01 2026-06-03] Ejecutar merge_and_validate+Gauntlet
+                                        # para seeds podadas con N>=30 trades.
+                                        # ROOT CAUSE del bug documentado: early-stop mata el worker antes de
+                                        # merge_and_validate, dejando 0 evaluaciones del Gauntlet tras 8+ seeds.
+                                        # SOLUCION: relanzar wfb_worker con --merge-only inmediatamente tras el kill.
+                                        # El mode merge-only crea EMPTY.flags para ventanas no ejecutadas y
+                                        # llama merge_and_validate + Gauntlet sin adquirir lock ni backup.
+                                        print(f"[FIX-EARLYSTOP-MERGE-01] Evaluando si seed{seed} tiene N>=30 trades para Gauntlet...")
+                                        try:
+                                            _prune_score = _compute_partial_score(seed, sorted(windows_seen))
+                                            _n_prune = _prune_score.get("n_trades_seen", 0)
+                                            print(f"[FIX-EARLYSTOP-MERGE-01] seed{seed} podada con {_n_prune} trades en W{sorted(windows_seen)}.")
+                                            if _n_prune >= 30:
+                                                print(f"[FIX-EARLYSTOP-MERGE-01] N={_n_prune} >= 30 — activando merge_and_validate+Gauntlet para seed{seed}...")
+                                                _merge_cmd_es = [sys.executable, "scripts/wfb_worker.py",
+                                                                 "--seed", str(seed), "--merge-only"]
+                                                print(f"[FIX-EARLYSTOP-MERGE-01] Comando: {' '.join(_merge_cmd_es)}")
+                                                try:
+                                                    _merge_r_es = subprocess.run(
+                                                        _merge_cmd_es, env=_run_env, cwd=str(_ROOT), timeout=300
+                                                    )
+                                                    print(f"[FIX-EARLYSTOP-MERGE-01] merge_and_validate exit={_merge_r_es.returncode} para seed{seed}.")
+                                                except subprocess.TimeoutExpired:
+                                                    print(f"[FIX-EARLYSTOP-MERGE-01] TIMEOUT (300s) merge_and_validate seed{seed} — continuando.")
+                                                except Exception as _e_merge_es:
+                                                    print(f"[FIX-EARLYSTOP-MERGE-01] ERROR merge_and_validate seed{seed}: {_e_merge_es} — continuando.")
+                                            else:
+                                                print(f"[FIX-EARLYSTOP-MERGE-01] N={_n_prune} < 30 — muestra insuficiente, Gauntlet no aplica.")
+                                        except Exception as _e_prune_score:
+                                            print(f"[FIX-EARLYSTOP-MERGE-01] ERROR evaluando trades para seed{seed}: {_e_prune_score}")
 
-                                    pruned = True
-                                    prune_log = wfb_dir / f"early_stop_seed{seed}.json"
-                                    with open(prune_log, "w", encoding="utf-8") as flog:
-                                        json.dump({"seed": seed, "reason": reason,
+                                        _iter_pruned = True
+                                        prune_log = wfb_dir / f"early_stop_seed{seed}.json"
+                                        with open(prune_log, "w", encoding="utf-8") as flog:
+                                            json.dump({"seed": seed, "reason": reason,
                                                    "pruned": True,
                                                    "windows_evaluated": sorted(windows_seen)},
                                                   flog, indent=2)
                                     break
-    
-                    if pruned:
+                    if _iter_pruned:
                         break  # salir del while
-    
+
+                if process.returncode != 0:
+                    _iter_success = False
+                    print(f"🔴 Fallo worker seed {seed} dir {_current_dir.upper()} con código {process.returncode}")
+                    break # No lanzar la siguiente direccion si fallo
+                    
+                pruned = _iter_pruned
                 if pruned:
-                    # [FIX-EARLYSTOP-COUNTING-01] Comprobar si la semilla "podada" fue aprobada por el Gauntlet
+                    break # Salir de iteraciones de direccion
+
+                if pruned:
+                # [FIX-EARLYSTOP-COUNTING-01] Comprobar si la semilla "podada" fue aprobada por el Gauntlet
                     # gracias al merge_and_validate post-mortem (N >= 30)
                     _deploy_approved_post_mortem = False
                     try:
@@ -1014,9 +1068,6 @@ def main():
     # FLUJO:
     #   1. _prep_ensemble_eval(): copia trades a data/reports/wfb/ y actualiza
     #      active_seeds temporalmente con todas las seeds completadas.
-    #   2. evaluate_ensemble_wfb.py: aplica consenso gate, soft embargo y gauntlet
-    #      ensemble. Restaura active_seeds al finalizar.
-    # ═══════════════════════════════════════════════════════════════════════
     print("\n" + "=" * 60)
     print(f"[AUTO-ENSEMBLE-02] Iniciando Fase 2: Gauntlet Ensemble Global...")
     print(f"[AUTO-ENSEMBLE-02] Seeds completadas: {len(complete_seeds)} | Aprobadas individualmente: {_approved_seeds_count}")
@@ -1044,68 +1095,78 @@ def main():
         try:
             ensemble_required_windows = int(_cfg_ens.get("wfb", {}).get("ensemble_required_windows"))
             print(f"[ENSEMBLE-WINDOWS-FIX] Ventanas requeridas leídas en orquestador: {ensemble_required_windows}")
+            
+            for _d in _directions_to_run:
+                print(f"\n[AUTO-ENSEMBLE-02] Preparando Ensemble para direction={_d.upper()}...")
+                # Mapear seed -> run_dir más reciente y filtrar por número de ventanas completadas
+                _seed_run_map = {}
+                for _run_dir in sorted(_RUNS_DIR.glob("WFB_*"), reverse=True):
+                    if "_seed" not in _run_dir.name:
+                        continue
+                    try:
+                        import re as _re_map
+                        _m = _re_map.search(r"_seed(\d+)", _run_dir.name)
+                        if not _m: continue
+                        _s = int(_m.group(1))
+                        
+                        if _s in complete_seeds and _s not in _seed_run_map:
+                            # Validar cuántas ventanas completó realmente para esta dirección
+                            completed_windows_count = 0
+                            for w_idx in range(1, ensemble_required_windows + 1):
+                                p_file = _WFB_OUT / f"oos_trades_W{w_idx}_seed{_s}_{_d}.parquet"
+                                f_file = _WFB_OUT / f"oos_trades_W{w_idx}_seed{_s}_{_d}_EMPTY.flag"
+                                if p_file.exists() or f_file.exists():
+                                    completed_windows_count += 1
+                            
+                            if completed_windows_count == ensemble_required_windows:
+                                _seed_run_map[_s] = _run_dir
+                                print(f"[ENSEMBLE-WINDOWS-FIX] Seed {_s} pasa filtro en orquestador ({completed_windows_count}/{ensemble_required_windows} ventanas).")
+                            else:
+                                print(f"[ENSEMBLE-WINDOWS-FIX] Seed {_s} EXCLUIDA en orquestador ({completed_windows_count}/{ensemble_required_windows} ventanas).")
+                    except Exception as _e_map:
+                        print(f"[ENSEMBLE-WINDOWS-FIX] Error filtrando seed {_run_dir.name}: {_e_map}")
+
+                print(f"[AUTO-ENSEMBLE-02] Utilizando {len(_seed_run_map)} seeds completadas para el evaluador del ensemble ({_d.upper()}).")
+
+                _new_active_seeds = sorted(_seed_run_map.keys())
+                _cfg_ens["wfb"]["active_seeds"] = _new_active_seeds
+                _settings_path.write_text(
+                    _yaml_ens.dump(_cfg_ens, default_flow_style=False, allow_unicode=True, sort_keys=False),
+                    encoding="utf-8"
+                )
+                print(f"[AUTO-ENSEMBLE-02] active_seeds actualizado: {_old_active_seeds} -> {_new_active_seeds}")
+
+                # --- PASO 2: Ejecutar evaluate_ensemble_wfb.py ---
+                _ensemble_eval_script = _ROOT / "scripts" / "evaluate_ensemble_wfb.py"
+                if not _ensemble_eval_script.exists():
+                    print(f"[AUTO-ENSEMBLE-02] ERROR: No se encontró {_ensemble_eval_script}.")
+                else:
+                    try:
+                        _ens_result = subprocess.run(
+                            [sys.executable, str(_ensemble_eval_script)],
+                            cwd=str(_ROOT),
+                            stdout=None,
+                            stderr=None,
+                            env={**os.environ,
+                                 "LUNA_RUN_ID": f"ensemble_auto_N{len(complete_seeds)}_{_d}",
+                                 "LUNA_DIRECTION": _d},
+                        )
+                        if _ens_result.returncode == 0:
+                            print(f"\n[AUTO-ENSEMBLE-02] ✓ Gauntlet Ensemble ({_d.upper()}) completado exitosamente.")
+                            print(f"[AUTO-ENSEMBLE-02] Veredicto: data/reports/wfb/ensemble_statistical_verdict_{_d}.json")
+                            print(f"[AUTO-ENSEMBLE-02] Tearsheet: data/reports/wfb/wfb_ensemble_tearsheet_summary_{_d}.md")
+                        else:
+                            print(f"\n[AUTO-ENSEMBLE-02] ❌ evaluate_ensemble_wfb.py terminó con código {_ens_result.returncode}.")
+                            print("[AUTO-ENSEMBLE-02] Revisar logs. Re-ejecutar manualmente si es necesario.")
+                    except Exception as _ens_err:
+                        print(f"[AUTO-ENSEMBLE-02] ERROR no bloqueante: {_ens_err}")
+                
         except Exception as e_req_win:
             err_msg = f"CRITICAL [ENSEMBLE-WINDOWS-FIX]: Falta wfb.ensemble_required_windows en settings.yaml. Política No-Fallback activa. Error: {e_req_win}"
             print(err_msg)
             raise KeyError(err_msg) from e_req_win
 
-        # Mapear seed → run_dir más reciente y filtrar por número de ventanas completadas
-        _seed_run_map = {}
-        for _run_dir in sorted(_RUNS_DIR.glob("WFB_*"), reverse=True):
-            if "_seed" not in _run_dir.name:
-                continue
-            try:
-                _s = int(_run_dir.name.split("_seed")[-1])
-                if _s in complete_seeds and _s not in _seed_run_map:
-                    # Validar cuántas ventanas completó realmente
-                    completed_windows_count = 0
-                    for w_idx in range(1, ensemble_required_windows + 1):
-                        p_file = _WFB_OUT / f"oos_trades_W{w_idx}_seed{_s}.parquet"
-                        f_file = _WFB_OUT / f"oos_trades_W{w_idx}_seed{_s}_EMPTY.flag"
-                        if p_file.exists() or f_file.exists():
-                            completed_windows_count += 1
-                    
-                    if completed_windows_count == ensemble_required_windows:
-                        _seed_run_map[_s] = _run_dir
-                        print(f"[ENSEMBLE-WINDOWS-FIX] Seed {_s} pasa filtro en orquestador ({completed_windows_count}/{ensemble_required_windows} ventanas).")
-                    else:
-                        print(f"[ENSEMBLE-WINDOWS-FIX] Seed {_s} EXCLUIDA en orquestador ({completed_windows_count}/{ensemble_required_windows} ventanas).")
-            except Exception as _e_map:
-                print(f"[ENSEMBLE-WINDOWS-FIX] Error filtrando seed {_run_dir.name}: {_e_map}")
 
-        print(f"[AUTO-ENSEMBLE-02] Utilizando {len(_seed_run_map)} seeds completadas para el evaluador del ensemble.")  # RULE[fixbugsprints.md]
-
-        _new_active_seeds = sorted(_seed_run_map.keys())
-        _cfg_ens["wfb"]["active_seeds"] = _new_active_seeds
-        _settings_path.write_text(
-            _yaml_ens.dump(_cfg_ens, default_flow_style=False, allow_unicode=True, sort_keys=False),
-            encoding="utf-8"
-        )
-        print(f"[AUTO-ENSEMBLE-02] active_seeds actualizado: {_old_active_seeds} → {_new_active_seeds}")  # RULE[fixbugsprints.md]
-
-        # --- PASO 2: Ejecutar evaluate_ensemble_wfb.py ---
-        _ensemble_eval_script = _ROOT / "scripts" / "evaluate_ensemble_wfb.py"
-        if not _ensemble_eval_script.exists():
-            print(f"[AUTO-ENSEMBLE-02] ERROR: No se encontró {_ensemble_eval_script}.")
-        else:
-            try:
-                _ens_result = subprocess.run(
-                    [sys.executable, str(_ensemble_eval_script)],
-                    cwd=str(_ROOT),
-                    stdout=None,
-                    stderr=None,
-                    env={**os.environ,
-                         "LUNA_RUN_ID": f"ensemble_auto_N{len(complete_seeds)}"},
-                )
-                if _ens_result.returncode == 0:
-                    print("\n[AUTO-ENSEMBLE-02] ✅ Gauntlet Ensemble completado exitosamente.")
-                    print("[AUTO-ENSEMBLE-02] Veredicto: data/reports/wfb/ensemble_statistical_verdict.json")
-                    print("[AUTO-ENSEMBLE-02] Tearsheet: data/reports/wfb/wfb_ensemble_tearsheet_summary.md")
-                else:
-                    print(f"\n[AUTO-ENSEMBLE-02] ⚠️ evaluate_ensemble_wfb.py terminó con código {_ens_result.returncode}.")
-                    print("[AUTO-ENSEMBLE-02] Revisar logs. Re-ejecutar manualmente si es necesario.")
-            except Exception as _ens_err:
-                print(f"[AUTO-ENSEMBLE-02] ERROR no bloqueante: {_ens_err}")  # RULE[fixbugsprints.md]
 
         # --- PASO 3: Restaurar active_seeds originales ---
         try:

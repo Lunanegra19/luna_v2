@@ -736,7 +736,7 @@ class SignalFilter:
                         
                         ae_model = DenoisingAutoEncoder(input_dim=len(ae_features), latent_dim=ae_cfg["latent_dim"])
                         ae_model.eval()
-                        ae_model.load_state_dict(torch.load(autoencoder_state_path, map_location="cpu", weights_only=True))
+                        ae_model.load_state_dict(torch.load(autoencoder_state_path, map_location="cpu", weights_only=False))
                         
                         latent_tensor = ae_model.encode(torch.tensor(X_ae_scaled, dtype=torch.float32)).numpy()
                         for idx in range(latent_tensor.shape[1]):
@@ -1502,8 +1502,12 @@ class SignalFilter:
 
             if _hmm_allowed_labels:
                 if direction == "short":
-                    # [FIX-4] Bloqueo asimétrico TOTAL para SHORT como medida de contención
-                    _hmm_allowed_labels = []
+                    # [SHORT-VIABILITY-TEST-01 2026-06-22] Bloqueo FIX-4 desactivado temporalmente
+                    # para el test de viabilidad del escuadrón Short.
+                    # ORIGINAL (rollback): _hmm_allowed_labels = []
+                    # Rollback cmd: git checkout 977413e -- luna/models/signal_filter.py
+                    print(f"[SHORT-VIABILITY-TEST-01] FIX-4 desactivado. HMM gate SHORT activo con regímenes: {_hmm_allowed_labels}")
+                    # pass — permitir _hmm_allowed_labels tal como fue construido dinámicamente
                 # FIX-MULTI-AGENT-01: Se elimina el bloqueo hardcodeado "if BEAR not in lbl" para direction=="long".
                 # En la arquitectura Multi-Agente actual, el Agente BEAR se especializa precisamente en posiciones
                 # LONG durante mercados bajistas. Bloquearlas aquí provocaba el error de "0 trades" OOS en ventanas bajistas.
@@ -2149,7 +2153,7 @@ class SignalFilter:
         self.funnel_stats["filter_fallback_level"] = self.filter_fallback_level
         return signal_mask
 
-    def apply_embargo(self, df_oos: pd.DataFrame, signal_mask: pd.Series) -> pd.DatetimeIndex:
+    def apply_embargo(self, df_oos: pd.DataFrame, signal_mask: pd.Series, update_stats: bool = True) -> pd.DatetimeIndex:
         """Aplica embargo dinámico por régimen HMM a las señales OOS.
         
         Sustituye la mecánica DVOL estática/adaptativa previa.
@@ -2328,7 +2332,8 @@ class SignalFilter:
                 _last_signal_time = _t
 
         signal_times = pd.DatetimeIndex(_selected)
-        self.funnel_stats["after_embargo"] = len(signal_times)
+        if update_stats:
+            self.funnel_stats["after_embargo"] = len(signal_times)
         _mode_label = f"BAJA_DENSIDAD({_MIN_EMBARGO_H}H)" if _density_mode_active else "DINAMICO(72-168H)"
         print(
             f"[FIX-EMBARGO-01] Embargo [{_mode_label}]: {_n_candidates} candidatos -> "

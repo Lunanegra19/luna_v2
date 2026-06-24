@@ -2309,11 +2309,39 @@ class FeaturePipeline:
         try:
             sf_path = _ROOT / "data" / "features" / "selected_features.json"
             parquet_path = _ROOT / "data" / "features" / "features_train.parquet"
+            _req = set()
+            
+            # [FIX-ENSEMBLE-FEATURES] El ensemble en produccion carga N semillas,
+            # cada una con sus propias features. selected_features.json es local y puede
+            # no contener la union. Escaneamos todas las signatures para garantizar.
+            import glob as _glob_lag
+            import json as _json_lag
+            import os as _os_lag
+            
+            _prod_sigs = _glob_lag.glob(str(_ROOT / "data" / "models" / "prod" / "seed*" / "*signature.json"))
+            for _sig_file in _prod_sigs:
+                try:
+                    with open(_sig_file, "r") as _sf:
+                        _sig_data = _json_lag.load(_sf)
+                        if "features" in _sig_data:
+                            _req.update(_sig_data["features"])
+                except Exception:
+                    pass
+                    
+            # Tambien soportar la estructura de data/runs (local wfb test)
+            _wfb_sigs = _glob_lag.glob(str(_ROOT / "data" / "runs" / "WFB_*" / "models" / "*signature.json"))
+            for _sig_file in _wfb_sigs:
+                try:
+                    with open(_sig_file, "r") as _sf:
+                        _sig_data = _json_lag.load(_sf)
+                        if "features" in _sig_data:
+                            _req.update(_sig_data["features"])
+                except Exception:
+                    pass
+
+            # Si existiera selected_features.json, lo agregamos como baseline
             if sf_path.exists():
-                import json as _json_lag, os as _os_lag
-                # [FIX-SCHEMA-01] Detectar artefacto obsoleto: si el parquet es mas reciente
-                # que el selected_features.json, el JSON es de un run anterior y sus lags
-                # podrian referirse a features que ya no existen en el parquet actual.
+                # [FIX-SCHEMA-01] Detectar artefacto obsoleto
                 if parquet_path.exists():
                     _sf_mtime   = _os_lag.path.getmtime(sf_path)
                     _pqt_mtime  = _os_lag.path.getmtime(parquet_path)
@@ -2321,17 +2349,13 @@ class FeaturePipeline:
                         import datetime as _dt_lag
                         _sf_age  = _dt_lag.datetime.fromtimestamp(_sf_mtime).strftime('%Y-%m-%d %H:%M')
                         _pqt_age = _dt_lag.datetime.fromtimestamp(_pqt_mtime).strftime('%Y-%m-%d %H:%M')
-                        logger.warning(
-                            f"[FIX-SCHEMA-01] selected_features.json ({_sf_age}) es MAS ANTIGUO "
-                            f"que features_train.parquet ({_pqt_age}). "
-                            f"Los lags del JSON pueden no existir en el parquet actual. "
-                            f"Esto se resolvera automaticamente cuando el SFI actual complete y "
-                            f"genere un nuevo selected_features.json para esta ventana."
-                        )
-                        print(f"[FP][WARN][FIX-SCHEMA-01] selected_features.json obsoleto -- los lags dinamicos se omiten hasta que el SFI regenere el JSON.")
+                        logger.warning(f"[FIX-SCHEMA-01] selected_features.json ({_sf_age}) es MAS ANTIGUO que features_train.parquet ({_pqt_age}).")
+                        
                 with open(sf_path, "r") as f:
                     _d = _json_lag.load(f)
-                    _req = _d.get("selected_features", []) + _d.get("pass_through_features", [])
+                    _req.update(_d.get("selected_features", []) + _d.get("pass_through_features", []))
+                    
+            if _req:
                 _lags_inyectados = 0
                 _lags_fallidos   = []
                 for col in _req:

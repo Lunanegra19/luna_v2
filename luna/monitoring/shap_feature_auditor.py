@@ -186,10 +186,10 @@ def _extract_importance_by_category(
     result = {}
 
     for sig in signatures:
-        agent = sig._agent
+        agent = sig.get("_agent")
         fi_dict = sig.get(fi_key, {})
-        selected_feats = sig.features
-        dsr = sig.dsr_oos)
+        selected_feats = sig.get("features", [])
+        dsr = sig.get("dsr_oos", np.nan)
 
         if not fi_dict:
             continue

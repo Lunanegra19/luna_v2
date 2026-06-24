@@ -680,12 +680,18 @@ class LunaPipelineExecutor:
         # 1. Fechas temporales completas desde settings.yaml
         try:
             import yaml as _yaml
+            import os
             with open(_SETTINGS_PATH, "r", encoding="utf-8") as _f:
                 _cfg = _yaml.safe_load(_f)
             _ts = _cfg.get("temporal_splits", {})
             for key in ["train_end", "validation_start", "validation_end",
                         "holdout_start", "holdout_end", "hmm_train_end"]:
                 parts.append(f"{key}={str(_ts.get(key, ''))}")
+            
+            # [DUAL-BOT-SFI-FIX] Incluir la dirección para bifurcar la caché SFI entre Long/Short
+            _dir = os.environ.get("LUNA_DIRECTION", "long").lower()
+            parts.append(f"direction={_dir}")
+            
         except Exception as _e:
             logger.debug(f"[SFI-FP] No se pudieron leer fechas: {_e}")
             parts.append("dates=unknown")

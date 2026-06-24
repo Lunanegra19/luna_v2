@@ -870,7 +870,7 @@ class MetaLabelerV2:
                         input_dim=saved_input_dim, hidden_dim=config["lstm_hidden"]
                     )
                 _lstm_extr.load_state_dict(
-                    torch.load(lstm_path, weights_only=True)
+                    torch.load(lstm_path, weights_only=False)
                 )
                 obj._lstm_extractor = _lstm_extr
                 obj.extractor = obj._lstm_extractor  # usar LSTM legacy

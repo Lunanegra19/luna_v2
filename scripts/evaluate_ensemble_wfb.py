@@ -8,6 +8,7 @@ Combina las probabilidades Soft Voting de las diferentes semillas y genera un Te
 """
 
 import os
+import re
 import json
 import sys
 import numpy as np
@@ -78,11 +79,12 @@ def main():
     # 1. Las probabilidades de Soft Voting se agregarán MÁS ADELANTE,
     # solo con las semillas que sobrevivan la poda de Sharpe (H1).
 
-
     # 2. Recopilar y evaluar trades por semilla y agregados
-    trade_files = list(predictions_dir.glob("oos_trades_seed*.parquet"))
+    _direction = os.environ.get("LUNA_DIRECTION", "").lower()
+    _pattern = f"oos_trades_seed*_{_direction}.parquet" if _direction else "oos_trades_seed*.parquet"
+    trade_files = list(predictions_dir.glob(_pattern))
     if not trade_files:
-        print("[FIX-ENSEMBLE-EVAL] ERROR: No se encontraron archivos de trades 'oos_trades_seed*.parquet' en " + str(predictions_dir))
+        print(f"[FIX-ENSEMBLE-EVAL] ERROR: No se encontraron archivos de trades '{_pattern}' en " + str(predictions_dir))
         logger.error("[FIX-ENSEMBLE-EVAL] No hay parquets de trades para evaluar.")
         return 1
         
@@ -90,9 +92,9 @@ def main():
     filtered_trade_files = []
     for f in trade_files:
         try:
-            parts = f.stem.split("_seed")
-            if len(parts) == 2:
-                seed = int(parts[1])
+            m = re.search(r"_seed(\d+)", f.stem)
+            if m:
+                seed = int(m.group(1))
                 if seed in active_seeds:
                     filtered_trade_files.append(f)
         except Exception:
@@ -234,12 +236,18 @@ def main():
 
         if voting_method == 'hard':
             try:
-                threshold = int(_cfg.wfb.ensemble_consensus_threshold)
+                # [DUAL-CONSENSUS-FIX 2026-06-22] Umbral dinámico asimétrico
+                _is_short = ('direction' in df_all_trades.columns) and len(df_all_trades) > 0 and (df_all_trades['direction'].iloc[0] == 'short')
+                if _is_short:
+                    threshold = int(_cfg.wfb.ensemble_consensus_threshold_short)
+                else:
+                    threshold = int(_cfg.wfb.ensemble_consensus_threshold)
+                    
                 _bucket_hours = int(_cfg.wfb.consensus_bucket_hours)
                 _bucket_freq = f'{_bucket_hours}h'
-                print(f"[HARD-VOTING] Consensus Gate >= {threshold} semillas. Bucket: {_bucket_hours}H.")
+                print(f"[HARD-VOTING] Consensus Gate >= {threshold} semillas ({'SHORT' if _is_short else 'LONG'}). Bucket: {_bucket_hours}H.")
             except Exception as e:
-                raise RuntimeError(f"Faltan parámetros de Hard Voting en settings.yaml: {e}")
+                raise RuntimeError(f"CRITICAL [DUAL-CONSENSUS-FIX]: Faltan parámetros de Hard Voting en settings.yaml. Política No-Fallback: {e}")
                 
             df_all_trades['consensus_bucket'] = df_all_trades.index.floor(_bucket_freq)
             bucket_unique_seeds = df_all_trades.groupby('consensus_bucket')['seed'].nunique().rename('consensus_count')
@@ -510,7 +518,8 @@ def main():
         #  - DSR corregido por N_seeds (R5 Multiple Testing Correction)
         # ═══════════════════════════════════════════════════════════════════════
         report_dir_ens = _ROOT / "data" / "reports"
-        ensemble_verdict_path = report_dir_ens / "ensemble_statistical_verdict.json"
+        _dir_suffix = f"_{_direction}" if _direction else ""
+        ensemble_verdict_path = report_dir_ens / f"wfb/ensemble_statistical_verdict{_dir_suffix}.json"
         _ensemble_approved = False
         _ens_verdict = {}
 
@@ -789,8 +798,8 @@ def main():
     print(report_content)
     print("="*80 + "\n")
     
-    # Escribir reporte Markdown a disco
-    report_out_path = wfb_out_dir / "wfb_ensemble_tearsheet_summary.md"
+    _dir_suffix = f"_{_direction}" if _direction else ""
+    report_out_path = wfb_out_dir / f"wfb_ensemble_tearsheet_summary{_dir_suffix}.md"
     report_out_path.write_text(report_content, encoding="utf-8")
     print(f"[FIX-ENSEMBLE-EVAL] Tearsheet summary guardado exitosamente en {report_out_path}")
     logger.success(f"[FIX-ENSEMBLE-EVAL] Tearsheet guardado en {report_out_path.name}")

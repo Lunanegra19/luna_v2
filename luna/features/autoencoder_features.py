@@ -141,7 +141,7 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
                         logger.warning(f"[LIVE-AE-FIX] CUDA test failed: {e}. Fallback to CPU.")
                         device_loaded = torch.device('cpu')
                         
-                autoencoder_state = torch.load(state_path, map_location=device_loaded, weights_only=True)
+                autoencoder_state = torch.load(state_path, map_location=device_loaded, weights_only=False)
                 
                 # Extraemos la arquitectura directamente del checkpoint
                 h1_st = autoencoder_state['encoder.1.weight'].shape[0] if 'encoder.1.weight' in autoencoder_state else len(feature_cols_loaded) // 2
@@ -385,7 +385,7 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
             prev_model_path = root_dir / "data" / "wfb_cache" / prev_window / "models" / "autoencoder_state.pt"
             if prev_model_path.exists():
                 try:
-                    autoencoder.load_state_dict(torch.load(prev_model_path, map_location=device, weights_only=True))
+                    autoencoder.load_state_dict(torch.load(prev_model_path, map_location=device, weights_only=False))
                     logger.info(f"[AE-WARM-START] Pesos inyectados desde {prev_window}. Mutación del espacio latente mitigada.")
                 except Exception as e:
                     logger.warning(f"[AE-WARM-START] Fallo al inyectar pesos previos: {e}")

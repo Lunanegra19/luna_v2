@@ -977,17 +977,13 @@ class OOSTradesGenerator:
 
         df_oos_base = df_oos.copy()
         all_xgb_baseline_records = []
-        try:
-            from config.settings import cfg as _cfg_dir
-            _dmode = str(_cfg_dir.fase2.direction_mode)
-            if _dmode == "both":
-                directions_to_run = ["long", "short"]
-            elif isinstance(_dmode, list):
-                directions_to_run = _dmode
-            else:
-                directions_to_run = [_dmode]
-        except Exception:
-            directions_to_run = ["long", "short"] if use_regime else ["long"]
+        import os
+        _luna_dir_env = os.environ.get("LUNA_DIRECTION", "").lower().strip()
+        if _luna_dir_env in ["long", "short"]:
+            directions_to_run = [_luna_dir_env]
+        else:
+            directions_to_run = ["long"]  # Fallback si se corre manual sin LUNA_DIRECTION
+
         all_trade_records = []
 
         # [V2-P3-DRIFT] PSI Monitor — Covariate Shift Detection
@@ -1915,7 +1911,7 @@ class OOSTradesGenerator:
             # ---> RESEARCH: XGBoost Only (Pre-MetaLabeler Baseline)
             try:
                 logger.info(f"  [RESEARCH] Generando baseline XGBoost Puro (Sin MetaLabeler) para {_direct}...")
-                xgb_times = signal_pipeline.apply_embargo(df_oos_iter, signal_pipeline.last_xgb_mask)
+                xgb_times = signal_pipeline.apply_embargo(df_oos_iter, signal_pipeline.last_xgb_mask, update_stats=False)
                 if len(xgb_times) > 0:
                     tbm_xgb = apply_triple_barrier(
                         price_series=df_oos_iter["close"],

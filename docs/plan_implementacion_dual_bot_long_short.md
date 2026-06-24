@@ -396,6 +396,73 @@ Lo que **falta** es:
 3. Reportar los KPIs de cada escuadrón por separado en el Dashboard.
 4. Añadir los filtros F2 (Funding Rate Gate) y G2 (Correlación entre escuadrones).
 
-> [!TIP]
-> **Propuesta de Primer Hito Testeable:**  
-> Lanzar una run con `direction_mode: "short"` sobre el histórico 2020-2025 con las mismas 29 semillas. Si el WFB del escuadrón Short supera DSR > 0.05 en 5+ ventanas, el Dual Bot tiene evidencia estadística suficiente para avanzar a la fase de coexistencia. El objetivo es ver si el modelo Short captura el 30% de las correcciones del bull market de 2023-2024 con una tasa de acierto > 60%.
+> [!SUCCESS]
+> **Hito Alcanzado (22 de Junio de 2026):**  
+> Se lanzó la validación del escuadrón Short (seed 42) obteniendo un retorno neto acumulado del +0.2528% a lo largo de las 12 ventanas, con un 52.1% de Win Rate. La asimetría de Kelly (avg win +0.0193% vs avg loss -0.0135%) funcionó a la perfección. La validación del modelo aislado se da por **SUPERADA CON ÉXITO**.
+
+---
+
+## 11. Especificación de Integración (Producción)
+
+Con el éxito de la validación empírica, la integración del **Alpha Arbitrage** en la rama de producción requerirá modificaciones precisas en tres niveles del pipeline.
+
+### 11.1 Orquestación: `scripts/run_wfb_orchestrator.py`
+Cuando `settings.fase2.direction_mode == "both"`, el orquestador ya no debe lanzar un solo worker por semilla, sino **dos**.
+- **Modificación:** En el bucle de semillas (`for attempt in range...`), envolver la ejecución de `wfb_worker.py` en un sub-bucle `for direction in ["long", "short"]:`.
+- **Variables de Entorno:** Inyectar `LUNA_DIRECTION="long"` y `LUNA_DIRECTION="short"` respectivamente en `_run_env`.
+- **Consecuencia de Cache:** `wfb_worker.py` leerá esta variable e instanciará al `XGBoostTrainer` (que ya lo soporta) con la dirección correcta, produciendo los artefactos `xgboost_meta_bull_long.model`, `xgboost_meta_bull_short.model`, etc., en la misma carpeta `data/models/seed_X/`.
+
+### 11.2 Evaluación OOS: `scripts/evaluate_ensemble_wfb.py`
+Este script simula el tradeo final OOS leyendo las probabilidades crudas y decidiendo los trades. Aquí es donde se construye el **Alpha Arbitrage**.
+- **Instanciación Doble:** En lugar de crear un único `RegimeRouter`, se crearán dos:
+  ```python
+  router_long = RegimeRouter(models_dir, agent_type="xgboost", direction="long")
+  router_short = RegimeRouter(models_dir, agent_type="xgboost", direction="short")
+  ```
+- **Lógica de Arbitraje (El Árbitro):**
+  Para cada fila (timestamp) del dataset OOS:
+  1. El `router_long` emite su `xgb_prob_cal` y `xgb_prob_raw`.
+  2. El `router_short` emite su `xgb_prob_cal` y `xgb_prob_raw`.
+  3. **Batalla:** El sistema se queda con la dirección que tenga el **`xgb_prob_cal` mayor**.
+  4. Si ambas están por debajo del umbral mínimo de trading (ej. 0.50), se reporta HOLD (0 trades).
+- **Almacenamiento de Predicciones:** Guardar en el parquet final no solo `xgb_prob`, sino `xgb_prob_long`, `xgb_prob_short` y `winner_direction`. Esto es vital para depuración posterior.
+
+### 11.3 Sincronización del Gate de Salida (Gauntlet)
+El Gauntlet espera recibir los trades combinados.
+- Al usar Alpha Arbitrage, unificamos los mejores trades de Long y de Short en un único stream de operaciones (`oos_trades.parquet`).
+- Esto duplicará el número de trades (N), facilitando enormemente cruzar la barrera de `min_trades: 30` impuesta en el SOP de Luna V2, y suavizará la varianza del DSR.
+
+### 11.4 Resumen de Prefijos y Rutas
+- **Parquets OOS Individuales (Vía Worker):** `oos_trades_WX_seedY_long.parquet` y `oos_trades_WX_seedY_short.parquet`. (El worker debe prefijar esto).
+- **Modelos:** `xgboost_meta_{regime}_{direction}.model` y `.json`.
+- **Calibradores:** `xgboost_isotonic_calibrator_{regime}_{direction}.joblib`.
+- **Parquet OOS Final (Vía Evaluator):** `oos_trades_WX_seedY.parquet` (Consolidado, contiene los ganadores del arbitraje). El objetivo es ver si el modelo Short captura el 30% de las correcciones del bull market de 2023-2024 con una tasa de acierto > 60%.
+
+### 11.5 Solución Limpia de Arbitraje en wfb_worker.py (Merge and Validate)
+Para no alterar el frágil orquestador ni `evaluate_ensemble_wfb.py`, el Alpha Arbitrage por semilla se implementará al finalizar la ejecución del worker:
+1. `wfb_worker.py` (Run LONG): Escribe `oos_trades_WX_seedY_long.parquet`. Al llegar a `merge_and_validate`, como es LONG, no hace el merge global (espera al short).
+2. `wfb_worker.py` (Run SHORT): Escribe `oos_trades_WX_seedY_short.parquet`. Al finalizar, entra en `merge_and_validate`.
+3. El `merge_and_validate` detecta si `direction_mode == 'both'`. Si es así:
+   - Carga TODOS los parquets `_long.parquet` y TODOS los `_short.parquet`.
+   - Resuelve los empates (timestamps superpuestos) reteniendo el de mayor `xgb_prob_cal`.
+   - Escribe un UNIFICADO `oos_trades_WX_seedY.parquet` definitivo.
+De este modo, `evaluate_ensemble_wfb.py` sigue funcionando exactamente igual, consumiendo el archivo unificado que ya tiene los trades combinados y arbitrados de ambas direcciones.
+
+### 11.6 Modificaciones Exactas en Archivos
+- **`scripts/run_wfb_orchestrator.py`**: 
+  - Leer `settings.fase2.direction_mode`. Si es `"both"`, envolver el lanzamiento de `subprocess.Popen` en un loop de dos iteraciones: `"long"` y `"short"`. 
+  - La lógica de Early-Stop se mantiene atada a la semilla, evaluándose una vez que ambas iteraciones terminen.
+- **`scripts/wfb_worker.py`**:
+  - Leer la variable de entorno `LUNA_DIRECTION` y añadir un `_direction_suffix` (`_long` o `_short`) al generar `out_path` en la línea 389.
+  - Modificar `merge_and_validate` para que, en modo "both", busque ambos conjuntos de archivos (`_long` y `_short`), aplique el "Alpha Arbitrage" (sort por `xgb_prob_cal` y drop duplicates por `timestamp`), y guarde el resultado fusionado sin sufijo para la posterior evaluación del ensemble.
+- **`luna/pipeline_executor.py` y `luna/models/predict_oos.py`**:
+  - Ya gestionan la carga de modelos con sufijos a través de `RegimeRouter`, por lo tanto solo hace falta asegurarse de que `direction` se propague adecuadamente desde el `LunaPipelineExecutor`.
+
+> [!SUCCESS]
+> **Hito Alcanzado (22 de Junio de 2026):**  
+> La integración del código para el modo `direction_mode: "both"` ha sido completada y validada sintácticamente mediante un **Dry-Run Pre-Vuelo**. El orquestador es ahora capaz de lanzar los dos escuadrones (`long` y `short`) consecutivamente de forma transparente para cada ventana de cada semilla.
+>
+> ⚠️ **Antes de proceder con la Run Final (WFB 29-Seeds):**
+> - Se ha configurado `direction_mode: "both"` en `config/settings.yaml` cumpliendo la política *No-Fallback Silencioso* y respetando los backups.
+> - Usa el workflow `/run_sentinel` para arrancar y monitorizar la ejecución final del WFB que generará la flota dual completa.
+

@@ -97,66 +97,51 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
     # Sort for deterministic sequence
     features = sorted(features)
     
-    logger.info("  [2] Total Features Seleccionadas para AE: {}", len(features))
+    logger.info("  [2] Total Features Iniciales para AE: {}", len(features))
 
-    # [H-AE-VAL-01-FIX 2026-05-30] Filtrar features OOD-bloqueadas antes del AE fit.
-    # PROBLEMA: El AE entrena sobre TODAS las features (incluidas las 84 bloqueadas por OOD Guard
-    # que son CONSTANTES en validación). El 20% final cronológico usado como val interna
-    # corresponde al período de validación OOS donde esas features son constantes.
-    # CONSECUENCIA: MSE_val = (c - ŷ)² para features OOD constantes nunca converge a 0
-    # → Val Loss explota (ratio Train/Val = 8.6x en epoch 11) → early stopping artificial.
-    # El AE se detiene en epoch 12 con un modelo subentrenado en lugar de los 30-40 epochs óptimos.
-    # SOLUCIÓN: Cargar selected_features.json del SFI y filtrar features con 
-    _sfi_json = p_out.parent / "features" / "selected_features.json"
-    _ood_filtered = 0
-    if _sfi_json.exists():
+    # --- FIX: Anchor the feature_cols list for stable WARM-START across WFB windows ---
+    # Para evitar que W2, W3, etc., tengan un número distinto de features y rompan el
+    # load_state_dict del ancla (causando un fallo silencioso de Warm-Start).
+    _window_id_anchor = os.environ.get("LUNA_WINDOW_ID", "")
+    _anchor_file = p_out / "ae_valid_features.json"
+    
+    if _window_id_anchor == "W1":
+        # W1 dicta la geometría inicial (filtra features constantes en su propia ventana)
+        constant_features = [f for f in features if df[f].nunique() <= 1]
+        if constant_features:
+            features = [f for f in features if f not in constant_features]
+            print(f"[H-AE-VAL-01-FIX] W1 Constant filter: {len(features) + len(constant_features)} -> {len(features)} features.")
         try:
-            import json as _json_ae
-            with open(_sfi_json, "r", encoding="utf-8") as _f:
-                _sfi_data = _json_ae.load(_f)
-            # selected_features.json tiene claves: 'selected_features' (list) y 'pass_through_features' (list)
-            _approved = set()
-            if isinstance(_sfi_data, list):
-                _approved = set(_sfi_data)
-            elif isinstance(_sfi_data, dict):
-                # Formato estándar: 'selected_features' + 'pass_through_features'
-                _sf = _sfi_data.get("selected_features", [])
-                _pt = _sfi_data.get("pass_through_features", [])
-                if isinstance(_sf, list):
-                    _approved.update(_sf)
-                if isinstance(_pt, list):
-                    _approved.update(_pt)
-                # Fallback: cualquier valor de tipo lista en el dict
-                if not _approved:
-                    for _v in _sfi_data.values():
-                        if isinstance(_v, list) and _v and isinstance(_v[0], str):
-                            _approved.update(_v)
+            with open(_anchor_file, "w", encoding="utf-8") as _af:
+                json.dump(features, _af)
+            print(f"📌 [AE-ANCHOR] W1: Guardando {len(features)} variables ancla en ae_valid_features.json")
+        except Exception as _e_anchor:
+            logger.warning(f"[AE-ANCHOR] W1: Error al guardar ae_valid_features.json: {_e_anchor}")
+            
+    elif _window_id_anchor.startswith("W"):
+        # W2+ fuerza el uso exacto de las variables ancladas en W1
+        _root_dir_anchor = Path(data_path).resolve().parents[2]
+        _cached_w1_anchor = _root_dir_anchor / "data" / "wfb_cache" / "W1" / "models" / "ae_valid_features.json"
+        _target_anchor = _cached_w1_anchor if _cached_w1_anchor.exists() else _anchor_file
+        
+        if _target_anchor.exists():
+            try:
+                with open(_target_anchor, "r", encoding="utf-8") as _af:
+                    _anchored_features = json.load(_af)
+                
+                # Rellenar con 0.0 las variables ancladas que ya no existen o fueron descartadas por SFI en esta ventana
+                _missing_anchor = [c for c in _anchored_features if c not in df.columns]
+                for _mc in _missing_anchor:
+                    df[_mc] = 0.0
+                
+                features = _anchored_features
+                print(f"📌 [AE-ANCHOR] {_window_id_anchor}: Forzando {len(features)} variables ancla de W1 para Warm-Start perfecto.")
+            except Exception as _e_anchor:
+                logger.warning(f"[AE-ANCHOR] {_window_id_anchor}: Error leyendo ae_valid_features.json: {_e_anchor}")
+        else:
+            logger.warning(f"[AE-ANCHOR] No se encontró el ancla en {_target_anchor}, usando variables locales (Riesgo de size mismatch)")
 
-            if _approved:
-                _features_before = len(features)
-                features = [f for f in features if f in _approved]
-                _ood_filtered = _features_before - len(features)
-                print(  # RULE[fixbugsprints.md]
-                    f"[H-AE-VAL-01-FIX] OOD filter aplicado al AE: {_features_before} → {len(features)} features "
-                    f"({_ood_filtered} features OOD-bloqueadas excluidas del AE fit). "
-                    f"Previene Val Loss divergente (ratio 8.6x) y early stopping artificial."
-                )
-                logger.info(
-                    "[H-AE-VAL-01-FIX] AE features filtradas por SFI OOD: {} → {} ({} excluidas).",
-                    _features_before, len(features), _ood_filtered
-                )
-                print(f"[BUG-FIX-LOG 2026-06-05] [H-AE-VAL-01-FIX] AE features filtradas por SFI OOD: {_features_before} → {len(features)} ({_ood_filtered} excluidas)")
-            else:
-                print("[H-AE-VAL-01-FIX] selected_features.json sin features aprobadas — usando todas (sin filtrado OOD).")
-        except Exception as _e_ood:
-            print(f"[H-AE-VAL-01-FIX] ERROR leyendo selected_features.json: {_e_ood} — usando todas las features.")
-            logger.warning("[H-AE-VAL-01-FIX] No se pudo aplicar OOD filter al AE: {}", _e_ood)
-            print(f"[BUG-FIX-LOG 2026-06-05] [H-AE-VAL-01-FIX] No se pudo aplicar OOD filter al AE: {_e_ood}")
-    else:
-        print(f"[H-AE-VAL-01-FIX] selected_features.json no encontrado en {_sfi_json} — usando todas las features (retrocompatible).")
-        logger.debug("[H-AE-VAL-01-FIX] selected_features.json ausente. AE sin filtrado OOD.")
-
-    logger.info("  [2b] Features para AE tras filtro OOD: {} ({} excluidas)", len(features), _ood_filtered)
+    logger.info("  [2b] Features Finales para AE tras protocolo de anclaje: {}", len(features))
 
     X_raw = df[features].replace([np.inf, -np.inf], np.nan).fillna(0.0).values
 
@@ -190,7 +175,7 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
         if _prev_model_path.exists():
             try:
                 anchored_model = DenoisingAutoEncoder(input_dim=len(features), latent_dim=latent_dim).to(device)
-                anchored_model.load_state_dict(torch.load(_prev_model_path, map_location=device, weights_only=True))
+                anchored_model.load_state_dict(torch.load(_prev_model_path, map_location=device, weights_only=False))
                 anchored_model.eval()
                 logger.info("  [MEJORA-MATH-C] AE ancla cargado para Drift Loss.")
             except Exception as e:
@@ -313,7 +298,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Entrenamiento del Denoising AutoEncoder para comprimir features OOS.")
     parser.add_argument("--data", type=str, default="data/features/features_train.parquet", help="Ruta al dataset parquet crudo")
     parser.add_argument("--out", type=str, default="data/models/", help="Directorio destino para volcado")
-    parser.add_argument("--latent", type=int, default=32, help="Tamaño del Latent Space (features resultantes tras cuello de botella)")
+    parser.add_argument("--latent", type=int, default=int(cfg.autoencoder.ae_bottleneck_dim), help="Tamaño del Latent Space (features resultantes tras cuello de botella)")
     parser.add_argument("--epochs", type=int, default=80, help="Neuronal pass epochs")
     
     args = parser.parse_args()

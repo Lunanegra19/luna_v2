@@ -1431,10 +1431,8 @@ class LGBMTrainer:
 
 
 
-        df_labeled = df_final.join(tbm_result[['bin', 'ret']], how='inner')
-
-
-
+        df_labeled = df_final.join(tbm_result[['bin', 'ret', 'holding_time_hours']], how='inner')
+        self.holding_time_hours = df_labeled['holding_time_hours']
         df_labeled["target"] = (df_labeled["bin"] == 1).astype(int)
 
 
@@ -2258,12 +2256,24 @@ class LGBMTrainer:
 
         weights = np.exp(-_alpha * years_ago)
 
-
+        # [HOLDING-TIME-PENALTY] Penalización proporcional para Shorts (Mejora 3)
+        # El mercado baja por el ascensor. Shorts largos implican riesgo de Short Squeeze.
+        _dir = getattr(self, 'direction_mode', getattr(self, 'native_direction', 'both'))
+        if _dir == 'short' and hasattr(self, 'holding_time_hours'):
+            from config.settings import cfg as _cfg_ht
+            penalty_factor = float(_cfg_ht.xgboost.short_holding_time_penalty)
+            
+            _ht = self.holding_time_hours.loc[index].values
+            # Penalty inverso al holding_time. Más tiempo retenido = menos peso = la loss penaliza este trade.
+            _ht_penalty = np.exp(-penalty_factor * _ht)
+            weights *= _ht_penalty
+            
+            _verbose_debug = bool(int(_os.environ.get("LUNA_VERBOSE", "0")))
+            if _verbose_debug and not getattr(self.__class__, '_ht_logged', False):
+                logger.debug(f"[SHORT-HT-PENALTY] Aplicando penalización de Holding Time a Shorts. factor={penalty_factor}. Min multiplier: {np.min(_ht_penalty):.2f}x")
+                self.__class__._ht_logged = True
 
         _verbose_debug = bool(int(_os.environ.get("LUNA_VERBOSE", "0")))
-
-
-
         if _verbose_debug and not getattr(self.__class__, '_sw_logged', False):
 
 

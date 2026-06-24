@@ -364,7 +364,16 @@
                                         <div class="progress-bar-fill progress-cyan" id="active-session-progress-bar" style="width: 0%; height: 100%; transition: width 0.5s ease-out;"></div>
                                     </div>
                                 </div>
-                                <div style="display: flex; gap: 15px; margin-top: 5px; border-top: 1px dashed rgba(255,255,255,0.03); padding-top: 8px; justify-content: flex-end;">
+
+                                <!-- NUEVA VOX: VENTANAS TERMINADAS -->
+                                <div class="active-session-windows-box" style="margin-top: 20px; margin-bottom: 20px; border: 1px dashed rgba(6, 182, 212, 0.3); padding: 12px; border-radius: 6px; background: rgba(0,0,0,0.15);">
+                                    <h4 style="font-size: 10px; color: #06b6d4; margin-top: 0; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Resultados de Ventanas Terminadas (Semilla en Curso)</h4>
+                                    <div id="active-session-finished-windows" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                        <span style="font-size: 10px; color: #64748b; font-style: italic;">Esperando resultados de las primeras ventanas...</span>
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; gap: 15px; margin-top: -10px; margin-bottom: 20px; padding-right: 15px; justify-content: flex-end;">
                                     <div style="font-size: 10px; color: #64748b;">
                                         Campeonas: <span id="active-champions-count" style="color: #10b981; font-weight: bold; font-family: 'JetBrains Mono', monospace;">0</span> | 
                                         Descartadas: <span id="active-discarded-count" style="color: #ef4444; font-weight: bold; font-family: 'JetBrains Mono', monospace;">0</span>

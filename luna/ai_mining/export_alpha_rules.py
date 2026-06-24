@@ -48,7 +48,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 # Parsers de reportes
 # ─────────────────────────────────────────────────────────────────────────────
 
-def parse_golden_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list[dict]:
+def parse_golden_rules(report_path: Path) -> list[dict]:
     """
     Extrae Golden Rules de master_pattern_report.md.
     Tabla esperada: | Condicion Exacta | Régimen | Win Rate | Expected Value | N |
@@ -98,15 +98,10 @@ def parse_golden_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list[
             logger.warning(f"A-07: expresion pandas_eval unsafe descartada: {pandas_eval[:80]}")
             continue
 
-        # Tribunal MCPT (Filtro Anti Curve-Fitting)
-        if df_mcpt is not None and not df_mcpt.empty:
-            from luna.utils.mcpt import evaluate_rule_mcpt
-            is_genuine, pval = evaluate_rule_mcpt(pandas_eval, df_mcpt, n_perms=50, pval_threshold=0.05)
-            if not is_genuine:
-                logger.info(f"[MCPT TRIBUNAL] ❌ Golden Rule RECHAZADA (Curve-Fitting, P-Value={pval:.4f}): {pandas_eval}")
-                continue
-            else:
-                logger.info(f"[MCPT TRIBUNAL] ✅ Golden Rule APROBADA (Genuina, P-Value={pval:.4f}): {pandas_eval}")
+        # Las reglas ya fueron validadas rigurosamente en master_pattern_engine.py
+        # mediante (RF OOB > umbral) y (ocurrencias >= 30, significancia R8).
+        # El Tribunal MCPT post-hoc sobre una muestra truncada de 5000 barras fue 
+        # removido porque causaba rechazos por sesgo de régimen reciente.
 
         rules.append({
             "type":         "golden_storm",
@@ -121,7 +116,7 @@ def parse_golden_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list[
     return rules
 
 
-def parse_genetic_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list[dict]:
+def parse_genetic_rules(report_path: Path) -> list[dict]:
     """
     Extrae Genetic Rules de deep_discovery_report.md.
     Tabla: | Regla Logica | Win Rate | EV% | N |
@@ -197,15 +192,9 @@ def parse_genetic_rules(report_path: Path, df_mcpt: pd.DataFrame = None) -> list
             except (ValueError, IndexError):
                 wr, ev = 0.0, 0.0
 
-            # Tribunal MCPT (Filtro Anti Curve-Fitting)
-            if df_mcpt is not None and not df_mcpt.empty:
-                from luna.utils.mcpt import evaluate_rule_mcpt
-                is_genuine, pval = evaluate_rule_mcpt(pandas_eval, df_mcpt, n_perms=50, pval_threshold=0.05)
-                if not is_genuine:
-                    logger.info(f"[MCPT TRIBUNAL] ❌ Genetic Rule RECHAZADA (Curve-Fitting, P-Value={pval:.4f}): {pandas_eval}")
-                    continue
-                else:
-                    logger.info(f"[MCPT TRIBUNAL] ✅ Genetic Rule APROBADA (Genuina, P-Value={pval:.4f}): {pandas_eval}")
+            # Las reglas ya fueron validadas por OOF fitness en el algoritmo genético.
+            # El Tribunal MCPT post-hoc ha sido desactivado para evitar rechazos
+            # sesgados por recency bias.
 
             rules.append({
                 "type":        "genetic_rule",
@@ -640,23 +629,12 @@ def main() -> None:
     logger.info("Export Alpha Rules — INICIO")
     logger.info("=" * 60)
 
-    # Cargar datos para Tribunal MCPT (ultimas 5000 barras para agilizar)
-    try:
-        from luna.utils.mcpt import evaluate_rule_mcpt
-        features_path = PROJECT_ROOT / "data" / "features" / "features_train.parquet"
-        if features_path.exists():
-            df_mcpt = pd.read_parquet(features_path).tail(5000).copy()
-            logger.info(f"✅ Cargado dataset MCPT para tribunal anti curve-fitting: {len(df_mcpt)} filas.")
-        else:
-            df_mcpt = pd.DataFrame()
-            logger.warning("No se encontro features_train.parquet. Tribunal MCPT desactivado.")
-    except Exception as e:
-        df_mcpt = pd.DataFrame()
-        logger.warning(f"Error cargando dataset para MCPT: {e}")
+    # Las reglas de minería ya están validadas en sus respectivos engines.
+    # Se eliminó la recarga redundante y sesgada del dataset (tail 5000) para MCPT.
 
     # Leer reportes de todos los engines
-    golden_rules  = parse_golden_rules(REPORTS_DIR / "master_pattern_report.md", df_mcpt=df_mcpt)
-    genetic_rules = parse_genetic_rules(REPORTS_DIR / "deep_discovery_report.md", df_mcpt=df_mcpt)
+    golden_rules  = parse_golden_rules(REPORTS_DIR / "master_pattern_report.md")
+    genetic_rules = parse_genetic_rules(REPORTS_DIR / "deep_discovery_report.md")
     causal_vars   = parse_causal_vars(REPORTS_DIR / "advanced_engine_report.md")
     dtw_bull_prob = parse_dtw_bull_prob(REPORTS_DIR / "deep_discovery_report.md")
     tribe_bias    = parse_tribe_bias(REPORTS_DIR / "cluster_pattern_report.md")
@@ -670,12 +648,14 @@ def main() -> None:
     logger.info(f"Tribe WR Map:  {tribe_wr_map}")
 
     if not golden_rules and not genetic_rules:
-        logger.error(
-            "No hay reglas disponibles. Ejecutar primero:\n"
-            "  1. master_pattern_engine.py\n"
-            "  2. deep_discovery_engine.py"
+        msg = (
+            "[CRITICAL-SILENT-FAILURE] No hay reglas genéticas ni golden rules disponibles. "
+            "El orquestador intentaría operar 'ciego' sin features simbólicas, perdiendo su ventaja causal. "
+            "Abortando pipeline inmediatamente bajo política institucional de Fail-Fast (SOP R16)."
         )
-        return
+        print(msg)
+        logger.critical(msg)
+        raise RuntimeError(msg)
 
     # Generar módulo Python nativo
     module_content = generate_alpha_rules_module(

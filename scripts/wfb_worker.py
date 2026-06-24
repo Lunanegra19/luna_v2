@@ -46,7 +46,9 @@ if not _ts_wfb:
 
 # [WFB-SESSION-FIX 2026-06-20] Añadir sufijo de semilla para evitar colisión/bloqueo de escritura en el log
 _seed_id = os.environ.get("LUNA_SEED", "")
-_log_suffix = f"_seed{_seed_id}" if _seed_id else ""
+_dir_env = os.environ.get("LUNA_DIRECTION", "")
+_dir_suffix_log = f"_{_dir_env.lower()}" if _dir_env in ["long", "short"] else ""
+_log_suffix = f"_seed{_seed_id}{_dir_suffix_log}" if _seed_id else _dir_suffix_log
 
 _log_dir_wfb = _ROOT / "logs"
 _log_dir_wfb.mkdir(exist_ok=True)
@@ -326,8 +328,18 @@ def rewrite_yaml_for_window(window: dict):
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".yaml", dir=_settings_dir, delete=False) as _tmp:
             _tmp_path = Path(_tmp.name)
             _tmp.write(_new_content)
-        _tmp_path.replace(SETTINGS_PATH)
-        logger.info(f"  settings.yaml actualizado para ventana {window['id']}")
+            
+        import time
+        for _retry in range(5):
+            try:
+                _tmp_path.replace(SETTINGS_PATH)
+                logger.info(f"  settings.yaml actualizado para ventana {window['id']} (intento {_retry+1})")
+                break
+            except PermissionError as _pe:
+                if _retry < 4:
+                    time.sleep(0.5)
+                else:
+                    raise _pe
     except Exception as _e:
         logger.error(f"Error escribiendo settings.yaml para {window['id']}: {_e}")
         try: _tmp_path.unlink()
@@ -385,7 +397,10 @@ def isolate_window_trades(window: dict, seed: str):
             shutil.copy2(_sf_src, _sf_dst)
     except Exception: pass
 
-    _seed_suffix = f"_seed{seed}" if seed else ""
+    # [DUAL-BOT-01] Añadir sufijo de dirección si se está ejecutando en dual-mode
+    _direction = os.environ.get("LUNA_DIRECTION", "").lower()
+    _dir_suffix = f"_{_direction}" if _direction in ["long", "short"] else ""
+    _seed_suffix = (f"_seed{seed}" if seed else "") + _dir_suffix
     out_path = WFB_OUT_DIR / f"oos_trades_{window['id']}{_seed_suffix}.parquet"
     WFB_OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -473,13 +488,16 @@ def isolate_window_trades(window: dict, seed: str):
 
 def merge_and_validate(seed: str = ""):
     """Junta todos los fragmentos WFB y lanza el Gauntlet."""
+    _direction = os.environ.get("LUNA_DIRECTION", "").lower()
+    
     _seed_suffix = f"_seed{seed}" if seed else ""
-    logger.info("Consolidando ventanas para seed='{}'", seed)
+    logger.info("Consolidando ventanas para seed='{}' direction='{}'", seed, _direction)
 
     global_df = pd.DataFrame()
     for w in WINDOWS:
-        p = WFB_OUT_DIR / f"oos_trades_{w['id']}{_seed_suffix}.parquet"
-        _empty_flag = WFB_OUT_DIR / f"oos_trades_{w['id']}{_seed_suffix}_EMPTY.flag"
+        _exact_seed_suffix = _seed_suffix + (f"_{_direction}" if _direction in ["long", "short"] else "")
+        p = WFB_OUT_DIR / f"oos_trades_{w['id']}{_exact_seed_suffix}.parquet"
+        _empty_flag = WFB_OUT_DIR / f"oos_trades_{w['id']}{_exact_seed_suffix}_EMPTY.flag"
         if p.exists():
             w_df = pd.read_parquet(p)
             w_df = w_df.reset_index(drop=True)
@@ -506,7 +524,7 @@ def merge_and_validate(seed: str = ""):
 
     logger.success(f"🧩 Macro-dataset WFB: {len(global_df)} trades OOS")
 
-    _out_path = _ROOT / "data" / "predictions" / f"oos_trades{_seed_suffix}.parquet"
+    _out_path = _ROOT / "data" / "predictions" / f"oos_trades{_exact_seed_suffix}.parquet"
     if "entry_time" in global_df.columns:
         _df_indexed = global_df.copy()
         _df_indexed["entry_time"] = pd.to_datetime(_df_indexed["entry_time"], utc=True)
@@ -613,7 +631,7 @@ def merge_and_validate(seed: str = ""):
     logger.info("Lanzando Validación Estadística (Gauntlet)...")
     
     _env = os.environ.copy()
-    _env["LUNA_RUN_ID"] = f"WFB_{_ts_wfb}{_seed_suffix}_FINAL"
+    _env["LUNA_RUN_ID"] = f"WFB_{_ts_wfb}{_exact_seed_suffix}_FINAL"
     _env["LUNA_CUSTOM_TRADES_PATH"] = str(_out_path)
 
     # [FIX-GAUNTLET-EXIT-01 2026-06-03] Distinguir rechazo legítimo (exit=1) de crash real (exit≥2).
@@ -660,6 +678,8 @@ def main():
     parser.add_argument("--resume", action="store_true", help="Saltar ventanas completadas")
     parser.add_argument("--smoke-test", action="store_true", help="Modo humo")
     parser.add_argument("--nocache", action="store_true", help="Forzar eliminación total de caché WFB para esta seed antes de empezar")
+    parser.add_argument("--nocache-short", action="store_true", help="Forzar eliminación de la caché SOLO para el modelo Short")
+    parser.add_argument("--nocache-long", action="store_true", help="Forzar eliminación de la caché SOLO para el modelo Long")
     parser.add_argument("--sficache", action="store_true",
                         help="[SFICACHE-01] Implica --nocache pero los sfi_lock.json ya fueron restaurados "
                              "por el orquestador. El worker los respeta y NO los elimina en la limpieza.")
@@ -709,7 +729,13 @@ def main():
     # [CACHE-INTEGRITY-01] Heredar --nocache del orquestador padre si está en env
     if os.environ.get("LUNA_NOCACHE") == "1":
         args.nocache = True
-        print(f"[CACHE-INTEGRITY-01] LUNA_NOCACHE=1 detectado — activando --nocache en worker.")
+        print(f"[CACHE-INTEGRITY-01] LUNA_NOCACHE=1 detectado -> activando --nocache en worker.")
+    if os.environ.get("LUNA_NOCACHE_SHORT") == "1":
+        args.nocache_short = True
+        print(f"[CACHE-INTEGRITY-01] LUNA_NOCACHE_SHORT=1 detectado -> activando --nocache-short en worker.")
+    if os.environ.get("LUNA_NOCACHE_LONG") == "1":
+        args.nocache_long = True
+        print(f"[CACHE-INTEGRITY-01] LUNA_NOCACHE_LONG=1 detectado -> activando --nocache-long en worker.")
 
     # [SFICACHE-01] Heredar --sficache del orquestador padre si está en env
     if os.environ.get("LUNA_SFICACHE") == "1":
@@ -736,12 +762,16 @@ def main():
         logger.warning(f"[SECURITY-SETTINGS-DUMP] Error leyendo settings.yaml: {_e_dump}")
 
     # [CACHE-INTEGRITY-01] Si --nocache, limpiar caché de ESTA seed antes de todo
-    if args.nocache:
+    if getattr(args, 'nocache', False) or getattr(args, 'nocache_short', False) or getattr(args, 'nocache_long', False):
         _seed_cache_dir = _ROOT / "data" / "wfb_cache" / f"seed{args.seed}"
         if _seed_cache_dir.exists():
-            shutil.rmtree(_seed_cache_dir, ignore_errors=True)
-            logger.warning(f"[CACHE-INTEGRITY-01] --nocache: eliminado wfb_cache/seed{args.seed}/")
-            print(f"[CACHE-INTEGRITY-01] NOCACHE: eliminado {_seed_cache_dir.relative_to(_ROOT)}")
+            if getattr(args, 'nocache', False):
+                shutil.rmtree(_seed_cache_dir, ignore_errors=True)
+                logger.warning(f"[CACHE-INTEGRITY-01] --nocache: eliminado wfb_cache/seed{args.seed}/")
+                print(f"[CACHE-INTEGRITY-01] NOCACHE: eliminado {_seed_cache_dir.relative_to(_ROOT)}")
+            else:
+                print(f"[CACHE-INTEGRITY-01] Selective NOCACHE en worker: Conservando wfb_cache/seed{args.seed} base.")
+        
         # Eliminar también executor_state JSON de esta seed
         _cache_dir_root = _ROOT / "data" / "wfb_cache"
         for _stale_json in _cache_dir_root.glob(f"executor_state_*_s{args.seed}_*.json"):
@@ -804,7 +834,7 @@ def main():
     # acumular correctamente entre ventanas W1→W5 sin resetear el contador en cada ventana.
     # Formato: WFB_seed{N}_funnel — estable entre todas las ventanas de la misma seed.
     # El FINAL run_id (con timestamp) se setea en merge_and_validate() para el Gauntlet.
-    _funnel_run_id = f"WFB_seed{args.seed}_funnel"
+    _funnel_run_id = f"WFB_seed{args.seed}{_dir_suffix_log}_funnel"
     os.environ["LUNA_RUN_ID"] = _funnel_run_id
     print(f"[FIX-P1A-FUNNEL-SEED] LUNA_RUN_ID={_funnel_run_id} — acumulador del signal funnel activo para seed={args.seed}")
     logger.info("[FIX-P1A-FUNNEL-SEED] LUNA_RUN_ID={} — funnel se acumulará entre W1→W5", _funnel_run_id)

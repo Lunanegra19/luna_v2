@@ -62,7 +62,7 @@ class OKXBrokerConnector:
         self.api_key = os.getenv("OKX_API_KEY")
         self.secret_key = os.getenv("OKX_SECRET_KEY")
         self.passphrase = os.getenv("OKX_PASSPHRASE")
-        self.hostname = os.getenv("OKX_HOSTNAME", "eea.okx.com")
+        self.hostname = os.getenv("OKX_HOSTNAME", "aws.okx.com")
         self.force_ipv4 = os.getenv("OKX_FORCE_IPV4", "True").lower() in ("true", "1", "yes")
         
         # Apply IPv4 forcing if enabled to prevent IP whitelisting rejection over IPv6

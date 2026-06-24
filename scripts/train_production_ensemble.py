@@ -249,6 +249,10 @@ def main():
         try:
             # ── Fase 4: Entrenamiento del Ensemble Predictivo ──
             logger.info("--- Fase 4: Modelos Predictivos ---")
+            
+            # [FIX-SFI-PROD-01] SFI es estricto y requerido para generar selected_features.json antes de HMM y XGBoost
+            executor._run_step("SFI Feature Selection", "luna/features/feature_selection_e.py")
+            
             if not args.skip_hmm:
                 executor._run_step("HMM Regime Model", "luna/models/hmm_regime.py")
             else:
@@ -258,9 +262,18 @@ def main():
             executor._run_step("LGBM Ensemble", "luna/models/ensemble_lgbm.py")
             executor._run_step("OOD Guard", "luna/models/ood_guard.py")
             executor._run_step("AutoEncoder", "luna/models/train_autoencoder.py")
-            executor._run_step("MetaLabeler V2 (LONG)", "luna/models/train_metalabeler_v2.py", ["--direction", "long"])
-            executor._run_step("MetaLabeler V2 (SHORT)", "luna/models/train_metalabeler_v2.py", ["--direction", "short"])
-            executor._run_step("Calibrador Probabilidades", "luna/models/calibrate_probabilities.py")
+            from config.settings import cfg
+            dir_mode = str(cfg.fase2.direction_mode).lower()
+            
+            if dir_mode in ["long", "both"]:
+                executor._run_step("MetaLabeler V2 (LONG)", "luna/models/train_metalabeler_v2.py", ["--direction", "long"])
+            if dir_mode in ["short", "both"]:
+                executor._run_step("MetaLabeler V2 (SHORT)", "luna/models/train_metalabeler_v2.py", ["--direction", "short"])
+            
+            if dir_mode in ["long", "both"]:
+                executor._run_step("Calibrador Probabilidades (LONG)", "luna/models/calibrate_probabilities.py", ["--direction", "long"])
+            if dir_mode in ["short", "both"]:
+                executor._run_step("Calibrador Probabilidades (SHORT)", "luna/models/calibrate_probabilities.py", ["--direction", "short"])
             
             # ── Fase 5: Inferencia OOS y Validación Institucional ──
             logger.info("--- Fase 5: Validación OOS ---")

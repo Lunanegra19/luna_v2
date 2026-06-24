@@ -1533,6 +1533,29 @@ async function fetchSystemStatus() {
             document.getElementById('active-champions-count').textContent = data.active_run.champions ? data.active_run.champions.length : 0;
             document.getElementById('active-discarded-count').textContent = data.active_run.discarded ? data.active_run.discarded.length : 0;
             
+            // Populate finished windows for active seed
+            if (data.active_run.finished_windows) {
+                const finishedContainer = document.getElementById('active-session-finished-windows');
+                if (finishedContainer) {
+                    const winKeys = Object.keys(data.active_run.finished_windows);
+                    if (winKeys.length === 0) {
+                        finishedContainer.innerHTML = `<span style="font-size: 10px; color: #64748b; font-style: italic;">Esperando resultados de las primeras ventanas...</span>`;
+                    } else {
+                        finishedContainer.innerHTML = winKeys.map(w => {
+                            const winData = data.active_run.finished_windows[w];
+                            const dsr = winData.dsr;
+                            const color = winData.passed ? '#10b981' : '#ef4444';
+                            const activeSeed = data.active_run.current_seed || data.active_run.seed || "unknown";
+                            return `<div class="window-pill" style="border-left: 2px solid ${color}; padding-left: 6px; cursor: pointer; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 4px; display: flex; flex-direction: column; gap: 2px;" data-win="${w}" onclick="openTradeModal('${activeSeed}', '${w}')">
+                                <span style="font-weight: bold; color: #fff;">${w}</span>
+                                <span style="color: ${color}; font-weight: bold; font-size: 11px;">DSR: ${dsr}</span>
+                                <span style="font-size: 9px; color: #94a3b8;">${winData.passed ? 'PASSED' : 'FAILED'}</span>
+                            </div>`;
+                        }).join('');
+                    }
+                }
+            }
+            
             // Adjust title text and glowing dot based on true active state (LUNA V2 Separate Runs fix)
             if (data.active_run.is_active) {
                 if (titleText) titleText.textContent = 'EJECUCIÓN ACTIVA / EN PROCESO';
@@ -3333,9 +3356,9 @@ function restoreActiveSession() {
 // VISUAL TRANSACTIONS CANVAS ENGINE & MODAL
 // ==========================================
 
-async function openTradeModal(seed) {
+async function openTradeModal(seed, windowFilter = null) {
     currentSelectedSeed = seed;
-    console.log(`[DASHBOARD-CHART] Opening visual trade modal for seed: ${seed}`);
+    console.log(`[DASHBOARD-CHART] Opening visual trade modal for seed: ${seed} (Window: ${windowFilter || 'ALL'})`);
 
     const modal = document.getElementById('trade-chart-modal');
     if (modal) {
@@ -3344,7 +3367,11 @@ async function openTradeModal(seed) {
 
     const modalTitle = document.getElementById('trade-modal-title');
     if (modalTitle) {
-        modalTitle.textContent = `Visualización de Transacciones OOS: Semilla ${seed}`;
+        if (windowFilter) {
+            modalTitle.textContent = `Visualización de Transacciones OOS: Semilla ${seed} (${windowFilter})`;
+        } else {
+            modalTitle.textContent = `Visualización de Transacciones OOS: Semilla ${seed}`;
+        }
     }
 
     try {
@@ -3363,13 +3390,11 @@ async function openTradeModal(seed) {
             }
         }
         
-        const tradesUrl = activeSessionId 
-            ? `/api/trades?seed=${seed}&session_id=${activeSessionId}`
-            : `/api/trades?seed=${seed}`;
+        let tradesUrl = `/api/trades?seed=${seed}`;
+        if (activeSessionId) tradesUrl += `&session_id=${activeSessionId}`;
+        if (windowFilter) tradesUrl += `&window=${windowFilter}`;
 
-        const fetchTrades = tradesCache[seed]
-            ? Promise.resolve(tradesCache[seed])
-            : fetch(tradesUrl).then(r => r.json());
+        const fetchTrades = fetch(tradesUrl).then(r => r.json());
 
         const [priceData, tradesData] = await Promise.all([fetchPriceCurve, fetchTrades]);
 
@@ -3506,7 +3531,16 @@ function initTradeChartRenderer(priceCurve, trades) {
     const graphHeight = height - paddingTop - paddingBottom;
 
     const prices = priceCurve.prices || [];
-    const windows = priceCurve.windows || [];
+    let windows = priceCurve.windows || [];
+
+    // Filter windows visually if only looking at one specific window
+    const modalTitle = document.getElementById('trade-modal-title')?.textContent || '';
+    const winMatch = modalTitle.match(/\((W\d+)\)/);
+    const selectedWindow = winMatch ? winMatch[1] : null;
+
+    if (selectedWindow) {
+        windows = windows.filter(w => w.name === selectedWindow);
+    }
 
     if (prices.length === 0) {
         ctx.fillStyle = '#64748b';
@@ -3518,14 +3552,31 @@ function initTradeChartRenderer(priceCurve, trades) {
 
     let minX = prices[0][0];
     let maxX = prices[prices.length - 1][0];
-    
-    let pricesOnly = prices.map(p => p[1]);
-    let minY = Math.min(...pricesOnly);
-    let maxY = Math.max(...pricesOnly);
-    
-    const yMargin = (maxY - minY) * 0.05;
-    minY = Math.max(0, minY - yMargin);
-    maxY = maxY + yMargin;
+    let minY = 0;
+    let maxY = 0;
+
+    if (selectedWindow && windows.length === 1) {
+        minX = windows[0].start;
+        maxX = windows[0].end;
+        // Also trim prices to this window for correct Y-axis scaling
+        const windowPrices = prices.filter(p => p[0] >= minX && p[0] <= maxX);
+        if (windowPrices.length > 0) {
+            let wPricesOnly = windowPrices.map(p => p[1]);
+            let wMinY = Math.min(...wPricesOnly);
+            let wMaxY = Math.max(...wPricesOnly);
+            const yMargin = (wMaxY - wMinY) * 0.05;
+            minY = Math.max(0, wMinY - yMargin);
+            maxY = wMaxY + yMargin;
+        }
+    } else {
+        let pricesOnly = prices.map(p => p[1]);
+        minY = Math.min(...pricesOnly);
+        maxY = Math.max(...pricesOnly);
+        
+        const yMargin = (maxY - minY) * 0.05;
+        minY = Math.max(0, minY - yMargin);
+        maxY = maxY + yMargin;
+    }
 
     // Zoom & Pan State variables
     let zoomScale = 1.0;
@@ -5057,6 +5108,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (seed) {
                 console.log(`[DASHBOARD-FIX-UI] Row click detected for discarded. Opening trade modal for seed ${seed}...`);
                 openTradeModal(seed);
+            }
+        } else if (e.target.classList.contains('window-pill')) {
+            const row = e.target.closest('.champion-row');
+            if (row) {
+                const seedNum = row.getAttribute('data-seed');
+                const text = e.target.textContent;
+                const windowName = text.split(':')[0].trim();
+                console.log(`[DASHBOARD-FIX-UI] Window pill clicked. Opening trade modal for seed ${seedNum}, window ${windowName}...`);
+                openTradeModal(seedNum, windowName);
+                e.stopPropagation();
             }
         } else if (seedBadge) {
             const seed = seedBadge.getAttribute('data-seed');

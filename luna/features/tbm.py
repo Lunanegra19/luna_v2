@@ -310,7 +310,11 @@ def get_bins(events: pd.DataFrame, close: pd.Series, funding_series: pd.Series =
     # Encontrar la fecha del primer toque entre [t1, pt, sl]
     first_touch = events_[['t1', 'pt', 'sl']].min(axis=1)
     
-    out['first_touch'] = first_touch
+    out['first_touch'] = pd.to_datetime(first_touch)
+    
+    # [HOLDING-TIME] Guardar el tiempo de retención para penalizaciones del modelo (Mejora 3)
+    _idx_series = pd.Series(out.index, index=out.index)
+    out['holding_time_hours'] = (out['first_touch'] - _idx_series).dt.total_seconds() / 3600.0
 
     # BUG-TBM-01 FIX (2026-04-06): Usar reindex con method='nearest' + tolerance=2H.
     # El reindex exacto (sin tolerancia) produce NaN silencioso cuando first_touch no
@@ -595,5 +599,9 @@ def apply_triple_barrier(
     labels = get_bins(events, price_series, funding_series)
 
     # 5. Cruzar información y devolver set consolidado
-    result = events.join(labels[['first_touch', 'ret', 'bin', 'meta_label']])
+    # Asegurarnos de que holding_time_hours se exporta correctamente para penalización
+    export_cols = ['first_touch', 'ret', 'bin', 'meta_label']
+    if 'holding_time_hours' in labels.columns:
+        export_cols.append('holding_time_hours')
+    result = events.join(labels[export_cols])
     return result
