@@ -136,7 +136,7 @@ class RegimeRouter:
             f"[FIX-CALIB-BINARY-01/AUDIT-LOAD] RegimeRouter '{self.prefix}' {self.direction} | "
             f"Modelos cargados: {_n_models} | Calibradores cargados: {_n_cals} | "
             f"Agentes esperados: {len(self.regimes_config)} | "
-            f"{'OK — calibradores completos' if _n_cals == _n_models else '⚠ DESAJUSTE — posible UnicodeDecodeError en carga binaria'}"
+            f"{'OK — calibradores completos' if _n_cals == _n_models else '[WARN] DESAJUSTE — posible UnicodeDecodeError en carga binaria'}"
         )
         if _n_cals < _n_models:
             _missing_cals = [a for a in self.models if a not in self.isotonic_calibrators]
@@ -703,7 +703,7 @@ class RegimeRouter:
                 f"[FIX-CALIB-BINARY-01/AUDIT-PREDICT] Calibración post-predicción | "
                 f"barras_modificadas={_n_modified}/{_n_total} ({_pct_modified:.1f}%) | "
                 f"diff_mean={_diff_mean:.4f} diff_max={_diff_max:.4f} | "
-                f"{'✓ calibracion aplicada' if _pct_modified > 1.0 else '⚠ SOSPECHOSO: <1% barras modificadas — posible cal==raw'}"
+                f"{'[OK] calibracion aplicada' if _pct_modified > 1.0 else '[WARN] SOSPECHOSO: <1% barras modificadas — posible cal==raw'}"
             )
             if _pct_modified < 1.0 and _n_total > 50 and len(self.isotonic_calibrators) > 0:
                 _msg_no_effect = (

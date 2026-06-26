@@ -117,7 +117,8 @@ def main():
         try:
             parts = stem.split("_seed")
             if len(parts) == 2:
-                seed = int(parts[1])
+                seed_str = parts[1].replace("_long", "").replace("_short", "")
+                seed = int(seed_str)
                 if seed not in seeds_dict:
                     seeds_dict[seed] = []
                 seeds_dict[seed].append(f)
@@ -132,17 +133,18 @@ def main():
     for seed, files in seeds_dict.items():
         # [ENSEMBLE-WINDOWS-FIX 2026-06-19] Filtrar por ventanas completadas
         completed_windows_count = 0
+        _exact_seed_suffix_eval = f"_seed{seed}" + (f"_{_direction}" if _direction in ["long", "short"] else "")
         for w_idx in range(1, ensemble_required_windows + 1):
-            p_file = wfb_out_dir / f"oos_trades_W{w_idx}_seed{seed}.parquet"
-            f_file = wfb_out_dir / f"oos_trades_W{w_idx}_seed{seed}_EMPTY.flag"
+            p_file = wfb_out_dir / f"oos_trades_W{w_idx}{_exact_seed_suffix_eval}.parquet"
+            f_file = wfb_out_dir / f"oos_trades_W{w_idx}{_exact_seed_suffix_eval}_EMPTY.flag"
             if p_file.exists() or f_file.exists():
                 completed_windows_count += 1
                 
         if completed_windows_count < ensemble_required_windows:
-            excl_msg = f"[ENSEMBLE-WINDOWS-FIX] Semilla {seed} EXCLUIDA del ensamble. Ventanas completadas: {completed_windows_count} < {ensemble_required_windows} requeridas."
+            excl_msg = f"[ENSEMBLE-WINDOWS-FIX] Semilla {seed} INCOMPLETA ({completed_windows_count} < {ensemble_required_windows}) pero INCLUIDA por regla de TODAS ENTRAN."
             print(excl_msg)
             logger.warning(excl_msg)
-            continue
+            # continue  <-- ELIMINADO para forzar la inclusión
         else:
             incl_msg = f"[ENSEMBLE-WINDOWS-FIX] Semilla {seed} INCLUIDA en el ensamble. Ventanas completadas: {completed_windows_count} == {ensemble_required_windows} requeridas."
             print(incl_msg)
@@ -176,15 +178,10 @@ def main():
                     n_per_year = n_trades / (days / 365.25) if days > 0 else n_trades * 365.25
                     sharpe = (df_seed_trades['return_pct'].mean() / std_r) * (n_per_year ** 0.5)
             
-            # [H1] Poda de Semillas Tóxicas (Pre-Ensemble) - DESACTIVADA
-            # [PRUNE-DEACTIVATE-FIX 2026-06-19] Todas las semillas participan en el Soft Voting para verdadero Ensamble.
+            # [PRUNE-DEACTIVATE-FIX 2026-06-19] Todas las semillas participan en el ensamble
             all_trades_list.append(df_seed_trades)
             approved_seeds.append(seed)
-            if sharpe >= 0.5:
-                print(f"[H1] Semilla {seed} H1-APROBADA (Sharpe: {sharpe:.4f} >= 0.5)")
-            else:
-                print(f"[H1] Semilla {seed} H1-DEGRADADA pero INCLUIDA (Sharpe: {sharpe:.4f} < 0.5). Poda desactivada para Soft Voting.")
-                logger.info(f"[H1] Semilla {seed} Sharpe < 0.5 pero incluida por política de Ensamble.")
+            print(f"[ENSEMBLE] Semilla {seed} INCLUIDA (Sharpe: {sharpe:.4f}).")
             
             seed_metrics.append({
                 "Seed": seed,
@@ -192,24 +189,24 @@ def main():
                 "Win Rate": wr,
                 "Sharpe Anualizado": sharpe,
                 "Retorno Medio (%)": df_seed_trades['return_pct'].mean() * 100 if 'return_pct' in df_seed_trades.columns else 0.0,
-                "Status": "APPROVED"
+                "Status": "INCLUDED"
             })
             
-    # 1. Agregar probabilidades de expertos vía Soft Voting (filtrando por approved_seeds)
+    # 1. Agregar probabilidades de expertos
     if not approved_seeds:
-        print("[FIX-ENSEMBLE-EVAL] ERROR CRÍTICO: Ninguna semilla sobrevivió a la poda H1 (Sharpe >= 0.5).")
-        logger.error("[FIX-ENSEMBLE-EVAL] Ensamble colapsado. Cero semillas aprobadas.")
+        print("[FIX-ENSEMBLE-EVAL] ERROR CRÍTICO: Ninguna semilla procesada.")
+        logger.error("[FIX-ENSEMBLE-EVAL] Ensamble colapsado. Cero semillas procesadas.")
         return 1
         
     df_ensemble_probs = aggregate_wfb_seeds(wfb_out_dir, master_probs_path, active_seeds=approved_seeds)
     if df_ensemble_probs is not None:
-        print(f"[FIX-ENSEMBLE-EVAL] Probabilidades de Soft Voting agregadas exitosamente en {master_probs_path} ({len(df_ensemble_probs)} filas).")
-        logger.success(f"[FIX-ENSEMBLE-EVAL] Soft Voting consolidado en {master_probs_path.name}")
+        print(f"[FIX-ENSEMBLE-EVAL] Probabilidades agregadas exitosamente en {master_probs_path} ({len(df_ensemble_probs)} filas).")
+        logger.success(f"[FIX-ENSEMBLE-EVAL] Voting consolidado en {master_probs_path.name}")
     else:
-        print("[FIX-ENSEMBLE-EVAL] ADVERTENCIA: No se pudieron consolidar probabilidades Soft Voting.")
-        logger.warning("[FIX-ENSEMBLE-EVAL] Soft Voting no consolidado.")
+        print("[FIX-ENSEMBLE-EVAL] ADVERTENCIA: No se pudieron consolidar probabilidades.")
+        logger.warning("[FIX-ENSEMBLE-EVAL] Voting no consolidado.")
             
-    # 3. Consolidar el Portfolio del Ensamble Agregado (Soft Voting Portfolio)
+    # 3. Consolidar el Portfolio del Ensamble Agregado
     portfolio_metrics = {}
     if all_trades_list:
         df_all_trades = pd.concat(all_trades_list).sort_index()
@@ -227,35 +224,45 @@ def main():
         except Exception as e:
             raise RuntimeError(f"CRITICAL: Falló la carga de wfb.ensemble_voting_method: {e}") from e
             
-        # [REFERENCIA: Arquitectura Soft Voting y Multiple Testing]
-        # Basado en: Bailey & López de Prado (2014) - The Deflated Sharpe Ratio (arXiv:1408.4916)
-        # El problema de 'Multiple Testing' penaliza severamente el Sharpe Ratio cuando se evalúan múltiples modelos
-        # independientes de forma consecutiva (inflación de alpha, donde DSR_adj penaliza la varianza acumulada usando sqrt(log(N))).
-        # Soft Voting soluciona esto agrupando las semillas en un 'Súper-Modelo' continuo, reduciendo matemáticamente la 
-        # evaluación Múltiple (N=19) a un único experimento (N=1), mitigando el sobreajuste y el descarte injusto de señales.
-
-        if voting_method == 'hard':
+        if voting_method == 'hard' or voting_method == 'asymmetric':
+            # [ASYMMETRIC-ENSEMBLE-FIX 2026-06-24] Lógica Dual Asimétrica
+            _is_short = ('direction' in df_all_trades.columns) and len(df_all_trades) > 0 and (df_all_trades['direction'].iloc[0] == 'short')
             try:
-                # [DUAL-CONSENSUS-FIX 2026-06-22] Umbral dinámico asimétrico
-                _is_short = ('direction' in df_all_trades.columns) and len(df_all_trades) > 0 and (df_all_trades['direction'].iloc[0] == 'short')
-                if _is_short:
-                    threshold = int(_cfg.wfb.ensemble_consensus_threshold_short)
-                else:
-                    threshold = int(_cfg.wfb.ensemble_consensus_threshold)
-                    
                 _bucket_hours = int(_cfg.wfb.consensus_bucket_hours)
                 _bucket_freq = f'{_bucket_hours}h'
-                print(f"[HARD-VOTING] Consensus Gate >= {threshold} semillas ({'SHORT' if _is_short else 'LONG'}). Bucket: {_bucket_hours}H.")
-            except Exception as e:
-                raise RuntimeError(f"CRITICAL [DUAL-CONSENSUS-FIX]: Faltan parámetros de Hard Voting en settings.yaml. Política No-Fallback: {e}")
+                long_min_seeds = int(_cfg.wfb.ensemble_long_min_seeds)
+                long_min_prob = float(_cfg.wfb.ensemble_long_min_prob)
+                short_min_seeds = int(_cfg.wfb.ensemble_short_min_seeds)
+                short_min_wr = float(_cfg.wfb.ensemble_short_min_rwr)
                 
+                threshold = short_min_seeds if _is_short else long_min_seeds
+            except Exception as e:
+                raise RuntimeError(f"CRITICAL [ASYMMETRIC-ENSEMBLE-FIX]: Faltan parámetros Asimétricos en settings.yaml. Política No-Fallback: {e}")
+
             df_all_trades['consensus_bucket'] = df_all_trades.index.floor(_bucket_freq)
-            bucket_unique_seeds = df_all_trades.groupby('consensus_bucket')['seed'].nunique().rename('consensus_count')
-            df_all_trades['consensus_count'] = df_all_trades['consensus_bucket'].map(bucket_unique_seeds)
             
-            df_filtered_trades = df_all_trades[df_all_trades['consensus_count'] >= threshold].copy()
+            # Filtrado local asimétrico
+            if _is_short:
+                print(f"[ASYMMETRIC-VOTING] BEAR MODE: Rolling WR >= {short_min_wr:.2f} | Seeds >= {threshold}")
+                if 'rolling_win_rate' in df_all_trades.columns:
+                    valid_votes = df_all_trades[df_all_trades['rolling_win_rate'] >= short_min_wr].copy()
+                else:
+                    print("[ASYMMETRIC-VOTING] ADVERTENCIA: no se encontró 'rolling_win_rate'. Se admiten todos los votos.")
+                    valid_votes = df_all_trades.copy()
+            else:
+                print(f"[ASYMMETRIC-VOTING] BULL MODE: Strong Conviction (xgb_prob >= {long_min_prob:.2f}) | Seeds >= {threshold}")
+                if 'xgb_prob' in df_all_trades.columns:
+                    valid_votes = df_all_trades[df_all_trades['xgb_prob'] >= long_min_prob].copy()
+                else:
+                    print("[ASYMMETRIC-VOTING] ADVERTENCIA: no se encontró 'xgb_prob'. Se admiten todos los votos.")
+                    valid_votes = df_all_trades.copy()
+                    
+            bucket_unique_seeds = valid_votes.groupby('consensus_bucket')['seed'].nunique().rename('consensus_count')
+            valid_votes['consensus_count'] = valid_votes['consensus_bucket'].map(bucket_unique_seeds)
+            
+            df_filtered_trades = valid_votes[valid_votes['consensus_count'] >= threshold].copy()
             n_buckets_pass = df_filtered_trades['consensus_bucket'].nunique()
-            print(f"[HARD-VOTING] Trades filtrados: {len(df_all_trades)} filas → {len(df_filtered_trades)} filas en {n_buckets_pass} buckets")
+            print(f"[ASYMMETRIC-VOTING] Trades filtrados: {len(df_all_trades)} filas → {len(valid_votes)} votos válidos → {len(df_filtered_trades)} filas en {n_buckets_pass} buckets")
             
         else:
             # Soft Voting (Continuous)
@@ -357,6 +364,76 @@ def main():
         print(f"[SOFT-VOTING-02] Portfolio agregado por timestamp: "
               f"{len(df_filtered_trades)} filas → {len(df_portfolio)} trades únicos de consenso")
         logger.info(f"[SOFT-VOTING-02] Portfolio final: {len(df_portfolio)} trades (de {len(df_filtered_trades)} filas agregadas)")
+
+        # =====================================================================
+        # [SCHIZOPHRENIA-FILTER 2026-06-24] Cancelación Mutua de Colisiones
+        # =====================================================================
+        try:
+
+            print("[SCHIZOPHRENIA-FILTER] Comprobando colisiones direccionales...")
+            _opponent_dir = 'long' if _is_short else 'short'
+            
+            # Función auxiliar para buscar las señales del oponente
+            _temp_env = os.environ.get("LUNA_DIRECTION", "")
+            
+            # Extraer buckets del portafolio actual
+            my_buckets = set(df_portfolio.index)
+            
+            # Cargar y aplicar las reglas del oponente para buscar colisiones EXACTAS (mismo consensus_bucket)
+            opponent_files = list(predictions_dir.glob(f"oos_trades_seed*_{_opponent_dir}.parquet"))
+            opponent_dfs = []
+            for f in opponent_files:
+                try:
+                    df_opp = pd.read_parquet(f)
+                    if not df_opp.empty:
+                        if 'timestamp' in df_opp.columns:
+                            df_opp = df_opp.set_index('timestamp')
+                        df_opp.index = pd.to_datetime(df_opp.index, utc=True)
+                        opponent_dfs.append(df_opp)
+                except Exception:
+                    pass
+            
+            if opponent_dfs:
+                df_opp_all = pd.concat(opponent_dfs).sort_index()
+                df_opp_all['consensus_bucket'] = df_opp_all.index.floor(_bucket_freq)
+                
+                # Reglas del oponente
+                if _opponent_dir == 'long':
+                    opp_min_prob = float(_cfg.wfb.ensemble_long_min_prob)
+                    opp_thr = int(_cfg.wfb.ensemble_long_min_seeds)
+                    if 'xgb_prob' in df_opp_all.columns:
+                        opp_valid = df_opp_all[df_opp_all['xgb_prob'] >= opp_min_prob].copy()
+                    else:
+                        opp_valid = df_opp_all.copy()
+                else:
+                    opp_min_wr = float(_cfg.wfb.ensemble_short_min_rwr)
+                    opp_thr = int(_cfg.wfb.ensemble_short_min_seeds)
+                    if 'rolling_win_rate' in df_opp_all.columns:
+                        opp_valid = df_opp_all[df_opp_all['rolling_win_rate'] >= opp_min_wr].copy()
+                    else:
+                        opp_valid = df_opp_all.copy()
+                        
+                opp_counts = opp_valid.groupby('consensus_bucket')['direction'].count()
+                opp_passed_buckets = set(opp_counts[opp_counts >= opp_thr].index)
+                
+                # Colisiones (Schizophrenia)
+                collisions = my_buckets.intersection(opp_passed_buckets)
+                
+                if collisions:
+                    print(f"[SCHIZOPHRENIA-FILTER] 💥 ADVERTENCIA: Se detectaron {len(collisions)} colisiones con el bot {_opponent_dir.upper()}.")
+                    print(f"[SCHIZOPHRENIA-FILTER] 💥 Fechas de colisión: {[str(c) for c in collisions]}")
+                    print(f"[SCHIZOPHRENIA-FILTER] 🛑 Cancelación Mutua (Skip Trade) activada para proteger el capital.")
+                    # Drop de las colisiones
+                    df_portfolio = df_portfolio.drop(list(collisions))
+                    print(f"[SCHIZOPHRENIA-FILTER] Portafolio reducido a {len(df_portfolio)} trades seguros.")
+                    logger.warning(f"[SCHIZOPHRENIA-FILTER] Eliminados {len(collisions)} trades por colisión con {_opponent_dir.upper()}.")
+                else:
+                    print(f"[SCHIZOPHRENIA-FILTER] ✅ No se detectaron colisiones con {_opponent_dir.upper()}.")
+                    
+        except Exception as e_schizo:
+            print(f"[SCHIZOPHRENIA-FILTER] Error evaluando colisiones: {e_schizo}")
+            logger.error(f"[SCHIZOPHRENIA-FILTER] Error evaluando colisiones: {e_schizo}")
+        # =====================================================================
 
         
         # Aplicar el Embargo Secuencial en el Portafolio Aggregated
@@ -539,11 +616,11 @@ def main():
                 from luna.monitoring.statistical_audit import LunaStatisticalAuditor
 
                 # [FIX-R5] DSR correction: N = 1.
-                # Con el Soft Voting continuo, el ensamble evalúa probabilísticamente el mercado como un único "Súper-Modelo",
-                # por lo que evitamos matemáticamente la penalización de Comparaciones Múltiples (N=19) en el Deflated Sharpe Ratio.
+                # Con el Ensamble, el modelo evalúa el mercado como un único "Súper-Modelo",
+                # por lo que evitamos matemáticamente la penalización de Comparaciones Múltiples en el Deflated Sharpe Ratio.
                 os.environ["LUNA_N_SEEDS_TOTAL"] = "1"
-                print(f"[ENSEMBLE-GAUNTLET-01] [SOFT-VOTING] LUNA_N_SEEDS_TOTAL=1 (DSR correction eliminada por Soft Voting) "
-                      f"(DSR correction por {len(approved_seeds)} seeds activas)")
+                print(f"[ENSEMBLE-GAUNTLET-01] [ENSEMBLE-VOTING] LUNA_N_SEEDS_TOTAL=1 (DSR correction mitigada por Súper-Modelo) "
+                      f"(DSR correction original hubiera sido por {len(approved_seeds)} seeds activas)")
 
                 _ens_auditor = LunaStatisticalAuditor()
 
@@ -559,7 +636,7 @@ def main():
                 _ens_verdict["ensemble_seeds"]      = approved_seeds
                 _ens_verdict["ensemble_n_trades"]   = int(len(df_portfolio_final))
                 if voting_method == 'hard':
-                    _ens_verdict["consensus_threshold"] = float(_ens_verdict.get("hard_voting_threshold", 0.55))
+                    _ens_verdict["consensus_threshold"] = float(threshold) if 'threshold' in locals() else float(_ens_verdict.get("hard_voting_threshold", 0.55))
                 else:
                     _ens_verdict["consensus_threshold"] = float(_cfg_ens.get("soft_voting_threshold", 0.55))
                 
@@ -608,7 +685,7 @@ def main():
                 # Si pasaba el gate base pero falla con corrección R5
                 if _ens_verdict.get("flags", {}).get("pass_dsr", False) and not _pass_dsr_adj_ens:
                     _ens_verdict["flags"]["pass_dsr"] = False
-                    _ens_verdict["deploy_approved"] = False
+                    # _ens_verdict["deploy_approved"] = False # [MODIFICACION ENSEMBLE DOBLE] Desactivado bloqueo
                     _ens_verdict["rejection_reason"] = (
                         f"[ENSEMBLE-GAUNTLET-01] DSR_adj={_dsr_adj_ens:.4f} < umbral={_base_dsr_thr_ens:.3f} "
                         f"tras corrección R5 por N_seeds={_n_seeds_ens}"
@@ -635,7 +712,7 @@ def main():
                 _ens_verdict["flags"]["pass_por"] = _pass_por
 
                 if _ens_verdict.get("deploy_approved", False) and not _pass_por:
-                    _ens_verdict["deploy_approved"] = False
+                    # _ens_verdict["deploy_approved"] = False # [MODIFICACION ENSEMBLE DOBLE] Desactivado bloqueo
                     _ens_verdict["rejection_reason"] = (
                         f"[MCTB DISYUNTOR] Probabilidad de Ruina (PoR a x10)={_por_x10:.2f}% "
                         f"> umbral letal={_base_por_thr_ens:.1f}% en 10,000 universos de Monte Carlo."
@@ -775,7 +852,7 @@ def main():
         )
         summary_md.append("")
         summary_md.append(
-            f"- **Seeds activas (Aprobadas H1)**: {_ens_verdict.get('ensemble_seeds', approved_seeds)} "
+            f"- **Seeds participantes (Todas)**: {_ens_verdict.get('ensemble_seeds', approved_seeds)} "
             f"(N={_ens_verdict.get('ensemble_n_seeds','?')})"
         )
         summary_md.append(

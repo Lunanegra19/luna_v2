@@ -126,19 +126,34 @@ class FracDiffDynamic:
         while d <= self.d_max + 1e-9:
             fd_series = self._ffd(series, d)
             if STATSMODELS_OK:
-                clean = fd_series.dropna()
+                # [FIX-FRACDIFF-CRASH-01] Saneamiento estricto de Infs antes de std/mean.
+                # Las variables np.log(0) generan -inf, destruyendo clean.std() y provocando
+                # un array corrupto que crashea silenciosamente (Exit -1) LAPACK/OpenBLAS en Windows.
+                clean = fd_series.replace([np.inf, -np.inf], np.nan).dropna()
                 if len(clean) >= 50:
                     try:
                         # [FIX-FRACDIFF-OUTLIER-01 2026-06-04] Windsorización temporal ±4 std.
-                        # Las criptomonedas tienen colas gruesas extremas que destrozan la varianza del ADF,
-                        # forzando caídas catastróficas a d=1.0 y borrando toda la memoria temporal.
-                        # Este clip temporal aísla la estructura media-reversiva pura para el test.
                         _std = clean.std()
-                        _mean = clean.mean()
-                        print(f'[FIX-FRACDIFF-OUTLIER-01] Windsorizacion +-4 std aplicada antes del test ADF (memoria salvada)')
-                        clean_clipped = clean.clip(lower=_mean - 4*_std, upper=_mean + 4*_std) if _std > 0 else clean
                         
-                        _, p_value, _, _, _, _ = adfuller(clean_clipped, autolag="AIC")
+                        # Salvaguarda matemática contra series constantes
+                        if _std < 1e-8:
+                            logger.debug(f"  {feature_name}: Serie casi constante (std={_std}). ADF no confiable.")
+                            p_value = 1.0
+                        else:
+                            _mean = clean.mean()
+                            print(f'[FIX-FRACDIFF-OUTLIER-01] Windsorizacion +-4 std aplicada antes del test ADF (memoria salvada)')
+                            clean_clipped = clean.clip(lower=_mean - 4*_std, upper=_mean + 4*_std)
+                            
+                            # [FIX-FRACDIFF-LAPACK-01] Prevención de Segfaults nativos (Exit -1).
+                            # ADFuller con autolag='AIC' construye matrices OLS masivas. Con N=77000
+                            # y variables degeneradas, OpenBLAS falla silenciosamente en Windows.
+                            # La estacionariedad es una propiedad asintótica global; 5000 puntos (200 días)
+                            # son matemáticamente suficientes para la potencia del test ADF.
+                            if len(clean_clipped) > 5000:
+                                clean_clipped = clean_clipped.iloc[-5000:]
+                                
+                            _, p_value, _, _, _, _ = adfuller(clean_clipped, autolag="AIC")
+                            
                         last_pvalue = p_value
                         if p_value < self.alpha:
                             vlog(f"  FracDiff [{feature_name}]: d_opt={d:.2f} | ADF p={p_value:.4f} < {self.alpha} ✓")

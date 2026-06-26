@@ -976,6 +976,14 @@ class LunaTearSheet:
         audit   = verdict.get("statistical_audit", {})
         thresh  = verdict.get("sop_thresholds", {})
 
+        if not thresh or not metrics or not audit:
+            ax.set_axis_off()
+            ax.set_facecolor(_PANEL)
+            ax.text(0.5, 0.5, "Gate Status — N/A\n(No trades or Gauntlet rejected early)", 
+                    ha="center", va="center", color=_GRAY, fontsize=10, transform=ax.transAxes)
+            ax.set_title("Gate Status — N/A", fontsize=11, color=_GRAY, pad=6)
+            return
+
         # (name, passed, value_raw, threshold_raw, scale_max, higher_better, disp_val, disp_thr)
         n_tr   = metrics.get("total_trades", 0)
         try:
@@ -1133,6 +1141,14 @@ class LunaTearSheet:
         metrics = verdict.get("metrics", {})
         thresh  = verdict.get("sop_thresholds", {})
         
+        if not thresh or not metrics or not audit:
+            ax.set_axis_off()
+            ax.set_facecolor(_PANEL)
+            ax.text(0.5, 0.5, "Métricas Clave — N/A\n(No trades or Gauntlet rejected early)", 
+                    ha="center", va="center", color=_GRAY, fontsize=10, transform=ax.transAxes)
+            ax.set_title("Métricas Clave vs Umbrales SOP", fontsize=11, color=_GRAY, pad=6)
+            return
+
         n_tr = metrics.get("total_trades", 0)
         try:
             alpha = float(thresh["alpha_binomial"])

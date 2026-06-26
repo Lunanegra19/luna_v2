@@ -876,9 +876,11 @@ def main():
         logger.warning(f"No se pudo inyectar optuna_seed en settings: {e}")
 
     try:
+        _direction = os.environ.get("LUNA_DIRECTION", "").lower()
+        _exact_seed_suffix_resume = f"_seed{args.seed}" + (f"_{_direction}" if _direction in ["long", "short"] else "")
         for w in WINDOWS:
             if args.resume:
-                w_out = WFB_OUT_DIR / f"oos_trades_{w['id']}_seed{args.seed}.parquet"
+                w_out = WFB_OUT_DIR / f"oos_trades_{w['id']}{_exact_seed_suffix_resume}.parquet"
                 if w_out.exists():
                     try:
                         _test = pd.read_parquet(w_out)

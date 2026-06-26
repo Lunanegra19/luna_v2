@@ -18,7 +18,7 @@ from pathlib import Path
 ROOT = str(Path(__file__).resolve().parent.parent.parent)
 
 # Directorios a excluir
-EXCLUDE = ['__pycache__', '.git', r'data\\', r'logs\\', r'\\.venv', 'node_modules']
+EXCLUDE = ['__pycache__', '.git', r'data\\', r'logs\\', r'\\.venv', 'node_modules', os.path.join('tools', 'refactor')]  # [SCOPE-FIX 2026-06-24] refactor/migration one-off tools exentos del No-Fallback (no son pipeline produccion)
 
 def should_exclude(path):
     return any(ex in path for ex in EXCLUDE)

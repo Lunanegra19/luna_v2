@@ -707,20 +707,40 @@ async function fetchSystemStatus() {
         
         // 3. WFB Progress Status
         const isWfbActive = data.wfb.orchestrators_count > 0 || data.wfb.workers_count > 0;
-        const wfbPct = isWfbActive ? Math.round(data.wfb.worker_info.progress_percent || 0) : 0;
+        const wfbPct = Math.round(data.wfb.worker_info.progress_percent || 0);
+        
+        let wfbStatusText = `${wfbPct}%`;
+        let wfbLblText = 'Progreso Semilla';
         if (!isWfbActive) {
-            console.log("[BUG-FIX-DASHBOARD-WFB] WFB is inactive. Forcing INACTIVO inside progress circle.");
+            if (wfbPct >= 100) wfbLblText = 'Progreso (COMPLETADA)';
+            else if (wfbPct > 0) wfbLblText = 'Progreso (INTERRUMPIDA)';
+            else {
+                wfbStatusText = 'INACTIVO';
+                wfbLblText = 'Progreso Semilla';
+            }
         }
-        document.getElementById('val-wfb-pct').textContent = isWfbActive ? `${wfbPct}%` : 'INACTIVO';
+        
+        document.getElementById('val-wfb-pct').textContent = wfbStatusText;
+        const wfbLblEl = document.getElementById('val-wfb-pct').nextElementSibling;
+        if (wfbLblEl && wfbLblEl.classList.contains('pct-lbl')) {
+            wfbLblEl.textContent = wfbLblText;
+            if (wfbLblText.includes('COMPLETADA')) wfbLblEl.style.color = '#10b981';
+            else if (wfbLblText.includes('INTERRUMPIDA')) wfbLblEl.style.color = '#f59e0b';
+            else wfbLblEl.style.color = '';
+        }
         
         const circle = document.getElementById('circle-wfb-progress');
         // SVG circumference = 2 * PI * r = 2 * 3.14159 * 40 = 251.2
         const offset = 251.2 - (251.2 * wfbPct / 100);
         circle.style.strokeDashoffset = offset;
         
-        document.getElementById('val-wfb-seed').textContent = isWfbActive ? (data.wfb.worker_info.seed || 'None') : 'None';
-        document.getElementById('val-wfb-window').textContent = isWfbActive ? (data.wfb.worker_info.window || 'None') : 'None';
-        document.getElementById('val-wfb-phase').textContent = isWfbActive ? (data.wfb.worker_info.active_phase || 'Inactivo') : 'Inactivo';
+        const wfbSeed = data.wfb.worker_info.seed && data.wfb.worker_info.seed !== 'None' ? data.wfb.worker_info.seed : 'None';
+        const wfbWindow = data.wfb.worker_info.window && data.wfb.worker_info.window !== 'None' ? data.wfb.worker_info.window : 'None';
+        const wfbPhase = data.wfb.worker_info.active_phase && data.wfb.worker_info.active_phase !== 'Unknown' ? data.wfb.worker_info.active_phase : 'Inactivo';
+        
+        document.getElementById('val-wfb-seed').textContent = wfbSeed;
+        document.getElementById('val-wfb-window').textContent = wfbWindow;
+        document.getElementById('val-wfb-phase').textContent = wfbPhase;
         
         // 4. SFI Panel Status
         const sfiInactive = document.getElementById('sfi-inactive');
@@ -756,14 +776,29 @@ async function fetchSystemStatus() {
             const pInfo = prod.info;
             const isProdActive = prod.active_count > 0;
             
-            // Log fix telemetry if state changes or is debugged
-            if (!isProdActive && pInfo.progress_percent > 0) {
-                console.log("[DASHBOARD-FIX] Stale prod progress detected on client side. Overriding stale indicators.");
+            const prodPct = Math.round(pInfo.progress_percent || 0);
+            let prodStatusText = `${prodPct}%`;
+            let prodLblText = 'Progreso Ensemble';
+            if (!isProdActive) {
+                if (prodPct >= 100) prodLblText = 'Progreso (COMPLETADA)';
+                else if (prodPct > 0) prodLblText = 'Progreso (INTERRUMPIDA)';
+                else {
+                    prodStatusText = 'INACTIVO';
+                    prodLblText = 'Progreso Ensemble';
+                }
             }
             
-            const prodPct = isProdActive ? Math.round(pInfo.progress_percent || 0) : 0;
             const valProdPct = document.getElementById('val-prod-pct');
-            if (valProdPct) valProdPct.textContent = isProdActive ? `${prodPct}%` : 'INACTIVO';
+            if (valProdPct) {
+                valProdPct.textContent = prodStatusText;
+                const prodLblEl = valProdPct.nextElementSibling;
+                if (prodLblEl && prodLblEl.classList.contains('pct-lbl')) {
+                    prodLblEl.textContent = prodLblText;
+                    if (prodLblText.includes('COMPLETADA')) prodLblEl.style.color = '#10b981';
+                    else if (prodLblText.includes('INTERRUMPIDA')) prodLblEl.style.color = '#f59e0b';
+                    else prodLblEl.style.color = '';
+                }
+            }
             
             const circleProd = document.getElementById('circle-prod-progress');
             if (circleProd) {
@@ -773,21 +808,21 @@ async function fetchSystemStatus() {
             
             const valProdSeeds = document.getElementById('val-prod-seeds');
             if (valProdSeeds) {
-                valProdSeeds.textContent = isProdActive && pInfo.active_seeds && pInfo.active_seeds.length > 0
+                valProdSeeds.textContent = pInfo.active_seeds && pInfo.active_seeds.length > 0
                     ? `[${pInfo.active_seeds.join(', ')}]`
                     : 'N/A';
             }
             
             const valProdCurrentSeed = document.getElementById('val-prod-current-seed');
             if (valProdCurrentSeed) {
-                valProdCurrentSeed.textContent = isProdActive && pInfo.current_seed !== 'None'
+                valProdCurrentSeed.textContent = pInfo.current_seed !== 'None' && pInfo.current_seed
                     ? `Semilla ${pInfo.current_seed} (${pInfo.current_seed_idx} de ${pInfo.total_seeds})`
                     : 'N/A';
             }
             
             const valProdPhase = document.getElementById('val-prod-phase');
             if (valProdPhase) {
-                valProdPhase.textContent = isProdActive ? (pInfo.active_phase || 'Inactivo') : 'Inactivo';
+                valProdPhase.textContent = pInfo.active_phase || 'Inactivo';
             }
             
             const valProdPid = document.getElementById('val-prod-pid');
@@ -1512,13 +1547,17 @@ async function fetchSystemStatus() {
             }
             
             if (currentSeedEl) {
-                currentSeedEl.textContent = data.active_run.current_seed ? `${data.active_run.current_seed}` : (data.active_run.is_active ? 'Iniciando...' : 'Ninguna (Completado)');
+                let statusSuffix = 'Completado';
+                if (!data.active_run.is_active && totalCalculated < totalConfigured) {
+                    statusSuffix = 'Interrumpido';
+                }
+                currentSeedEl.textContent = data.active_run.current_seed ? `${data.active_run.current_seed}` : (data.active_run.is_active ? 'Iniciando...' : `Ninguna (${statusSuffix})`);
                 if (data.active_run.current_seed) {
                     currentSeedEl.style.color = '#f59e0b';
                 } else if (data.active_run.is_active) {
                     currentSeedEl.style.color = '#38bdf8';
                 } else {
-                    currentSeedEl.style.color = '#10b981';
+                    currentSeedEl.style.color = statusSuffix === 'Interrumpido' ? '#f59e0b' : '#10b981';
                 }
             }
             
@@ -4638,50 +4677,57 @@ function renderSopComplianceAuditor(settings) {
 }
 
 function renderChampionsTable(champions, lockHeld = false) {
-    const container = document.getElementById('champions-table-rows');
-    if (!container) return;
+    const containerLong = document.getElementById('champions-table-rows-long');
+    const containerShort = document.getElementById('champions-table-rows-short');
+    if (!containerLong || !containerShort) return;
     
     console.log(`[DASHBOARD-FIX-UI] Rendering Champions Table... Quantity: ${champions ? champions.length : 0} | Active: ${lockHeld}`);
     
-    if (!champions || champions.length === 0) {
-        const msg = lockHeld 
-            ? "Esperando veredicto del Gauntlet estadístico..." 
-            : "Ejecución completa: 0 semillas superaron los filtros del Gauntlet estadístico.";
-        container.innerHTML = `
-            <tr>
-                <td colspan="8" class="empty-table-state">
-                    ${msg}
-                </td>
-            </tr>
-        `;
-        return;
-    }
-    
-    container.innerHTML = champions.map(row => {
-        const windows = row.windows || {};
-        const windowPills = Object.entries(windows).map(([wName, wInfo]) => {
-            const wr = wInfo.win_rate;
-            const statusClass = wr >= 50.0 ? 'win' : 'loss';
-            return `<span class="window-pill ${statusClass}" title="${wInfo.trades} trades">${wName}: ${wr}%</span>`;
+    const renderTable = (container, filterStr, emptyMsg) => {
+        let filtered = (champions || []).filter(c => String(c.seed).endsWith(filterStr));
+        if (!filtered || filtered.length === 0) {
+            container.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-table-state">
+                        ${emptyMsg}
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        container.innerHTML = filtered.map(row => {
+            const windows = row.windows || {};
+            const windowPills = Object.entries(windows).map(([wName, wInfo]) => {
+                const wr = wInfo.win_rate;
+                const statusClass = wr >= 50.0 ? 'win' : 'loss';
+                return `<span class="window-pill ${statusClass}" title="${wInfo.trades} trades">${wName}: ${wr}%</span>`;
+            }).join('');
+            
+            return `
+                <tr class="champion-row" data-seed="${row.seed}" style="cursor: pointer;">
+                    <td class="seed-num">${row.seed}</td>
+                    <td class="numeric">${row.total_trades}</td>
+                    <td class="numeric text-green text-semibold">${row.win_rate}%</td>
+                    <td class="numeric text-cyan text-semibold">${row.sharpe.toFixed(3)}</td>
+                    <td class="numeric text-amber text-semibold">${row.calmar.toFixed(2)}</td>
+                    <td class="numeric">${row.dsr.toFixed(4)}</td>
+                    <td class="numeric">${row.pbo.toFixed(1)}%</td>
+                    <td>
+                        <div class="window-grid">
+                            ${windowPills || '<span class="skipped">Sin Ventanas</span>'}
+                        </div>
+                    </td>
+                </tr>
+            `;
         }).join('');
+    };
+
+    const msg = lockHeld 
+        ? "Esperando veredicto del Gauntlet estadístico..." 
+        : "Ejecución completa: 0 semillas superaron los filtros del Gauntlet estadístico.";
         
-        return `
-            <tr class="champion-row" data-seed="${row.seed}" style="cursor: pointer;">
-                <td class="seed-num">${row.seed}</td>
-                <td class="numeric">${row.total_trades}</td>
-                <td class="numeric text-green text-semibold">${row.win_rate}%</td>
-                <td class="numeric text-cyan text-semibold">${row.sharpe.toFixed(3)}</td>
-                <td class="numeric text-amber text-semibold">${row.calmar.toFixed(2)}</td>
-                <td class="numeric">${row.dsr.toFixed(4)}</td>
-                <td class="numeric">${row.pbo.toFixed(1)}%</td>
-                <td>
-                    <div class="window-grid">
-                        ${windowPills || '<span class="skipped">Sin Ventanas</span>'}
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
+    renderTable(containerLong, '_LONG', msg);
+    renderTable(containerShort, '_SHORT', msg);
 }
 
 function renderDiscardedTable(discarded) {

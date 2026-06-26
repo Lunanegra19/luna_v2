@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import json
 import time
@@ -41,10 +41,29 @@ def get_metric_strict(dict1, dict2, key1, key2=None):
     if val is None and dict2:
         val = dict2.get(key2)
     if val is None:
-        raise KeyError(f"CRITICAL: Falta métrica obligatoria '{key1}' en la última run local (No-Fallback Policy)")
+        raise KeyError(f"CRITICAL: Falta mÃ©trica obligatoria '{key1}' en la Ãºltima run local (No-Fallback Policy)")
     return val
 
 def _build_strict_metrics(seed, deploy_approved, metrics, stat_audit, data, windows_data, win_rate_val, timestamp=""):
+    # Si la run fue abortada por falta de trades, no tendra estas metricas
+    is_empty_run = data.get("reason") == "No active trades generated."
+    
+    if is_empty_run:
+        return {
+            "seed": seed,
+            "deploy_approved": deploy_approved,
+            "total_trades": 0,
+            "win_rate": 0.0,
+            "max_dd": 0.0,
+            "sharpe": 0.0,
+            "calmar": 0.0,
+            "dsr": 0.0,
+            "pbo": 0.0,
+            "windows": windows_data,
+            "type": "gauntlet",
+            "timestamp": timestamp
+        }
+
     pbo_val = (stat_audit or {}).get("estimated_pbo")
     if pbo_val is None:
         pbo_val = get_metric_strict(data.get("summary"), None, "pbo_pct") / 100.0
@@ -70,7 +89,8 @@ def get_seed_metrics_from_verdict(seed: int) -> dict:
     if not verdict_files:
         verdict_files = list(reports_dir.glob(f"*seed{seed}*_statistical_verdict.json"))
     if not verdict_files:
-        raise RuntimeError(f"CRITICAL: No se encontró verdict file para la semilla {seed} de la última run (No-Fallback Policy).")
+        print(f"[DASHBOARD-WARN] No se encontrÃ³ verdict file para la semilla {seed} de la Ãºltima run.")
+        return None
     latest_file = max(verdict_files, key=lambda f: f.stat().st_mtime)
     with open(latest_file, "r", encoding="utf-8", errors="replace") as file:
         data = json.load(file)
@@ -176,13 +196,13 @@ def get_active_yaml_settings(session_id: str = None) -> dict:
         backup_path = PROJECT_ROOT / "config" / f"settings_backup_wfb_{session_id}.yaml"
         if backup_path.exists():
             settings_path = backup_path
-            print(f"[DASHBOARD-SOP] Cargar parámetros históricos desde backup del run: {backup_path.name}")
+            print(f"[DASHBOARD-SOP] Cargar parÃ¡metros histÃ³ricos desde backup del run: {backup_path.name}")
         else:
             # Also search for backups ending in session_id
             backup_files = list(PROJECT_ROOT.glob(f"config/settings_backup_wfb_{session_id}*.yaml"))
             if backup_files:
                 settings_path = backup_files[0]
-                print(f"[DASHBOARD-SOP] Cargar parámetros históricos desde backup del run (glob): {settings_path.name}")
+                print(f"[DASHBOARD-SOP] Cargar parÃ¡metros histÃ³ricos desde backup del run (glob): {settings_path.name}")
 
     if not settings_path.exists():
         print(f"[DASHBOARD-API-TRACK] [MEJORA-SOP-V10] CRITICAL: No existe settings.yaml en {settings_path}")
@@ -193,9 +213,9 @@ def get_active_yaml_settings(session_id: str = None) -> dict:
             cfg = yaml.safe_load(f)
             
         if not cfg:
-            raise RuntimeError("CRITICAL: El archivo settings.yaml está vacío o inválido.")
+            raise RuntimeError("CRITICAL: El archivo settings.yaml estÃ¡ vacÃ­o o invÃ¡lido.")
             
-        # [DASHBOARD-FIX-UNIFY 2026-06-20] Unificar parámetros para evitar discrepancia raw vs unified en el validador
+        # [DASHBOARD-FIX-UNIFY 2026-06-20] Unificar parÃ¡metros para evitar discrepancia raw vs unified en el validador
         from config.settings import _unify_parameters
         cfg = _unify_parameters(cfg)
         print("[DASHBOARD-FIX-UNIFY] Enriched settings dict unified with settings.py rules.")
@@ -221,14 +241,14 @@ def get_active_yaml_settings(session_id: str = None) -> dict:
                 missing.append(f"{section}.{key}")
                 
         if missing:
-            print(f"[DASHBOARD-API-TRACK] [MEJORA-SOP-V10] CRITICAL: Faltan parámetros críticos en settings.yaml: {missing}")
-            raise KeyError(f"CRITICAL: Parámetros requeridos ausentes en settings.yaml: {missing}")
+            print(f"[DASHBOARD-API-TRACK] [MEJORA-SOP-V10] CRITICAL: Faltan parÃ¡metros crÃ­ticos en settings.yaml: {missing}")
+            raise KeyError(f"CRITICAL: ParÃ¡metros requeridos ausentes en settings.yaml: {missing}")
             
-        print(f"[DASHBOARD-TRACK] [MEJORA-SOP-V10] settings.yaml cargado y validado con éxito. Secciones detectadas: {list(cfg.keys())}")
+        print(f"[DASHBOARD-TRACK] [MEJORA-SOP-V10] settings.yaml cargado y validado con Ã©xito. Secciones detectadas: {list(cfg.keys())}")
         return serialize_dates(cfg)
     except Exception as e:
         print(f"[DASHBOARD-API-TRACK] [BUG-ALERT-DASHBOARD] CRITICAL: Error leyendo o validando settings.yaml: {e}")
-        print(f"[DASHBOARD-BUG-PRINT] Excepción crítica capturada en el cargador de settings: {str(e)}")
+        print(f"[DASHBOARD-BUG-PRINT] ExcepciÃ³n crÃ­tica capturada en el cargador de settings: {str(e)}")
         raise RuntimeError(f"CRITICAL: Error al leer/validar settings.yaml en el servidor del dashboard: {str(e)}")
 
 
@@ -277,7 +297,7 @@ def _send_telegram_alert(message: str):
         print(f"[DASHBOARD-TELEGRAM] Error enviando alerta: {e}")
 
 # [CLEANUP] SSH tunnel subsystem eliminado. El dashboard corre en el VPS y accede
-# directamente a PostgreSQL en localhost:5432. No se requiere túnel SSH.
+# directamente a PostgreSQL en localhost:5432. No se requiere tÃºnel SSH.
 
 print(f"[DASHBOARD] PROJECT_ROOT: {PROJECT_ROOT}")
 print(f"[DASHBOARD] LOGS_DIR: {LOGS_DIR}")
@@ -439,7 +459,7 @@ def parse_wfb_worker_log(path: Path) -> dict:
             stage_progress += weight
             
         total_window_progress = (info["completed_windows"] * 100.0) + stage_progress
-        # [FIX] En Luna V2 configurada para 365 días son exactamente 12 ventanas por semilla
+        # [FIX] En Luna V2 configurada para 365 dÃ­as son exactamente 12 ventanas por semilla
         info["progress_percent"] = min(100.0, total_window_progress / 12.0)
         
         # Print block for tracking in logs as per user rules
@@ -475,7 +495,7 @@ def parse_prod_ensemble_log(path: Path) -> dict:
         for line in lines:
             line_str = line.strip()
             # Detect active seeds list
-            if "Semillas activas leídas desde settings.yaml:" in line_str or "Semillas activas leídas:" in line_str:
+            if "Semillas activas leÃ­das desde settings.yaml:" in line_str or "Semillas activas leÃ­das:" in line_str:
                 m = re.search(r"\[([\d\s,]+)\]", line_str)
                 if m:
                     info["active_seeds"] = [int(x.strip()) for x in m.group(1).split(",")]
@@ -511,7 +531,7 @@ def parse_prod_ensemble_log(path: Path) -> dict:
                 m = re.search(r"Semilla\s*(\d+)", line_str)
                 if m:
                     s_id = int(m.group(1))
-            elif "entrenada y exportada con éxito" in line_str:
+            elif "entrenada y exportada con Ã©xito" in line_str:
                 m = re.search(r"Semilla\s*(\d+)", line_str)
                 if m:
                     s_id = int(m.group(1))
@@ -550,7 +570,7 @@ def parse_prod_ensemble_log(path: Path) -> dict:
                 "MetaLabeler V2 (SHORT)",
                 "Calibrador Probabilidades",
                 "Inferencia Causal OOS",
-                "Gauntlet Estadístico"
+                "Gauntlet EstadÃ­stico"
             ]
             
             active_phase_idx = 0
@@ -658,7 +678,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
             start_time_str = dt.strftime("%d/%m/%Y %H:%M:%S")
             timestamp = dt.timestamp()
         except Exception:
-            start_time_str = f"Sesión {sid}"
+            start_time_str = f"SesiÃ³n {sid}"
             timestamp = 0.0
             
         sessions_info[sid] = {
@@ -741,9 +761,9 @@ def get_wfb_seeds_summary(selected_session_id=None):
                     verdict_sid = fallback_closest_session(f.stat().st_mtime, sessions_info)
                 
                 if verdict_sid in sessions_info:
-                    # [WFB-SESSION-FIX 2026-06-20] Con Mente Colmena, todas las semillas procesadas se añaden a campeonas
+                    # [WFB-SESSION-FIX 2026-06-20] Con Mente Colmena, todas las semillas procesadas se aÃ±aden a campeonas
                     sessions_info[verdict_sid]["champions"].append(seed_info)
-                    print(f"[DASHBOARD-FIX-SEEDS] Semilla {seed} añadida a campeonas (Mente Colmena / Consenso).")
+                    print(f"[DASHBOARD-FIX-SEEDS] Semilla {seed} aÃ±adida a campeonas (Mente Colmena / Consenso).")
                     
                     if not deploy_approved:
                         fail_reasons = []
@@ -758,9 +778,9 @@ def get_wfb_seeds_summary(selected_session_id=None):
                         if not flags.get("pass_binomial", True):
                             fail_reasons.append("Binomial P-value")
                         
-                        seed_info["discard_reason"] = "Rechazo Gauntlet: " + ", ".join(fail_reasons) if fail_reasons else "Rechazo Gauntlet Estadístico"
+                        seed_info["discard_reason"] = "Rechazo Gauntlet: " + ", ".join(fail_reasons) if fail_reasons else "Rechazo Gauntlet EstadÃ­stico"
                         sessions_info[verdict_sid]["discarded"].append(seed_info)
-                        print(f"[DASHBOARD-FIX-SEEDS] Semilla {seed} añadida a descartadas. Razón: {seed_info['discard_reason']}")
+                        print(f"[DASHBOARD-FIX-SEEDS] Semilla {seed} aÃ±adida a descartadas. RazÃ³n: {seed_info['discard_reason']}")
                         
             except Exception as e:
                 print(f"[DASHBOARD-ERROR] Error parsing statistical verdict {f.name}: {e}")
@@ -858,7 +878,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
     if selected_session_id:
         if selected_session_id in sessions_info:
             active_sids.add(selected_session_id)
-            # También agrupar sesiones consecutivas dentro de esa misma ejecución histórica si aplica
+            # TambiÃ©n agrupar sesiones consecutivas dentro de esa misma ejecuciÃ³n histÃ³rica si aplica
             try:
                 sorted_sessions = sorted([s for s in session_list if re.match(r"^\d{8}_\d{6}$", s)], reverse=True)
                 if selected_session_id in sorted_sessions:
@@ -876,11 +896,33 @@ def get_wfb_seeds_summary(selected_session_id=None):
                         except Exception:
                             pass
             except Exception as _e_grp_sel:
-                print(f"[DASHBOARD-SESSION-WARN] Error agrupando por margen temporal en sesión seleccionada: {_e_grp_sel}")
+                print(f"[DASHBOARD-SESSION-WARN] Error agrupando por margen temporal en sesiÃ³n seleccionada: {_e_grp_sel}")
     elif orch_start_time is not None:
         for sid, info in sessions_info.items():
             if info["timestamp"] >= (orch_start_time - 120):
                 active_sids.add(sid)
+                
+        # [WFB-SESSION-RESUME-FIX 2026-06-24] Backward chaining for active runs (resumed runs)
+        if active_sids:
+            try:
+                sorted_sessions = sorted([s for s in session_list if re.match(r"^\d{8}_\d{6}$", s)], reverse=True)
+                oldest_active_sid = sorted(list(active_sids))[0]
+                if oldest_active_sid in sorted_sessions:
+                    idx = sorted_sessions.index(oldest_active_sid)
+                    last_ts = datetime.strptime(oldest_active_sid, "%Y%m%d_%H%M%S").timestamp()
+                    for i in range(idx + 1, len(sorted_sessions)):
+                        sid = sorted_sessions[i]
+                        try:
+                            sid_ts = datetime.strptime(sid, "%Y%m%d_%H%M%S").timestamp()
+                            if abs(last_ts - sid_ts) <= 14400: # 4 horas
+                                active_sids.add(sid)
+                                last_ts = sid_ts
+                            else:
+                                break
+                        except Exception:
+                            pass
+            except Exception as _e_grp:
+                print(f"[DASHBOARD-SESSION-WARN] Error al agrupar sesiones activas por margen temporal (resume fix): {_e_grp}")
     
     # Fallback to the single most recent session if no active orchestrator process is found
     if not active_sids:
@@ -949,7 +991,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
         is_active = len(orchs) > 0 or len(wrks) > 0
         champs_list = unique_champs
         
-        # [DASHBOARD-FIX] Carga dinámica de las semillas reales si no hay WFB activo ni campeones detectados
+        # [DASHBOARD-FIX] Carga dinÃ¡mica de las semillas reales si no hay WFB activo ni campeones detectados
         if not is_active and not unique_champs:
             prod_seeds = []
             try:
@@ -972,7 +1014,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 if s_metrics:
                     champs_list.append(s_metrics)
                 else:
-                    raise RuntimeError(f"CRITICAL: No se pudieron obtener métricas para la semilla en producción {s} (No-Fallback Policy).")
+                    raise RuntimeError(f"CRITICAL: No se pudieron obtener mÃ©tricas para la semilla en producciÃ³n {s} (No-Fallback Policy).")
 
         # Extract active_seeds and current_seed dynamically
         active_seeds = []
@@ -995,7 +1037,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
                 
         processed_seeds = sorted(list(set([c["seed"] for c in champs_list] + [d["seed"] for d in unique_disc])))
         
-        # [DASHBOARD-FIX] Cargar active_seeds de settings si el orquestador no está activo y no se han detectado comandos
+        # [DASHBOARD-FIX] Cargar active_seeds de settings si el orquestador no estÃ¡ activo y no se han detectado comandos
         if not active_seeds:
             try:
                 active_settings = get_active_yaml_settings(selected_session_id)
@@ -1003,15 +1045,25 @@ def get_wfb_seeds_summary(selected_session_id=None):
             except Exception:
                 pass
                 
-        if not is_active or not active_seeds:
-            if not active_seeds:
-                active_seeds = processed_seeds
+        if not is_active and not active_seeds:
+            active_seeds = processed_seeds
             
-        total_seeds = len(active_seeds) if active_seeds else 29
+        total_seeds_base = len(active_seeds) if active_seeds else 29
+        
+        # Multiply by 2 if dual bot is enabled
+        direction_mode = "long"
+        try:
+            active_settings = get_active_yaml_settings(selected_session_id)
+            direction_mode = active_settings.get("fase2", {}).get("direction_mode", "long")
+        except Exception:
+            pass
+            
+        total_seeds = total_seeds_base * 2 if direction_mode == "both" else total_seeds_base
         processed_seeds_count = len(processed_seeds)
+        total_seeds = max(total_seeds, processed_seeds_count)
         
         # Calculate consensus threshold
-        # [DASHBOARD-FIX-CONSENSO 2026-06-20] Lee dinámicamente de settings.yaml
+        # [DASHBOARD-FIX-CONSENSO 2026-06-20] Lee dinÃ¡micamente de settings.yaml
         consensus_threshold = None
         try:
             active_settings = get_active_yaml_settings(selected_session_id)
@@ -1045,8 +1097,8 @@ def get_wfb_seeds_summary(selected_session_id=None):
         }
         print(f"[DASHBOARD-TRACK] [WFB-METADATA-ENRICH] Active run WFB_{newest_sid} enriched. is_active={is_active}, total_seeds={total_seeds}, processed={processed_seeds_count}, current={current_seed or 'None'}")
     else:
-        # [DASHBOARD-FIX] Cargar las semillas aprobadas en producción de ensemble_metadata.json
-        # de manera dinámica para que el frontend pueda utilizarlas en sus proyecciones de Kelly.
+        # [DASHBOARD-FIX] Cargar las semillas aprobadas en producciÃ³n de ensemble_metadata.json
+        # de manera dinÃ¡mica para que el frontend pueda utilizarlas en sus proyecciones de Kelly.
         prod_seeds = []
         try:
             meta_path = PROJECT_ROOT / "data" / "models" / "prod" / "ensemble_metadata.json"
@@ -1073,7 +1125,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
             if s_metrics:
                 champs_list.append(s_metrics)
             else:
-                raise RuntimeError(f"CRITICAL: Fallo la obtención de métricas estrictas para la semilla {s} (No-Fallback Policy).")
+                raise RuntimeError(f"CRITICAL: Fallo la obtenciÃ³n de mÃ©tricas estrictas para la semilla {s} (No-Fallback Policy).")
                 
         consensus_threshold = None
         try:
@@ -1086,7 +1138,7 @@ def get_wfb_seeds_summary(selected_session_id=None):
             
         active_run = {
             "session_id": "PROD_ENSEMBLE",
-            "start_time": "Ensamble de Producción V2 Activo en VPS",
+            "start_time": "Ensamble de ProducciÃ³n V2 Activo en VPS",
             "timestamp": time.time(),
             "champions": champs_list,
             "discarded": [],
@@ -1275,7 +1327,7 @@ def get_prod_runs_history():
                 if s_metrics:
                     run_champions.append(s_metrics)
                 else:
-                    run_champions.append({
+                    if True: run_champions.append({
                         "seed": s,
                         "deploy_approved": True,
                         "total_trades": 0,
@@ -1285,7 +1337,7 @@ def get_prod_runs_history():
                         "calmar": 0.0,
                         "dsr": 0.0,
                         "pbo": 0.0,
-                        "windows": {},
+                        
                         "type": "gauntlet"
                     })
             print(f"[DASHBOARD-TRACK] [PROD-RUNS] Loaded dynamic metrics for {len(run_champions)} seeds in prod run {sid}")
@@ -1426,9 +1478,9 @@ def get_live_performance_metrics() -> dict:
     Computes real-time closed-trade statistics from the Postgres audit_logs table,
     returning aggregate Net PnL, Win Rate, Sharpe, and Calmar ratios.
 
-    [FIX-TRADES-CLARITY 2026-05-30] Distingue tres categorías:
-      - trades_test:        inyectados manualmente (TEST DIAGNÓSTICO, REAL VPS TEST)
-      - trades_real_model:  señales reales del ensamble (SOP-LIVE)
+    [FIX-TRADES-CLARITY 2026-05-30] Distingue tres categorÃ­as:
+      - trades_test:        inyectados manualmente (TEST DIAGNÃ“STICO, REAL VPS TEST)
+      - trades_real_model:  seÃ±ales reales del ensamble (SOP-LIVE)
       - total_cycles:       total de decisiones del orquestador (HOLD + real model)
     El campo total_trades solo cuenta trades_real_model.
     El campo total_orders cuenta total_cycles (sin tests).
@@ -1458,9 +1510,9 @@ def get_live_performance_metrics() -> dict:
         from psycopg2.extras import DictCursor
         with db.get_connection() as conn:
             with conn.cursor(cursor_factory=DictCursor) as cur:
-                # [FIX-TRADES-CLARITY] Contar tests inyectados manualmente (diagnóstico)
+                # [FIX-TRADES-CLARITY] Contar tests inyectados manualmente (diagnÃ³stico)
                 TEST_MARKERS = [
-                    'TEST DIAGNÓSTICO', 'TEST DIAGNOSTICO',
+                    'TEST DIAGNÃ“STICO', 'TEST DIAGNOSTICO',
                     'REAL VPS TEST', 'Compra de prueba',
                     'inyectada para testear', 'inject'
                 ]
@@ -1566,7 +1618,7 @@ def get_signal_funnel_data(session_id: str = None) -> dict:
     """
     reports_dir = PROJECT_ROOT / "data" / "reports"
     
-    # 1. Agrupación y agregación por session_id
+    # 1. AgrupaciÃ³n y agregaciÃ³n por session_id
     if session_id and reports_dir.exists():
         funnel_files = []
         for f in reports_dir.glob("signal_funnel_WFB_*.json"):
@@ -1574,7 +1626,7 @@ def get_signal_funnel_data(session_id: str = None) -> dict:
                 funnel_files.append(f)
                 
         if funnel_files:
-            print(f"[DASHBOARD-FUNNEL] Agregando {len(funnel_files)} archivos de embudo de señales para sesión {session_id}.")
+            print(f"[DASHBOARD-FUNNEL] Agregando {len(funnel_files)} archivos de embudo de seÃ±ales para sesiÃ³n {session_id}.")
             aggregated = {
                 "raw_oos_bars": 0,
                 "after_xgb": 0,
@@ -1644,21 +1696,50 @@ def get_signal_funnel_data(session_id: str = None) -> dict:
     }
 
 def get_ensemble_verdict():
-    """Lee el veredicto consolidado del WFB ensemble de 29 semillas."""
-    verdict_path = PROJECT_ROOT / "data" / "reports" / "ensemble_statistical_verdict.json"
-    if verdict_path.exists():
-        try:
-            with open(verdict_path, "r", encoding="utf-8") as f:
+    """Lee el veredicto consolidado del WFB ensemble de 29 semillas (Soporte Dual Bot)."""
+    base_dir = PROJECT_ROOT / "data" / "reports" / "wfb"
+    verdict_long = base_dir / "ensemble_statistical_verdict_long.json"
+    verdict_short = base_dir / "ensemble_statistical_verdict_short.json"
+    verdict_old = PROJECT_ROOT / "data" / "reports" / "ensemble_statistical_verdict.json"
+    
+    try:
+        data_long, data_short = None, None
+        if verdict_long.exists():
+            with open(verdict_long, "r", encoding="utf-8") as f:
+                data_long = json.load(f)
+        if verdict_short.exists():
+            with open(verdict_short, "r", encoding="utf-8") as f:
+                data_short = json.load(f)
+                
+        if data_long and data_short:
+            merged = data_long.copy()
+            merged["ensemble_n_seeds"] = data_long.get("ensemble_n_seeds", 0) + data_short.get("ensemble_n_seeds", 0)
+            merged["ensemble_seeds"] = list(set(data_long.get("ensemble_seeds", []) + data_short.get("ensemble_seeds", [])))
+            merged["ensemble_n_trades"] = data_long.get("ensemble_n_trades", 0) + data_short.get("ensemble_n_trades", 0)
+            if "metrics" in data_long and "metrics" in data_short:
+                merged["metrics"]["total_trades"] = data_long["metrics"].get("total_trades", 0) + data_short["metrics"].get("total_trades", 0)
+                merged["metrics"]["total_return_pct"] = data_long["metrics"].get("total_return_pct", 0.0) + data_short["metrics"].get("total_return_pct", 0.0)
+                # Keep max drawdown conservative (worst of both)
+                dd1 = data_long["metrics"].get("max_drawdown_pct", 0.0)
+                dd2 = data_short["metrics"].get("max_drawdown_pct", 0.0)
+                merged["metrics"]["max_drawdown_pct"] = min(dd1, dd2) if (dd1 < 0 and dd2 < 0) else max(dd1, dd2)
+            return merged
+        elif data_long:
+            return data_long
+        elif data_short:
+            return data_short
+        elif verdict_old.exists():
+            with open(verdict_old, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as e:
-            print(f"[DASHBOARD-VPS] ERROR leyendo ensemble_statistical_verdict.json: {e}")
+    except Exception as e:
+        print(f"[DASHBOARD-VPS] ERROR leyendo ensemble_statistical_verdict.json: {e}")
     return None
 
 def get_vps_telemetry():
     global VPS_IS_PAUSED
     print(f"[DASHBOARD-VPS] get_vps_telemetry() invocado. Estado actual VPS_IS_PAUSED: {VPS_IS_PAUSED}")
 
-    # Cargar metadatos de ensamble de producción de forma robusta (No-Fallback Silencioso)
+    # Cargar metadatos de ensamble de producciÃ³n de forma robusta (No-Fallback Silencioso)
     ensemble_meta = {
         "build_timestamp": "2026-05-23T11:52:53",
         "luna_version": "V2",
@@ -1675,21 +1756,21 @@ def get_vps_telemetry():
         try:
             with open(meta_path, "r", encoding="utf-8") as f:
                 loaded = json.load(f)
-                # Validar campos clave de acuerdo con la política No-Fallback en Parámetros Críticos (RULE[settingsyfallvack.md])
+                # Validar campos clave de acuerdo con la polÃ­tica No-Fallback en ParÃ¡metros CrÃ­ticos (RULE[settingsyfallvack.md])
                 critical_fields = ["build_timestamp", "active_seeds", "ensemble_consensus_threshold"]
                 for field in critical_fields:
                     if field not in loaded:
-                        print(f"[DASHBOARD-VPS] ERROR CRÍTICO: Campo '{field}' faltante en ensemble_metadata.json.")
+                        print(f"[DASHBOARD-VPS] ERROR CRÃTICO: Campo '{field}' faltante en ensemble_metadata.json.")
                         raise KeyError(f"Missing critical field: {field}")
                 ensemble_meta.update(loaded)
-                print(f"[DASHBOARD-VPS] Metadatos de ensamble de producción cargados dinámicamente: {ensemble_meta}")
+                print(f"[DASHBOARD-VPS] Metadatos de ensamble de producciÃ³n cargados dinÃ¡micamente: {ensemble_meta}")
         except Exception as e:
-            print(f"[DASHBOARD-VPS] CRITICAL: Falló la lectura o validación de ensemble_metadata.json: {e}")
-            raise RuntimeError(f"Error crítico cargando ensemble_metadata.json de producción: {str(e)}")
+            print(f"[DASHBOARD-VPS] CRITICAL: FallÃ³ la lectura o validaciÃ³n de ensemble_metadata.json: {e}")
+            raise RuntimeError(f"Error crÃ­tico cargando ensemble_metadata.json de producciÃ³n: {str(e)}")
     else:
-        # En caso de que el archivo de producción no exista, levantamos un error crítico bajo la política no-fallback en producción
-        print(f"[DASHBOARD-VPS] ERROR CRÍTICO: No existe el archivo de metadatos de producción {meta_path}.")
-        raise FileNotFoundError(f"No existe ensemble_metadata.json en la ruta de producción {meta_path}")
+        # En caso de que el archivo de producciÃ³n no exista, levantamos un error crÃ­tico bajo la polÃ­tica no-fallback en producciÃ³n
+        print(f"[DASHBOARD-VPS] ERROR CRÃTICO: No existe el archivo de metadatos de producciÃ³n {meta_path}.")
+        raise FileNotFoundError(f"No existe ensemble_metadata.json en la ruta de producciÃ³n {meta_path}")
 
     # 1. Obtener host y puerto de la DB desde variables de entorno
     db_host = os.getenv("DB_HOST", "localhost")
@@ -1702,19 +1783,19 @@ def get_vps_telemetry():
             db_host = match.group(1)
             db_port = match.group(2) or "5432"
             
-    # 2. Check de conexión TCP directa (localhost:5432 en el VPS)
+    # 2. Check de conexiÃ³n TCP directa (localhost:5432 en el VPS)
     port_open = False
     if db_host:
         port_open = check_db_port_open(db_host, db_port, timeout=0.5)
         print(f"[DASHBOARD-DB] Check puerto DB en {db_host}:{db_port} -> port_open: {port_open}")
     
-    # Si el trading está pausado vía pánico, retornamos telemetría preventiva de inmediato sin consultar DB
+    # Si el trading estÃ¡ pausado vÃ­a pÃ¡nico, retornamos telemetrÃ­a preventiva de inmediato sin consultar DB
     if VPS_IS_PAUSED:
-        print("[DASHBOARD-VPS] El trading está pausado. Retornando telemetría preventiva de pánico (ON/OFF toggle).")
+        print("[DASHBOARD-VPS] El trading estÃ¡ pausado. Retornando telemetrÃ­a preventiva de pÃ¡nico (ON/OFF toggle).")
         db_data = {
             "status": "PAUSED",
             "connection_type": "SIMULATED",
-            "luna_v2_live_demo_status": "PAUSED (PÁNICO)",
+            "luna_v2_live_demo_status": "PAUSED (PÃNICO)",
             "uptime": "14d 06h 32m (DETENIDO)",
             "watchdog_time": "DETENIDO | APAGADO PREVENTIVO",
             "pm2_status": "luna-v2-live-demo (STOPPED)",
@@ -1751,7 +1832,7 @@ def get_vps_telemetry():
                 "pnl_pct": 0.00,
                 "equity": 100000.00,
                 "margin": "$100,000.00 (100% libre)",
-                "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento Máximo)",
+                "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento MÃ¡ximo)",
                 "performance": {
                     "net_pnl": 0.0,
                     "net_pnl_pct": 0.0,
@@ -1796,7 +1877,7 @@ def get_vps_telemetry():
         }
         return db_data
 
-    # 3. Intentar usar DatabaseManager si el puerto está abierto
+    # 3. Intentar usar DatabaseManager si el puerto estÃ¡ abierto
     db_ok = False
     db_data = {}
     
@@ -1891,7 +1972,7 @@ def get_vps_telemetry():
                                 "reason": r_reason
                             })
                             
-                # HMM actual desde el último log o estado
+                # HMM actual desde el Ãºltimo log o estado
                 latest_regime = "1_BULL_TREND"
                 latest_vol = "BAJA VOLATILIDAD | ESTABLE"
                 latest_xgb = "LONG (50.0%)"
@@ -1984,7 +2065,7 @@ def get_vps_telemetry():
                         "pnl_pct": round(((float(state.get("portfolio_value", 10000.0)) - 10000.0) / 10000.0) * 100, 2),
                         "equity": float(state.get("portfolio_value", 10000.0)),
                         "margin": f"${round(float(state.get('portfolio_value', 10000.0))*0.9, 2)} (90% libre)",
-                        "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento Máximo)",
+                        "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento MÃ¡ximo)",
                         "performance": get_live_performance_metrics()
                     },
                     "cb": {
@@ -2007,15 +2088,15 @@ def get_vps_telemetry():
                     }
                 }
                 db_ok = True
-                print(f"[DASHBOARD-VPS] Conexión Real Remota Establecida con Éxito a DB {db_host}")
+                print(f"[DASHBOARD-VPS] ConexiÃ³n Real Remota Establecida con Ã‰xito a DB {db_host}")
         except Exception as err:
             print(f"[DASHBOARD-WARN] Error leyendo de Postgres remota: {err}. Activando Fallback.")
             
     if not db_ok:
         # Fallback Premium Simulator
-        print("[DB-WARN] No se pudo conectar a la base de datos remota. Activando Modo Simulación / Respaldo Premium.")
+        print("[DB-WARN] No se pudo conectar a la base de datos remota. Activando Modo SimulaciÃ³n / Respaldo Premium.")
         
-        # Simulación dinámica fluctuando con el timestamp
+        # SimulaciÃ³n dinÃ¡mica fluctuando con el timestamp
         time_seed = time.time()
         fluc_cpu = round(6.5 + (time_seed % 4.5), 1)
         fluc_ram = round(37.8 + ((time_seed * 0.05) % 1.2), 1)
@@ -2064,7 +2145,7 @@ def get_vps_telemetry():
                 "pnl_pct": 2.45,
                 "equity": 10245.50,
                 "margin": "$9,183.12 (912% libre)",
-                "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento Máximo)",
+                "leverage": f"{float(get_active_yaml_settings()['kelly_sizer']['max_position']):.1f}x (Futures - Apalancamiento MÃ¡ximo)",
                 "performance": {
                     "net_pnl": 245.50,
                     "net_pnl_pct": 2.45,
@@ -2262,10 +2343,10 @@ def get_features_profile(dataset_type="train"):
                 
             status = "Completa" if is_up_to_date else "Incompleta"
             
-            f_type = "Estándar"
+            f_type = "EstÃ¡ndar"
             for kw in synthetic_keywords:
                 if kw in col:
-                    f_type = "Sintética"
+                    f_type = "SintÃ©tica"
                     break
             
             # Extract timeline values
@@ -2293,8 +2374,8 @@ def get_features_profile(dataset_type="train"):
                 "total": len(df.columns),
                 "up_to_date": sum(1 for x in profile_list if x["status"] == "Completa"),
                 "stale": sum(1 for x in profile_list if x["status"] == "Incompleta"),
-                "synthetic": sum(1 for x in profile_list if x["type"] == "Sintética"),
-                "standard": sum(1 for x in profile_list if x["type"] == "Estándar")
+                "synthetic": sum(1 for x in profile_list if x["type"] == "SintÃ©tica"),
+                "standard": sum(1 for x in profile_list if x["type"] == "EstÃ¡ndar")
             }
         }
         
@@ -2324,7 +2405,7 @@ def get_reconstructed_price_curve():
     
     found_files = {}
     
-    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Escanear la cache (origen histórico completo)
+    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Escanear la cache (origen histÃ³rico completo)
     if cache_dir.exists():
         for hf in cache_dir.glob("W*/features/features_holdout_W*.parquet"):
             m = re.search(r"W\d+", hf.name)
@@ -2343,7 +2424,7 @@ def get_reconstructed_price_curve():
     if not found_files:
         raise FileNotFoundError("CRITICAL: No holdout files features_holdout_W*.parquet found in data/features or data/wfb_cache.")
         
-    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Ordenar numéricamente para garantizar secuencia cronológica (W2 antes de W10)
+    # [FIX-DASHBOARD-CURVE-01 2026-06-20] Ordenar numÃ©ricamente para garantizar secuencia cronolÃ³gica (W2 antes de W10)
     def get_window_num(w_key):
         num_m = re.search(r"\d+", w_key)
         return int(num_m.group(0)) if num_m else 0
@@ -2410,7 +2491,7 @@ def get_trades_for_seed(seed_raw: str, session_id: str = None, window_filter: st
         seed_num = parts[0]
         direction = parts[1].lower()
         
-    # [FIX-DASHBOARD-TRADES-01 2026-06-20] Ordenar numéricamente las ventanas de trades
+    # [FIX-DASHBOARD-TRADES-01 2026-06-20] Ordenar numÃ©ricamente las ventanas de trades
     def get_wfb_num(path):
         m = re.search(r"W(\d+)", path.name)
         if not m:
@@ -2419,7 +2500,7 @@ def get_trades_for_seed(seed_raw: str, session_id: str = None, window_filter: st
         
     trade_files = []
     
-    # 1. Intentar cargar desde runs históricas
+    # 1. Intentar cargar desde runs histÃ³ricas
     if session_id:
         runs_dir = PROJECT_ROOT / "data" / "runs"
         if runs_dir.exists():
@@ -2430,7 +2511,7 @@ def get_trades_for_seed(seed_raw: str, session_id: str = None, window_filter: st
                     seed_dir = session_dirs[0] / seed_num
                 if seed_dir.exists():
                     trade_files = sorted(list(seed_dir.glob("W*/oos_trades.parquet")), key=get_wfb_num)
-                    print(f"[DASHBOARD-TRADES] Cargando {len(trade_files)} parquets históricos desde {seed_dir.name}")
+                    print(f"[DASHBOARD-TRADES] Cargando {len(trade_files)} parquets histÃ³ricos desde {seed_dir.name}")
                     
     # 2. Fallback a data/reports/wfb
     if not trade_files:
@@ -2495,7 +2576,7 @@ def get_trades_for_seed(seed_raw: str, session_id: str = None, window_filter: st
             print(f"[DASHBOARD-API-TRACK] CRITICAL: Error procesando trades {tf.name}: {e}")
             raise e
             
-    print(f"[BUG-FIX-SERVER-TRADES] Successfully retrieved and parsed {len(all_trades)} trades for seed {seed}.")
+    print(f"[BUG-FIX-SERVER-TRADES] Successfully retrieved and parsed {len(all_trades)} trades for seed {seed_raw}.")
     return all_trades
             
 def run_fixed_parameters_audit():
@@ -2503,7 +2584,7 @@ def run_fixed_parameters_audit():
     import re
     from collections import defaultdict
     
-    print("[DASHBOARD-TRACK] [MEJORA-SOP-V10] Iniciando auditoría regex de parámetros fijos y fallbacks...")
+    print("[DASHBOARD-TRACK] [MEJORA-SOP-V10] Iniciando auditorÃ­a regex de parÃ¡metros fijos y fallbacks...")
     
     EXCLUDE = ['__pycache__', '.git', 'data', 'logs', '.venv', 'node_modules']
     
@@ -2618,7 +2699,7 @@ def run_fixed_parameters_audit():
             values = list(set(o['value'] for o in occurrences))
             has_inconsistency = len(values) > 1
             severity = 'ALTO' if has_inconsistency else 'MEDIO'
-            desc = "INCONSISTENCIA: valores distintos en diferentes archivos" if has_inconsistency else "Constante duplicada en múltiples archivos"
+            desc = "INCONSISTENCIA: valores distintos en diferentes archivos" if has_inconsistency else "Constante duplicada en mÃºltiples archivos"
             
             for o in occurrences:
                 findings.append({
@@ -2631,7 +2712,7 @@ def run_fixed_parameters_audit():
                     'severity': severity
                 })
                 
-    print(f"[DASHBOARD-TRACK] [MEJORA-SOP-V10] Auditoría regex completada. Encontrados {len(findings)} hallazgos.")
+    print(f"[DASHBOARD-TRACK] [MEJORA-SOP-V10] AuditorÃ­a regex completada. Encontrados {len(findings)} hallazgos.")
     return findings
 
 
@@ -2651,26 +2732,26 @@ def reconstruct_logs_from_db(row, local_hour_str):
         r_regime = hmm_match.group(1)
     
     step1 = f"[{local_hour_str}:00:00] [INIT] Inicializando cerebro multi-semilla Luna V2...\n" \
-            f"[{local_hour_str}:00:00] [INIT] Cargando referencias de modelos homologados en producción...\n" \
-            f"[{local_hour_str}:00:01] [HMM] Semillas cargadas con éxito para régimen {r_regime}.\n" \
-            f"[{local_hour_str}:00:01] [XGB] Modelos XGBoost cargados con éxito.\n" \
+            f"[{local_hour_str}:00:00] [INIT] Cargando referencias de modelos homologados en producciÃ³n...\n" \
+            f"[{local_hour_str}:00:01] [HMM] Semillas cargadas con Ã©xito para rÃ©gimen {r_regime}.\n" \
+            f"[{local_hour_str}:00:01] [XGB] Modelos XGBoost cargados con Ã©xito.\n" \
             f"[{local_hour_str}:00:02] [INIT] Fase de Boot completada sin fallbacks silenciosos."
             
     step2 = f"[{local_hour_str}:00:02] [1] Heartbeat: SQL latido de vida registrado.\n" \
-            f"[{local_hour_str}:00:02] [RECONCILIACIÓN] Consultando balance OKX...\n" \
+            f"[{local_hour_str}:00:02] [RECONCILIACIÃ“N] Consultando balance OKX...\n" \
             f"[{local_hour_str}:00:03] [RM] Risk Monitor: Escaneo de circuito pasivo OK. Sin transgresiones."
             
-    step3 = f"[{local_hour_str}:00:05] [DATA] Descargando última vela horaria cerrada y ticks acumulados (R1)...\n" \
-            f"[{local_hour_str}:00:20] [DATA] Ingesta incremental completada con éxito.\n" \
-            f"[{local_hour_str}:00:21] [LUNA] Clasificación KMeans online finalizada.\n" \
+    step3 = f"[{local_hour_str}:00:05] [DATA] Descargando Ãºltima vela horaria cerrada y ticks acumulados (R1)...\n" \
+            f"[{local_hour_str}:00:20] [DATA] Ingesta incremental completada con Ã©xito.\n" \
+            f"[{local_hour_str}:00:21] [LUNA] ClasificaciÃ³n KMeans online finalizada.\n" \
             f"[{local_hour_str}:00:22] [MACRO] Proximidad temporal y variables macro actualizadas."
             
-    step4 = f"[{local_hour_str}:00:23] [BRAIN] Inferencia en régimen {r_regime} iniciada.\n" \
-            f"[{local_hour_str}:00:24] [BRAIN] Quórum Ensamble finalizado. Veredicto: {action} (xgb_prob={xgb_prob:.2%})\n" \
+    step4 = f"[{local_hour_str}:00:23] [BRAIN] Inferencia en rÃ©gimen {r_regime} iniciada.\n" \
+            f"[{local_hour_str}:00:24] [BRAIN] QuÃ³rum Ensamble finalizado. Veredicto: {action} (xgb_prob={xgb_prob:.2%})\n" \
             f"[{local_hour_str}:00:25] [Consensus/RESULT] Quorum: {action} | Regime={r_regime}"
             
     step5 = f"[{local_hour_str}:00:26] [SIZER] Aplicando atenuadores SOP V10.0...\n" \
-            f"[{local_hour_str}:00:27] [EXEC] Posición en exchange para {action}: {contracts} contratos a precio promedio {executed_price}.\n" \
+            f"[{local_hour_str}:00:27] [EXEC] PosiciÃ³n en exchange para {action}: {contracts} contratos a precio promedio {executed_price}.\n" \
             f"[{local_hour_str}:00:28] [EXEC] {reason}"
             
     step6 = f"[{local_hour_str}:00:29] Ciclo finalizado en 29.2s.\n" \
@@ -2685,16 +2766,16 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(DASHBOARD_DIR), **kwargs)
 
     def end_headers(self):
-        # [FIX-CACHE-STATIC] Forzar no-cache en todos los archivos estáticos
-        # Evita que el browser use app.js/index.css obsoletos después de despliegues.
-        # El versionado ?v=X.Y.Z en index.html es la segunda línea de defensa.
+        # [FIX-CACHE-STATIC] Forzar no-cache en todos los archivos estÃ¡ticos
+        # Evita que el browser use app.js/index.css obsoletos despuÃ©s de despliegues.
+        # El versionado ?v=X.Y.Z en index.html es la segunda lÃ­nea de defensa.
         path = getattr(self, 'path', '') or ''
         if any(path.endswith(ext) or (ext + '?') in path
                for ext in ['.js', '.css', '.html', '.htm']):
             self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
             self.send_header('Pragma', 'no-cache')
             self.send_header('Expires', '0')
-            print(f"[FIX-CACHE-STATIC] No-cache headers añadidos para: {path[:80]}")
+            print(f"[FIX-CACHE-STATIC] No-cache headers aÃ±adidos para: {path[:80]}")
         super().end_headers()
 
     # [SECURITY] Per-IP brute force lockout state (in-memory)
@@ -2786,21 +2867,21 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             print(f"[DASHBOARD-SECURITY] Fallo #{len(fails)} registrado para IP {client_ip}")
 
     def _send_login_page(self, error: str = ''):
-        """[SECURITY] Muestra la pagina de login HTML con TOTP o contraseña local."""
+        """[SECURITY] Muestra la pagina de login HTML con TOTP o contraseÃ±a local."""
         _env = load_env_vars()
         totp_secret = _env.get('DASHBOARD_TOTP_SECRET', os.getenv('DASHBOARD_TOTP_SECRET', ''))
         
         if totp_secret:
-            totp_label = "Código Authenticator"
+            totp_label = "CÃ³digo Authenticator"
             totp_type = "number"
             totp_placeholder = "000000"
-            totp_hint = "Código de 6 dígitos de tu app de autenticación"
+            totp_hint = "CÃ³digo de 6 dÃ­gitos de tu app de autenticaciÃ³n"
             totp_attrs = 'min="0" max="999999" pattern="[0-9]{6}" style="letter-spacing: 8px; font-size: 1.5rem; text-align: center;"'
         else:
-            totp_label = "Contraseña de Acceso"
+            totp_label = "ContraseÃ±a de Acceso"
             totp_type = "password"
-            totp_placeholder = "Contraseña"
-            totp_hint = "Introduce la contraseña local (default: luna)"
+            totp_placeholder = "ContraseÃ±a"
+            totp_hint = "Introduce la contraseÃ±a local (default: luna)"
             totp_attrs = 'style="letter-spacing: normal; text-align: left; font-size: 1rem;"'
 
         error_html = f'<div class="error">{error}</div>' if error else ''
@@ -2809,7 +2890,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Luna V2 Dashboard — Login</title>
+  <title>Luna V2 Dashboard â€” Login</title>
   <style>
     * {{ box-sizing: border-box; margin: 0; padding: 0; }}
     body {{ min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -2844,7 +2925,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
 <body>
   <div class="card">
     <div class="logo">
-      <div class="shield">🔐</div>
+      <div class="shield">ðŸ”</div>
       <h1>Luna <span>V2</span></h1>
       <p>Quantitative Trading Dashboard</p>
     </div>
@@ -2856,7 +2937,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
       <input type="{totp_type}" name="totp" placeholder="{totp_placeholder}"
              required autocomplete="current-password" {totp_attrs}>
       <div class="hint">{totp_hint}</div>
-      <button type="submit">Entrar →</button>
+      <button type="submit">Entrar â†’</button>
     </form>
   </div>
 </body></html>'''
@@ -2901,13 +2982,13 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         # [HEALTHCHECK-BYPASS] Peticiones desde localhost (127.0.0.1) son internas del VPS.
-        # El dashboard_healthcheck.py corre en el mismo servidor → bypass de auth para /api/.
+        # El dashboard_healthcheck.py corre en el mismo servidor â†’ bypass de auth para /api/.
         # La UI principal (rutas sin /api/) sigue requiriendo auth para proteger la interfaz.
         _client_ip_raw = self.client_address[0]
         _is_localhost_internal = (_client_ip_raw in ('127.0.0.1', '::1', 'localhost'))
         _is_api_path = parsed_path.startswith('/api/')
         if _is_localhost_internal and _is_api_path:
-            print(f"[HEALTHCHECK-BYPASS] Petición interna desde {_client_ip_raw} para {parsed_path} — auth bypass aplicado.")
+            print(f"[HEALTHCHECK-BYPASS] PeticiÃ³n interna desde {_client_ip_raw} para {parsed_path} â€” auth bypass aplicado.")
         elif not self._check_auth():
             self._send_auth_required()
             return
@@ -3068,7 +3149,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         self.send_header('Content-Type', 'application/json; charset=utf-8')
                         self.send_header('Access-Control-Allow-Origin', '*')
                         self.end_headers()
-                        self.wfile.write(json.dumps({"error": "OOS replay JSON no generado todavía. Ejecutar oos_replay_2026_local.py"}).encode('utf-8'))
+                        self.wfile.write(json.dumps({"error": "OOS replay JSON no generado todavÃ­a. Ejecutar oos_replay_2026_local.py"}).encode('utf-8'))
                         print(f"[DASHBOARD-TRADES-MODAL] /api/oos_replay_2026: JSON no encontrado en {oos_json_path} ni en metadata")
             except Exception as e:
                 self.send_response(500)
@@ -3099,12 +3180,12 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 except Exception as e:
                     response = {
                         "status": "error",
-                        "lines": [f"[ERROR] Error al leer los logs de producción: {e}"]
+                        "lines": [f"[ERROR] Error al leer los logs de producciÃ³n: {e}"]
                     }
             else:
                 response = {
                     "status": "warning",
-                    "lines": ["[INFO] No se ha encontrado ningún log de entrenamiento de producción."]
+                    "lines": ["[INFO] No se ha encontrado ningÃºn log de entrenamiento de producciÃ³n."]
                 }
             self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
 
@@ -3262,7 +3343,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             else:
                 response = {
                     "status": "warning",
-                    "lines": ["[INFO] No se ha encontrado ningún log activo."]
+                    "lines": ["[INFO] No se ha encontrado ningÃºn log activo."]
                 }
             self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
 
@@ -3271,7 +3352,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             session_id = session_id_list[0] if session_id_list else None
             
             try:
-                # Obtener datos resumidos agrupados cronológicamente
+                # Obtener datos resumidos agrupados cronolÃ³gicamente
                 active_run, historical_runs = get_wfb_seeds_summary(session_id)
             except Exception as e:
                 self.send_response(500)
@@ -3324,15 +3405,8 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 }
                 
             # [FIX] Stale WFB progress fix: If no active WFB processes are running,
-            # clear the active-run telemetry fields from worker_info to avoid showing stale data in the dashboard.
+            # We NO LONGER clear the telemetry so that the frontend can show the completion state.
             is_wfb_active = len(orchs) > 0 or len(wrks) > 0
-            if not is_wfb_active:
-                if worker_info.get("progress_percent", 0.0) > 0:
-                    print(f"[DASHBOARD-FIX] Stale WFB progress detected (logs say {worker_info.get('progress_percent')}% during {worker_info.get('active_phase')}), but no active WFB processes are running. Resetting progress to 0% for UI consistency.")
-                worker_info["progress_percent"] = 0.0
-                worker_info["active_phase"] = "Inactivo"
-                worker_info["seed"] = "None"
-                worker_info["window"] = "None"
 
             # [FIX] Active seed finished windows parsing
             worker_info["finished_windows"] = {}
@@ -3341,7 +3415,8 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 if wfb_reports_dir.exists():
                     try:
                         worker_ctime = latest_worker.stat().st_ctime if latest_worker else 0
-                        for f in wfb_reports_dir.glob(f"gate_G2_W*_seed{seed_num}.json"):
+                        current_seed_str = str(worker_info.get("seed")).lower()
+                        for f in wfb_reports_dir.glob(f"gate_G2_W*_seed*{current_seed_str}*.json"):
                             if f.stat().st_mtime < worker_ctime - 300:
                                 continue
                             try:
@@ -3391,15 +3466,8 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 }
             
             # [FIX] Stale progress fix: If no active prod orchestrator processes are running,
-            # clear the active-run telemetry fields from prod_info to avoid showing stale data in the dashboard.
+            # We NO LONGER clear the active-run telemetry fields from prod_info to avoid hiding the completion state.
             is_prod_active = len(prod_orchs) > 0
-            if not is_prod_active:
-                if prod_info.get("progress_percent", 0.0) > 0:
-                    print(f"[DASHBOARD-FIX] Stale progress detected (logs say {prod_info.get('progress_percent')}% during {prod_info.get('active_phase')}), but no active prod orchestrator process is running. Resetting progress to 0% for UI consistency.")
-                prod_info["progress_percent"] = 0.0
-                prod_info["active_phase"] = "Inactivo"
-                prod_info["current_seed"] = "None"
-                prod_info["active_seeds"] = []
                 
             # SFI details if active
             sfi_info = {}
@@ -3433,6 +3501,18 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     except Exception as e:
                         sfi_info["error"] = str(e)
             
+            try:
+                vps_data = get_vps_telemetry()
+            except Exception as e:
+                print(f"[DASHBOARD-API-WARN] Error in get_vps_telemetry: {e}")
+                vps_data = {"is_paused": False, "telemetry_error": str(e), "db_status": "OFFLINE_DURING_TRAINING"}
+                
+            try:
+                funnel_data = get_signal_funnel_data()
+            except Exception as e:
+                print(f"[DASHBOARD-API-WARN] Error in get_signal_funnel_data: {e}")
+                funnel_data = {"error": str(e)}
+
             # Combine payload
             is_vps = not (sys.platform == 'win32')
             payload = {
@@ -3460,8 +3540,8 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     "processes": prod_orchs,
                     "info": prod_info
                 },
-                "vps": get_vps_telemetry(),
-                "signal_funnel": get_signal_funnel_data(),
+                "vps": vps_data,
+                "signal_funnel": funnel_data,
                 "sweeps": _generate_dynamic_sweeps(),
                 "active_run": active_run,
                 "historical_runs": historical_runs,
@@ -3527,11 +3607,11 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         "source": "vps",
                         "lines": logs_lines
                     }
-                    print(f"[DASHBOARD-VPS-LOGS-OK] Leídos {len(logs_lines)} líneas reales de logs del VPS.")
+                    print(f"[DASHBOARD-VPS-LOGS-OK] LeÃ­dos {len(logs_lines)} lÃ­neas reales de logs del VPS.")
                 else:
                     # Fallback simulation logs
                     simulated_logs = [
-                        f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] [LUNA-LIVE-WARN] Conexión SSH fallida con el VPS. Mostrando logs simulados de emergencia. Error: {stdout}",
+                        f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] [LUNA-LIVE-WARN] ConexiÃ³n SSH fallida con el VPS. Mostrando logs simulados de emergencia. Error: {stdout}",
                         f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] [LUNA-LIVE-INFO] OKX Connector: Listening on WebSocket ticker updates.",
                         f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] [LUNA-LIVE-INFO] OrderManager: Active session tracking balance: 10245.50 USDT.",
                         f"[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] [LUNA-LIVE-INFO] Engine: Feeding feature generator with last 24h of BTC candles.",
@@ -3564,7 +3644,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 local_date = query_params.get('local_date', [None])[0]
                 local_hour = int(query_params.get('local_hour', [0])[0])
 
-                print(f"[DASHBOARD-HOUR-DECISION] Solicitud de decisión horaria: local_date={local_date} local_hour={local_hour} start_utc={start_utc} end_utc={end_utc}")
+                print(f"[DASHBOARD-HOUR-DECISION] Solicitud de decisiÃ³n horaria: local_date={local_date} local_hour={local_hour} start_utc={start_utc} end_utc={end_utc}")
 
                 if not start_utc or not end_utc or not local_date:
                     self.wfile.write(json.dumps({"status": "error", "message": "Missing parameters"}, ensure_ascii=False).encode('utf-8'))
@@ -3618,7 +3698,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
 
                 if not row:
                     # No data found in the DB for this hour
-                    print(f"[DASHBOARD-HOUR-DECISION] No se encontró registro en DB para {local_date} {local_hour:02d}:00 hs. Retornando standby.")
+                    print(f"[DASHBOARD-HOUR-DECISION] No se encontrÃ³ registro en DB para {local_date} {local_hour:02d}:00 hs. Retornando standby.")
                     self.wfile.write(json.dumps({"status": "standby"}, ensure_ascii=False).encode('utf-8'))
                     return
 
@@ -3645,10 +3725,10 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                             print(f"[DASHBOARD-WARN] Error reading {pm2_log_path}: {e}")
 
                 # [FIX-PM2-FORMAT] El formato real del log PM2 es: [2026-05-25 17:00:00] Iniciando Ciclo...
-                # [FIX-PM2-TIMEZONE] CRITICO: PM2 escribe timestamps en UTC pero antes buscábamos
-                # por hora LOCAL (local_hour=21) → nunca matcheaba los logs UTC (hora 19).
+                # [FIX-PM2-TIMEZONE] CRITICO: PM2 escribe timestamps en UTC pero antes buscÃ¡bamos
+                # por hora LOCAL (local_hour=21) â†’ nunca matcheaba los logs UTC (hora 19).
                 # Fix: derivar la hora UTC desde start_utc que el frontend ya calcula correctamente.
-                # Ejemplo: local_hour=21 (CEST+2) → start_utc=2026-05-25T19:00:00Z → buscar "[2026-05-25 19:"
+                # Ejemplo: local_hour=21 (CEST+2) â†’ start_utc=2026-05-25T19:00:00Z â†’ buscar "[2026-05-25 19:"
                 cycle_lines = []
                 try:
                     from datetime import timezone as _tz
@@ -3656,11 +3736,11 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     utc_hour_str = f"{_start_dt.hour:02d}"
                     utc_date_str = _start_dt.strftime("%Y-%m-%d")
                     tz_offset = local_hour - _start_dt.hour  # para log: +2h CEST, etc.
-                    print(f"[FIX-PM2-TIMEZONE] local_hour={local_hour} → UTC_hour={utc_hour_str} (offset={tz_offset:+d}h) | Buscando en fecha UTC: {utc_date_str}")
+                    print(f"[FIX-PM2-TIMEZONE] local_hour={local_hour} â†’ UTC_hour={utc_hour_str} (offset={tz_offset:+d}h) | Buscando en fecha UTC: {utc_date_str}")
                 except Exception as _tz_err:
                     utc_hour_str = f"{local_hour:02d}"
                     utc_date_str = local_date
-                    print(f"[FIX-PM2-TIMEZONE/WARN] Error calculando UTC desde start_utc: {_tz_err} → fallback a hora local")
+                    print(f"[FIX-PM2-TIMEZONE/WARN] Error calculando UTC desde start_utc: {_tz_err} â†’ fallback a hora local")
                 # Formato real PM2: [2026-05-25 19:00:00] (UTC)
                 prefix_bracket = f"[{utc_date_str} {utc_hour_str}:"
                 # Formato alternativo sin corchetes
@@ -3712,15 +3792,15 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 step_logs = []
                 local_hour_str = f"{local_hour:02d}"
                 if cycle_lines:
-                    print(f"[DASHBOARD-HOUR-DECISION] Logs de PM2 encontrados ({len(cycle_lines)} líneas). Clasificando en 6 pasos.")
+                    print(f"[DASHBOARD-HOUR-DECISION] Logs de PM2 encontrados ({len(cycle_lines)} lÃ­neas). Clasificando en 6 pasos.")
                     steps = [[] for _ in range(6)]
                     step_names = [
                         "Fase de Boot y Carga del Cerebro Ensamble (Carga de Modelos)",
-                        "Latido de Vida, Reconciliación Contable y Riesgo (Paso 1 al 3)",
+                        "Latido de Vida, ReconciliaciÃ³n Contable y Riesgo (Paso 1 al 3)",
                         "Ingesta Incremental y Feature Engineering (Paso 4 y 5)",
-                        "Inferencia Ensamblada y Quórum Multisemilla (Paso 6)",
-                        "Dimensionamiento de Posición y Despacho OKX Futures (Paso 7 y 8)",
-                        "Duración del Ciclo y Estado de Espera (Paso 9)"
+                        "Inferencia Ensamblada y QuÃ³rum Multisemilla (Paso 6)",
+                        "Dimensionamiento de PosiciÃ³n y Despacho OKX Futures (Paso 7 y 8)",
+                        "DuraciÃ³n del Ciclo y Estado de Espera (Paso 9)"
                     ]
                     for line in cycle_lines:
                         clean_line = line
@@ -3734,13 +3814,13 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         if any(kw in line for kw in [
                             "[EnsembleLive/BOOT]", "[EnsembleLive/LOAD]", "[EnsembleLive/SUCCESS]",
                             "[EnsembleLive/MANIFEST]", "[RegimeRouter/LOAD]", "Cargando componentes",
-                            "Semilla cargada con éxito", "LunaEnsembleLiveInference"
+                            "Semilla cargada con Ã©xito", "LunaEnsembleLiveInference"
                         ]):
-                            print(f"[DASHBOARD-G1-FIX] Línea → Paso 1 (Boot): {clean_line[:80]}")
+                            print(f"[DASHBOARD-G1-FIX] LÃ­nea â†’ Paso 1 (Boot): {clean_line[:80]}")
                             steps[0].append(clean_line)
                         elif any(kw in line for kw in [
-                            "Heartbeat", "[RECONCILIACIÓN]", "Reconciliacion",
-                            "Risk Monitor", "Drawdowns", "[RM]", "DD Día"
+                            "Heartbeat", "[RECONCILIACIÃ“N]", "Reconciliacion",
+                            "Risk Monitor", "Drawdowns", "[RM]", "DD DÃ­a"
                         ]):
                             steps[1].append(clean_line)
                         elif any(kw in line for kw in [
@@ -3759,13 +3839,13 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                             "Guard 1", "Guard 2", "Guard 3", "Guard 4", "Guard 5", "Guard 6",
                             "[BUG-SHIELD", "[RISK-SHIELD", "OKX_BALANCE"
                         ]):
-                            print(f"[DASHBOARD-G1-FIX] Línea → Paso 4 (Inferencia): {clean_line[:80]}")
+                            print(f"[DASHBOARD-G1-FIX] LÃ­nea â†’ Paso 4 (Inferencia): {clean_line[:80]}")
                             steps[3].append(clean_line)
                         elif any(kw in line for kw in [
                             "[SIZER]", "[EXEC]", "[OKX_POSITION]", "Spot BTC/", "Futures BTC/", "Swap BTC/", "BTC/USDT",
                             "Orden colocada", "cierre completo", "SELL", "BUY",
                             "[LIVE-TRADER-AUDIT]", "[BUGFIX-DEMO-BOOT]", "[BUGFIX-3]",
-                            "[RECONCILIACIÓN]"
+                            "[RECONCILIACIÃ“N]"
                         ]):
                             steps[4].append(clean_line)
                         elif any(kw in line for kw in ["Ciclo finalizado", "Durmiendo"]):
@@ -3802,7 +3882,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 print(f"[DASHBOARD-G3-FIX] Campos operacionales: drift={op_clock_drift}m | lat={op_latency}s | "
                       f"slip={op_slippage}% | nan={op_nan_cols} | lev={op_leverage}x | approved={op_is_approved}")
 
-                # [FIX-HOUR-DECISION-SEND] Resolver hmm_regime int → nombre canónico
+                # [FIX-HOUR-DECISION-SEND] Resolver hmm_regime int â†’ nombre canÃ³nico
                 # El frontend espera el string ('2_VOLATILE_RANGE'), no el int (2)
                 _regime_int = row_dict["hmm_regime"] if row_dict["hmm_regime"] is not None else 0
                 _regime_name_map = {
@@ -3814,7 +3894,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 _regime_match = _re_regime.search(r'HMM-REGIME:\s*([\w_]+)', row_dict.get("reason", ""))
                 _regime_str = _regime_match.group(1) if _regime_match else _regime_name_map.get(int(_regime_int), str(_regime_int))
 
-                # Format response — estructura {status, data} que espera el frontend
+                # Format response â€” estructura {status, data} que espera el frontend
                 response_data = {
                     "status": "success",
                     "data": {
@@ -3844,19 +3924,19 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 # [FIX-HOUR-DECISION-SEND] Enviar respuesta al cliente
                 print(f"[FIX-HOUR-DECISION-SEND] Enviando response_data al frontend: action={row_dict['action']} | regime={_regime_str} | steps={len(step_logs)}")
                 # [FIX-DOUBLE-HEADER] Cabeceras ya enviadas al inicio del elif.
-                # Solo escribir el body directamente — enviar cabeceras dos veces corrompe el HTTP.
+                # Solo escribir el body directamente â€” enviar cabeceras dos veces corrompe el HTTP.
                 print(f"[FIX-DOUBLE-HEADER] Escribiendo response_data JSON al socket. action={row_dict['action']} | status=success")
                 self.wfile.write(json.dumps(response_data, ensure_ascii=False, default=str).encode('utf-8'))
 
             except Exception as e:
                 import traceback
                 print(f"[DASHBOARD-ERROR] Error en endpoint /api/vps/hour-decision: {e}\n{traceback.format_exc()}")
-                # [FIX-DOUBLE-HEADER] Cabeceras ya enviadas — solo escribir el body de error
+                # [FIX-DOUBLE-HEADER] Cabeceras ya enviadas â€” solo escribir el body de error
                 self.wfile.write(json.dumps({"status": "error", "message": str(e)}, ensure_ascii=False).encode('utf-8'))
 
         elif path == '/api/vps/feature-pipeline-status':
             # [NEW-FEATURE-PIPELINE-BOX] Endpoint que reporta el estado de cada grupo
-            # de features en el último ciclo: ¿se descargaron correctamente?
+            # de features en el Ãºltimo ciclo: Â¿se descargaron correctamente?
             try:
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -3876,7 +3956,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     last_row = df_fp.iloc[-1]
 
                     def _check(cols, group_name, emoji):
-                        """Verifica un grupo de features: presencia, NaN, último valor."""
+                        """Verifica un grupo de features: presencia, NaN, Ãºltimo valor."""
                         found, missing, vals = [], [], {}
                         for c in cols:
                             # Soporte aliases snake_case (FIX-SKEW)
@@ -3909,35 +3989,35 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                         # [FIX-FEATURE-GROUPS-2026-05-27] Columnas alineadas con features_live.parquet real
                         _check(["close", "open", "high", "low", "volume",
                                 "mt_vol_realized_4bar", "DVOL_kz", "dv_dvol_z7d", "dv_dvol_pct_24h"],
-                               "OHLCV + Derivadas Precio", "📊"),
+                               "OHLCV + Derivadas Precio", "ðŸ“Š"),
                         _check(["FundingRate", "FundingRate_EMA3", "FundingRate_Pct90d",
                                 "dv_funding_rate", "funding_extreme_pos", "funding_extreme_neg"],
-                               "Funding Rate", "💸"),
+                               "Funding Rate", "ðŸ’¸"),
                         _check(["OI_USD", "OI_BTC", "OI_USD_z90d", "dv_oi_acceleration_24h"],
-                               "Open Interest (OI)", "📈"),
+                               "Open Interest (OI)", "ðŸ“ˆ"),
                         _check(["LongShortRatio", "LongAccount", "ShortAccount",
                                 "Coinglass_long_ratio", "Coinglass_short_ratio"],
-                               "Long/Short Ratio", "⚖️"),
+                               "Long/Short Ratio", "âš–ï¸"),
                         _check(["ETF_Flow_Proxy", "dv_etf_flow_proxy",
                                 "BITO_Volume", "ETF_Total_Volume", "ETF_Volume_Spike"],
-                               "ETF Flows", "🏦"),
+                               "ETF Flows", "ðŸ¦"),
                         _check(["DXY_z90d", "CPI_YoY_kz", "M2_China_YoY", "Stablecoins_Delta_30d",
                                 "Whale_Proxy_Volume_USD", "FearGreed"],
-                               "On-Chain + Macro", "🌐"),
+                               "On-Chain + Macro", "ðŸŒ"),
                         # [FIX-HMM-COLS] hmm_prob_* son outputs in-memory del ensemble
                         # (no persisten en parquet). Columnas reales del parquet:
                         _check(["HMM_Regime", "hmm_velocity_bull", "hmm_acceleration_bull",
                                 "vix_regime", "btc_trend_regime"],
-                               "Régimen HMM + Macro", "🧬"),
+                               "RÃ©gimen HMM + Macro", "ðŸ§¬"),
                     ]
-                    print(f"[FEATURE-PIPELINE-STATUS] {len(feature_groups)} grupos procesados. Última barra: {last_bar}")
+                    print(f"[FEATURE-PIPELINE-STATUS] {len(feature_groups)} grupos procesados. Ãšltima barra: {last_bar}")
 
                 except Exception as fp_err:
                     print(f"[FEATURE-PIPELINE-STATUS/ERROR] {fp_err}")
                     import traceback as _tb
                     print(_tb.format_exc())
 
-                # Leer NaN total del último operational_audit si está disponible
+                # Leer NaN total del Ãºltimo operational_audit si estÃ¡ disponible
                 nan_from_audit = None
                 try:
                     db_fp = DatabaseManager()
@@ -3991,9 +4071,9 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     disk_pct = disk.percent
                     disk_free = disk.free / (1024**3) # GB
                     uptime = f"{(time.time() - psutil.boot_time()) / 3600:.1f}h"
-                    print(f"[DASHBOARD-VPS-HEALTH] [MEJORA-AUDITORÍA] Métricas de hardware cargadas dinámicamente vía psutil: CPU={cpu_pct}%, RAM={ram_pct}%, Disco={disk_pct}%")
+                    print(f"[DASHBOARD-VPS-HEALTH] [MEJORA-AUDITORÃA] MÃ©tricas de hardware cargadas dinÃ¡micamente vÃ­a psutil: CPU={cpu_pct}%, RAM={ram_pct}%, Disco={disk_pct}%")
                 except Exception as local_err:
-                    print(f"[DASHBOARD-WARN] [BUGFIX-HEALTH] Fallo al recuperar métricas psutil locales: {local_err}")
+                    print(f"[DASHBOARD-WARN] [BUGFIX-HEALTH] Fallo al recuperar mÃ©tricas psutil locales: {local_err}")
                 
                 res_data = {
                     "status": "success",
@@ -4035,17 +4115,17 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 elif action == "stop_trader":
                     cmd = "pm2 stop luna-v2-live-demo"
                 elif action == "panic":
-                    # [MEJORA-PANIC-DYNAMISM] Carga variables de .env/.env.sandbox dinámicamente antes del cierre para MICA/ESMA Spot/Swap dynamic tracking
-                    cmd = f"python3 -c \"import os; from dotenv import load_dotenv; from pathlib import Path; root=Path('{PROJECT_ROOT.as_posix()}'); load_dotenv(root/'.env.sandbox') if (root/'.env.sandbox').exists() else load_dotenv(root/'.env'); from luna.database.db_manager import DatabaseManager; from luna.live.okx_connector import OKXBrokerConnector; db=DatabaseManager(); okx=OKXBrokerConnector(demo_mode=True); symbol=os.getenv('OKX_TRADING_SYMBOL', 'BTC/EUR' if okx.hostname=='eea.okx.com' else 'BTC/USDT:USDT'); print('[PANIC-SHIELD] Cerrando posición dinámica para el par:', symbol); okx.close_position(symbol); state=db.get_live_state(); db.update_live_state(portfolio_value=float(state['portfolio_value']), ath=float(state['ath']), drawdown=float(state['drawdown']), is_paused=True) if state else None;\" && pm2 stop luna-v2-live-demo"
+                    # [MEJORA-PANIC-DYNAMISM] Carga variables de .env/.env.sandbox dinÃ¡micamente antes del cierre para MICA/ESMA Spot/Swap dynamic tracking
+                    cmd = f"python3 -c \"import os; from dotenv import load_dotenv; from pathlib import Path; root=Path('{PROJECT_ROOT.as_posix()}'); load_dotenv(root/'.env.sandbox') if (root/'.env.sandbox').exists() else load_dotenv(root/'.env'); from luna.database.db_manager import DatabaseManager; from luna.live.okx_connector import OKXBrokerConnector; db=DatabaseManager(); okx=OKXBrokerConnector(demo_mode=True); symbol=os.getenv('OKX_TRADING_SYMBOL', 'BTC/EUR' if okx.hostname=='eea.okx.com' else 'BTC/USDT:USDT'); print('[PANIC-SHIELD] Cerrando posiciÃ³n dinÃ¡mica para el par:', symbol); okx.close_position(symbol); state=db.get_live_state(); db.update_live_state(portfolio_value=float(state['portfolio_value']), ath=float(state['ath']), drawdown=float(state['drawdown']), is_paused=True) if state else None;\" && pm2 stop luna-v2-live-demo"
                 else:
-                    self.wfile.write(json.dumps({"status": "error", "message": f"Acción inválida: {action}"}, ensure_ascii=False).encode('utf-8'))
+                    self.wfile.write(json.dumps({"status": "error", "message": f"AcciÃ³n invÃ¡lida: {action}"}, ensure_ascii=False).encode('utf-8'))
                     return
                 
                 success, stdout = execute_local_command(cmd, timeout=12.0)
                 if success:
                     res_data = {
                         "status": "success",
-                        "message": f"Comando '{cmd}' ejecutado con éxito localmente en VPS.",
+                        "message": f"Comando '{cmd}' ejecutado con Ã©xito localmente en VPS.",
                         "details": stdout
                     }
                 else:
@@ -4064,7 +4144,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
 
         elif path == '/api/sop/static-validate':
             try:
-                print("[DASHBOARD-TRACK] [MEJORA-SOP-V10] Recibida solicitud de validación AST estática /api/sop/static-validate")
+                print("[DASHBOARD-TRACK] [MEJORA-SOP-V10] Recibida solicitud de validaciÃ³n AST estÃ¡tica /api/sop/static-validate")
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -4098,7 +4178,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     "issues": issues_serialized,
                     "ok": result.ok()
                 }
-                print(f"[DASHBOARD-TRACK] [MEJORA-SOP-V10] Validación AST completada. Checked: {result.files_checked} | Issues: {len(issues_serialized)}")
+                print(f"[DASHBOARD-TRACK] [MEJORA-SOP-V10] ValidaciÃ³n AST completada. Checked: {result.files_checked} | Issues: {len(issues_serialized)}")
                 self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
             except Exception as e:
                 self.send_response(500)
@@ -4111,7 +4191,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
 
         elif path == '/api/sop/audit-code':
             try:
-                print("[DASHBOARD-TRACK] [MEJORA-SOP-V10] Recibida solicitud de auditoría regex /api/sop/audit-code")
+                print("[DASHBOARD-TRACK] [MEJORA-SOP-V10] Recibida solicitud de auditorÃ­a regex /api/sop/audit-code")
                 self.send_response(200)
                 self.send_header('Content-Type', 'application/json; charset=utf-8')
                 self.send_header('Access-Control-Allow-Origin', '*')
@@ -4204,7 +4284,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             if username != expected_user:
                 self._register_failure(client_ip)
                 print(f"[DASHBOARD-SECURITY] Login fallido: usuario '{username}' desde {client_ip}")
-                self._send_login_page(error='Usuario o código incorrecto.')
+                self._send_login_page(error='Usuario o cÃ³digo incorrecto.')
                 return
 
             is_valid = False
@@ -4220,7 +4300,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             if not is_valid:
                 self._register_failure(client_ip)
                 print(f"[DASHBOARD-SECURITY] Login fallido: TOTP incorrecto desde {client_ip}")
-                self._send_login_page(error='Código de authenticator incorrecto.')
+                self._send_login_page(error='CÃ³digo de authenticator incorrecto.')
                 return
 
             # Login correcto
@@ -4277,8 +4357,8 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     
                 env_file.write_text(env_content, encoding="utf-8")
                 
-                print(f"[DASHBOARD-VPS] Passphrase guardada con éxito de forma segura en .env.")
-                response = {"status": "success", "message": "Passphrase guardada y sincronizada con éxito en el VPS."}
+                print(f"[DASHBOARD-VPS] Passphrase guardada con Ã©xito de forma segura en .env.")
+                response = {"status": "success", "message": "Passphrase guardada y sincronizada con Ã©xito en el VPS."}
             except Exception as e:
                 print(f"[DASHBOARD-ERROR] Error al guardar passphrase: {e}")
                 response = {"status": "error", "message": f"Error al escribir en .env: {str(e)}"}
@@ -4294,13 +4374,13 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             print("[DASHBOARD-VPS] Comando de reinicio de PM2 recibido. Hot-Simulation: encendiendo y reactivando trading. [DASHBOARD-FIX-ONOFF] VPS_IS_PAUSED = False")
             success, stdout = execute_local_command("pm2 restart luna-v2-live-demo")
             if success:
-                print("[DASHBOARD-VPS-RESTART-OK] Reiniciado pm2 con éxito localmente.")
-                response = {"status": "success", "message": "Proceso PM2 'luna-v2-live-demo' reiniciado con éxito localmente.", "details": stdout}
+                print("[DASHBOARD-VPS-RESTART-OK] Reiniciado pm2 con Ã©xito localmente.")
+                response = {"status": "success", "message": "Proceso PM2 'luna-v2-live-demo' reiniciado con Ã©xito localmente.", "details": stdout}
             else:
                 print(f"[DASHBOARD-VPS-RESTART-FALLBACK] Error local ({stdout}). Degradando a reinicio simulado.")
                 response = {
                     "status": "warning",
-                    "message": f"VPS fallo local. Modo de simulación activado. El servicio PM2 simulado fue reiniciado localmente.",
+                    "message": f"VPS fallo local. Modo de simulaciÃ³n activado. El servicio PM2 simulado fue reiniciado localmente.",
                     "details": stdout
                 }
             self.send_response(200)
@@ -4311,16 +4391,16 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             
         elif self.path == '/api/vps/pause':
             VPS_IS_PAUSED = True
-            print("[DASHBOARD-VPS] Comando de parada de pánico (Pausar Trading) recibido. Hot-Simulation: activando parada de emergencia. [DASHBOARD-FIX-ONOFF] VPS_IS_PAUSED = True")
+            print("[DASHBOARD-VPS] Comando de parada de pÃ¡nico (Pausar Trading) recibido. Hot-Simulation: activando parada de emergencia. [DASHBOARD-FIX-ONOFF] VPS_IS_PAUSED = True")
             success, stdout = execute_local_command("pm2 stop luna-v2-live-demo")
             if success:
-                print("[DASHBOARD-VPS-PAUSE-OK] Pausado pm2 con éxito localmente.")
+                print("[DASHBOARD-VPS-PAUSE-OK] Pausado pm2 con Ã©xito localmente.")
                 response = {"status": "success", "message": "Trading pausado de emergencia localmente. PM2 detenido.", "details": stdout}
             else:
                 print(f"[DASHBOARD-VPS-PAUSE-FALLBACK] Error local ({stdout}). Degradando a pausa simulada.")
                 response = {
                     "status": "warning",
-                    "message": f"VPS fallo local. Modo de simulación activado. Trading pausado de emergencia en el simulador local.",
+                    "message": f"VPS fallo local. Modo de simulaciÃ³n activado. Trading pausado de emergencia en el simulador local.",
                     "details": stdout
                 }
             self.send_response(200)
@@ -4330,19 +4410,19 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(response).encode('utf-8'))
             
         elif self.path == '/api/vps/test-trade':
-            print("[DASHBOARD-VPS] Petición de ejecución de test de compra recibida. Lanzando inyector...")
+            print("[DASHBOARD-VPS] PeticiÃ³n de ejecuciÃ³n de test de compra recibida. Lanzando inyector...")
             try:
                 from tools.refactor.inject_active_trades import inject_mock_telemetry
                 inject_mock_telemetry()
                 response = {
                     "status": "success",
-                    "message": "¡Orden de prueba ejecutada con éxito! Se inyectaron 4 transacciones y latido ONLINE en la DB."
+                    "message": "Â¡Orden de prueba ejecutada con Ã©xito! Se inyectaron 4 transacciones y latido ONLINE en la DB."
                 }
             except Exception as e:
                 print(f"[DASHBOARD-VPS-ERROR] Error al inyectar trades de prueba: {e}")
                 response = {
                     "status": "error",
-                    "message": f"Error crítico al ejecutar orden de prueba: {str(e)}"
+                    "message": f"Error crÃ­tico al ejecutar orden de prueba: {str(e)}"
                 }
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
@@ -4350,7 +4430,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(response).encode('utf-8'))
         elif self.path == '/api/db/test-acid':
-            print("[DASHBOARD-VPS] Petición de benchmark de integridad ACID recibida.")
+            print("[DASHBOARD-VPS] PeticiÃ³n de benchmark de integridad ACID recibida.")
             latency_start = time.perf_counter()
             log_steps = []
             
@@ -4364,7 +4444,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     db_port = match.group(2) or "5432"
             
             # Step 1: Connectivity check directo a localhost:5432
-            log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Iniciando verificación de atomicidad y aislamiento.")
+            log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Iniciando verificaciÃ³n de atomicidad y aislamiento.")
             log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Conectando a PostgreSQL en {db_host}:{db_port}...")
 
             port_open = check_db_port_open(db_host, db_port, timeout=0.5)
@@ -4374,10 +4454,10 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 try:
                     db = DatabaseManager()
                     if db.connection_pool is not None:
-                        log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] Conexión establecida. Isolation Level: READ COMMITTED.")
+                        log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] ConexiÃ³n establecida. Isolation Level: READ COMMITTED.")
                         
                         # Step 2: Begin atomic transaction block using context manager
-                        log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Abriendo bloque transaccional atómico (Context Manager)...")
+                        log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Abriendo bloque transaccional atÃ³mico (Context Manager)...")
                         
                         with db.get_connection() as conn:
                             with conn.cursor() as cur:
@@ -4399,9 +4479,9 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                                 log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] Lectura interna OK. Timestamp coincidente: {verified_time.strftime('%H:%M:%S') if verified_time else 'N/A'}")
                                 
                                 # Step 4: Deliberate ROLLBACK to verify ACID constraint
-                                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-WARN] Ejecutando ROLLBACK voluntario para asegurar no-contaminación...")
+                                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-WARN] Ejecutando ROLLBACK voluntario para asegurar no-contaminaciÃ³n...")
                                 conn.rollback()
-                                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] Rollback completado físicamente.")
+                                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] Rollback completado fÃ­sicamente.")
                                 
                             # Step 5: Verify outside transaction that row is gone
                             with conn.cursor() as cur2:
@@ -4412,21 +4492,21 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                                     log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] [A.C.I.D. OK] Consistencia y Aislamiento 100% validados. Fila eliminada de la DB.")
                                     db_ok = True
                                 else:
-                                    log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-ERROR] Fila persiste. ¡Fallo de consistencia!")
+                                    log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-ERROR] Fila persiste. Â¡Fallo de consistencia!")
                                     
                 except Exception as ex:
-                    log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-ERROR] Excepción crítica durante benchmark: {ex}")
+                    log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-ERROR] ExcepciÃ³n crÃ­tica durante benchmark: {ex}")
             
             if not db_ok:
                 # Simulated Fallback ACID testing if DB is down
-                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-WARN] Database real no disponible. Iniciando Simulación de Integridad ACID...")
+                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-WARN] Database real no disponible. Iniciando SimulaciÃ³n de Integridad ACID...")
                 import time as sleeptime
                 sleeptime.sleep(0.1)
                 log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Conectando a SQLite Sandbox / PostgreSQL Emulado...")
                 sleeptime.sleep(0.08)
-                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] Conexión establecida. Aislamiento: SERIALIZABLE simulado.")
+                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] ConexiÃ³n establecida. Aislamiento: SERIALIZABLE simulado.")
                 sleeptime.sleep(0.12)
-                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Iniciando transacción atómica en bloque 'context_manager_sandbox'...")
+                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Iniciando transacciÃ³n atÃ³mica en bloque 'context_manager_sandbox'...")
                 sleeptime.sleep(0.06)
                 log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-INFO] Ejecutando INSERT en 'heartbeats' (Fila temporal ID: 9928)...")
                 sleeptime.sleep(0.09)
@@ -4436,7 +4516,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 sleeptime.sleep(0.07)
                 log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] Rollback completado.")
                 sleeptime.sleep(0.08)
-                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] [A.C.I.D. SIMULATED OK] Aislamiento y Atomicidad confirmados con éxito en Sandbox local.")
+                log_steps.append(f"[{datetime.utcnow().strftime('%H:%M:%S.%f')[:-3]}] [ACID-SUCCESS] [A.C.I.D. SIMULATED OK] Aislamiento y Atomicidad confirmados con Ã©xito en Sandbox local.")
                 
             latency_end = time.perf_counter()
             latency_ms = round((latency_end - latency_start) * 1000, 2)
@@ -4484,7 +4564,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                     
             response = {
                 "status": "success",
-                "message": f"Limpieza completada con éxito. Procesos eliminados: {len(killed_processes)}.",
+                "message": f"Limpieza completada con Ã©xito. Procesos eliminados: {len(killed_processes)}.",
                 "killed": killed_processes,
                 "lock_cleaned": lock_cleaned
             }
@@ -4505,9 +4585,9 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 
                 orchs, wrks, sfis, prod_orchs = get_active_processes()
                 if run_type == "wfb" and (orchs or wrks):
-                    raise RuntimeError("Ya existe un proceso de WFB (orquestador o worker) en ejecución.")
+                    raise RuntimeError("Ya existe un proceso de WFB (orquestador o worker) en ejecuciÃ³n.")
                 if run_type == "prod" and prod_orchs:
-                    raise RuntimeError("Ya existe un proceso de entrenamiento PROD en ejecución.")
+                    raise RuntimeError("Ya existe un proceso de entrenamiento PROD en ejecuciÃ³n.")
                 
                 _run_env = os.environ.copy()
                 _run_env["PYTHONPATH"] = str(PROJECT_ROOT) + (os.pathsep + _run_env.get("PYTHONPATH", "") if _run_env.get("PYTHONPATH") else "")
@@ -4547,7 +4627,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 
                 response = {
                     "status": "success",
-                    "message": f"Orquestador {run_type.upper()} lanzado con éxito (PID: {p.pid}).",
+                    "message": f"Orquestador {run_type.upper()} lanzado con Ã©xito (PID: {p.pid}).",
                     "pid": p.pid,
                     "log_file": log_file_path.name
                 }
@@ -4555,7 +4635,7 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
                 print(f"[DASHBOARD-LAUNCH-ERROR] Error: {e}")
                 response = {
                     "status": "error",
-                    "message": f"Fallo al lanzar orquestación: {str(e)}"
+                    "message": f"Fallo al lanzar orquestaciÃ³n: {str(e)}"
                 }
                 
             self.send_response(200)
@@ -4581,8 +4661,8 @@ def start_server(port=8080):
             with socketserver.ThreadingTCPServer(("127.0.0.1", current_port), handler) as httpd:
                 print("\n" + "=" * 80)
                 print(f"      LUNA V2 CORE QUANT - WEB DASHBOARD API SERVER STARTED")
-                print(f"      👉 Access URL: http://localhost:{current_port}/")
-                print(f"      👉 API Status: http://localhost:{current_port}/api/status")
+                print(f"      ðŸ‘‰ Access URL: http://localhost:{current_port}/")
+                print(f"      ðŸ‘‰ API Status: http://localhost:{current_port}/api/status")
                 print("=" * 80 + "\n")
                 
                 server_started = True
@@ -4597,11 +4677,11 @@ def start_server(port=8080):
                 break
 
 if __name__ == "__main__":
-    print("[DASHBOARD-START] Servidor corriendo en VPS — conexión directa a PostgreSQL localhost:5432.")
+    print("[DASHBOARD-START] Servidor corriendo en VPS â€” conexiÃ³n directa a PostgreSQL localhost:5432.")
 
-    # Permite puerto dinámico via variable de entorno PORT (con fallback en 8080)
+    # Permite puerto dinÃ¡mico via variable de entorno PORT (con fallback en 8080)
     port_val = int(os.getenv("PORT", 8080))
     print("[DASHBOARD-FIX] Aplicado fix de layout vertical (flex-shrink) para evitar colapso de la tarjeta Ensemble Portfolio en index.css")
-    print("[DASHBOARD-FIX] [MEJORA-TAB-NAVEGACION] Corregido error de anidamiento DOM en index.html eliminando divs huerfanas (L1514 y L1728) que rompian la navegacion de pestañas y bloqueaban las tarjetas SOP/AST.")
+    print("[DASHBOARD-FIX] [MEJORA-TAB-NAVEGACION] Corregido error de anidamiento DOM en index.html eliminando divs huerfanas (L1514 y L1728) que rompian la navegacion de pestaÃ±as y bloqueaban las tarjetas SOP/AST.")
     print(f"[DASHBOARD-START] Iniciando servidor con puerto configurado: {port_val}")
     start_server(port=port_val)

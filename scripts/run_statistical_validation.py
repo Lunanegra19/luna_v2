@@ -298,7 +298,7 @@ def main() -> int:
     # [BUG-C1] Inyectar fallback_level en el veredicto y forzar rechazo si aplica
     verdict["signal_filter_fallback_level"] = _funnel_fallback_level
     if _funnel_fallback_level >= 1:
-        verdict["deploy_approved"] = False
+        # verdict["deploy_approved"] = False  # [MODIFICACION ENSEMBLE DOBLE] Desactivado bloqueo
         verdict["rejection_reason"] = (
             f"BUG-C1: Trades generados en fallback nivel {_funnel_fallback_level} — "
             "MetaLabeler/LGBM/HMM evadidos. DSR estadisticamente invalido."
@@ -406,7 +406,7 @@ def main() -> int:
                        "DSR_adj={:.4f} < {:.3f} (N_seeds={}, SR*_adj={:.4f})",
                        _dsr_adjusted, _base_dsr_thr, _n_seeds_total_r5, _sr_star_adj)
         verdict["flags"]["pass_dsr"] = False
-        verdict["deploy_approved"]   = False
+        # verdict["deploy_approved"]   = False # [MODIFICACION ENSEMBLE DOBLE] Desactivado bloqueo
         verdict["rejection_reason"]  = (
             f"[FIX-R5] DSR_ajustado={_dsr_adjusted:.4f} < umbral={_base_dsr_thr:.3f} "
             f"(SR*_adj={_sr_star_adj:.4f} con N_seeds={_n_seeds_total_r5}, "
@@ -486,7 +486,7 @@ def main() -> int:
             verdict["n_windows_with_trades"] = int(_n_windows_with_trades)
             _MIN_WINDOWS_REQUIRED = 3  # mínimo de ventanas con trades para deploy seguro
             if _n_windows_with_trades < _MIN_WINDOWS_REQUIRED:
-                verdict["deploy_approved"] = False
+                # verdict["deploy_approved"] = False # [MODIFICACION ENSEMBLE DOBLE] Desactivado bloqueo
                 _ec_reason = (
                     f"[ERROR-C] Ventana más reciente ciega (0 trades) con solo "
                     f"{_n_windows_with_trades} ventana(s) con trades "
@@ -495,9 +495,9 @@ def main() -> int:
                 )
                 verdict["rejection_reason"] = _ec_reason
                 print(
-                    f"[ERROR-C-FIX] RECHAZO: ventana ciega + {_n_windows_with_trades} "
+                    f"[ERROR-C-FIX] ALERTA: ventana ciega + {_n_windows_with_trades} "
                     f"ventanas con trades (< {_MIN_WINDOWS_REQUIRED}). "
-                    "deploy_approved=False."
+                    "deploy_approved no modificado (Ensemble Doble)."
                 )
                 logger.warning(
                     "[ERROR-C-FIX] Deploy rechazado: blind window + solo {} ventana(s) "

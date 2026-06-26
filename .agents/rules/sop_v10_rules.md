@@ -40,3 +40,17 @@ El sistema de gestión de riesgo del pipeline en producción ejecuta cierres pre
 
 ---
 *Nota: La violación de cualquiera de estas directrices invalida de forma inmediata cualquier tearsheet, backtest o run de producción.*
+
+---
+
+## 📌 ADDENDUM 2026-06-26 — Inconsistencias detectadas entre las Iron Rules y el código evolucionado
+
+> Hallazgos del run baseline 2026-06-26 (long-only, seed42 parcial). **SOLID** = hecho de código/log verificado. **EXPLORATORIO** = pendiente de confirmar con 3 seeds. No se reescriben las Iron Rules; se listan reconciliaciones propuestas. Detalle: `docs/hallazgos_run_baseline_20260626.md`.
+
+| # | Regla | Estado | Problema | Reconciliación propuesta |
+|---|---|---|---|---|
+| A1 | **R16** (Fail-Fast / No-Fallback) | **VIOLADO [SOLID]** | El `FilterGovernor` (`filter_governor.py:107-108`) lee `oos_trades_xgb_baseline_W{w}_seed{seed}.parquet` SIN sufijo de dirección → file-not-found en dual-bot → interpreta `r_baseline=0.00%` y continúa en silencio en vez de fallar. Es el fallback silencioso que R16 prohíbe. | **Ampliar R16:** todo gobernador/auto-tuner/lector de artefactos que no encuentre su input debe FALLAR RUIDOSAMENTE (WARNING visible + marca "datos ausentes"), nunca interpretar ausencia como 0/default. |
+| A2 | **R10** (Calibración obligatoria) | **CONTRADICHO [SOLID]** | `predict_oos.py:1102` (CALIB-FIX 2026-06-16) desactiva a propósito la calibración isotónica en OOS (`xgb_prob_cal = raw`); R10 la exige como "Crítico". Además se entrenan+guardan calibradores que nunca se aplican. | **Re-validar** raw vs calibrado EN LONG-ONLY (el "66% WR con raw" venía de config `both`). Si se confirma raw, actualizar R10 a "calibración condicional validada empíricamente"; si no, reactivar calibración. |
+| A3 | **R18** (Sniper-Mode, Meta percentil 0.85) | **PREMISA EN DUDA [EXPLORATORIO]** | R18 manda filtrado Meta agresivo "para maximizar precisión OOS", pero el MetaLabeler tiene `val_win_rate≈0.52` (sin edge) y en OOS su confianza anti-correlaciona con el retorno. Percentil alto sobre modelo sin edge recorta señal, no ruido. | **Revalidar R18 con 3 seeds.** Si se confirma ausencia de edge, el Sniper-Mode agresivo es contraproducente → re-sintonizar percentil o re-entrenar el Meta. |
+| A4 | **(GAP)** Naming dual-bot | **FALTA REGLA [SOLID]** | El sufijo `_long`/`_short` ha causado ≥2 bugs (pre-flight TEST-29/31; FilterGovernor). No hay invariante que exija consistencia de sufijo de dirección en las rutas de artefactos. | **Nueva regla R20 (propuesta):** todo lector/escritor de artefactos por-dirección resuelve el sufijo `_{direction}` vía un helper central único; los pre-flight verifican que cada path existe para la dirección activa. |
+| A5 | **R8** (≥30/100 trades) | **TENSIÓN [SOLID-observacional]** | La cascada de filtros (OOD+Meta+Embargo) deja 2-9 trades/ventana (FILTER AUDIT marca "INSUF"). El sobre-filtrado vuelve la significancia por-ventana inalcanzable. | R8 es correcta; documentar que el over-filtering la compromete → motivo extra para revisar la cascada (ver hallazgos §7 P1/P2). |

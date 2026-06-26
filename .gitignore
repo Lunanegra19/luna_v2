@@ -40,3 +40,23 @@ mcpt_temp/
 
 # Backups de configuracion
 config/*backup*.yaml
+
+# [2026-06-26] Scratch, debug, temp y backups de settings (no versionar)
+scratch_*.py
+debug_script.py
+update_index.py
+*.bak
+config/settings.yaml.*
+status.json
+status_payload.json
+temp_status.json
+*.log
+
+# [2026-06-26] SECRETOS: scripts de debug VPS/OKX (manejan/hardcodean credenciales) — NUNCA versionar
+tools/diagnostics/vps_*.py
+
+# [2026-06-26] Tests/diagnosticos ad-hoc de depuracion (no son tests del pipeline)
+tools/diagnostics/test_kalman_*.py
+tools/diagnostics/test_ae_starvation.py
+tools/diagnostics/test_mid_run_ensemble.py
+tools/diagnostics/local_load_test.py

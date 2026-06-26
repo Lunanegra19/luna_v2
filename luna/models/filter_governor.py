@@ -88,37 +88,57 @@ class FilterGovernor:
         
         project_root = Path(__file__).resolve().parents[2]
 
+        # [FIX-GOVERNOR-PATH-01 2026-06-26] Resolver sufijo de dirección dual-bot (_long/_short).
+        # BUG previo (SOLID): se buscaba oos_trades(_xgb_baseline)_W{w}_seed{seed}.parquet SIN sufijo
+        # de dirección -> file-not-found en dual-bot -> r_baseline=0.00% -> JAMÁS relajaba. Fallback
+        # silencioso que viola R16 / addendum SOP A1. Ver docs/hallazgos_run_baseline_20260626.md §6.3.
+        import os as _os_gov
+        _gov_dir = _os_gov.environ.get("LUNA_DIRECTION", "").lower().strip()
+        if _gov_dir not in ("long", "short"):
+            try:
+                _gov_dir = str(cfg.fase2.direction_mode).lower().strip()
+            except Exception:
+                _gov_dir = ""
+        _dir_sfx = f"_{_gov_dir}" if _gov_dir in ("long", "short") else ""
+        print(f"[FIX-GOVERNOR-PATH-01] FilterGovernor: sufijo dirección='{_dir_sfx or '(ninguno)'}' seed={self.seed} | resolviendo baselines dual-bot")  # RULE[fixbugsprints.md]
+
+        def _resolve_gov_parquet(_base_dir, _stem):
+            # intenta CON sufijo de dirección primero, luego SIN (compat runs antiguas)
+            for _sfx in ([_dir_sfx, ""] if _dir_sfx else [""]):
+                _cand = _base_dir / f"{_stem}{_sfx}.parquet"
+                if _cand.exists():
+                    return _cand
+            return None
+
         # Recopilar trades de ventanas completadas
         for w_num in completed_nums:
-            # Buscar en 3 ubicaciones posibles (activa, cache, reportes)
+            # Buscar en 2 ubicaciones posibles (run activa, reportes)
             p_filt = None
             p_base = None
-            
-            # Ubicación 1: Carpeta de run activa (estructura de runs)
+
+            # Ubicación 1: Carpeta de run activa (dir per-window, sin sufijo de dirección)
             candidate_parent = self.models_dir.parent
             filt_run = candidate_parent / f"W{w_num}" / "oos_trades.parquet"
             base_run = candidate_parent / f"W{w_num}" / "oos_trades_xgb_baseline.parquet"
             if filt_run.exists() and base_run.exists():
                 p_filt, p_base = filt_run, base_run
             else:
-                # Ubicación 2: wfb cache
-                filt_cache = project_root / "data" / "wfb_cache" / f"W{w_num}" / "features" / f"oos_trades_W{w_num}_seed{self.seed}.parquet" # or similar
-                # Ubicación 3: wfb reports (usado en simulaciones y test)
-                filt_rep = project_root / "data" / "reports" / "wfb" / f"oos_trades_W{w_num}_seed{self.seed}.parquet"
-                base_rep = project_root / "data" / "reports" / "wfb" / f"oos_trades_xgb_baseline_W{w_num}_seed{self.seed}.parquet"
-                if filt_rep.exists() and base_rep.exists():
-                    p_filt, p_base = filt_rep, base_rep
-                elif filt_cache.exists():
-                    # si solo cache existe...
-                    pass
+                # Ubicación 2: wfb reports — [FIX-GOVERNOR-PATH-01] CON sufijo de dirección (+ fallback)
+                _rep_dir = project_root / "data" / "reports" / "wfb"
+                p_filt = _resolve_gov_parquet(_rep_dir, f"oos_trades_W{w_num}_seed{self.seed}")
+                p_base = _resolve_gov_parquet(_rep_dir, f"oos_trades_xgb_baseline_W{w_num}_seed{self.seed}")
             
             if p_filt and p_base:
                 try:
                     df_base = pd.read_parquet(p_base)
                     df_filt = pd.read_parquet(p_filt)
                     
-                    base_net = (df_base["return_raw"] - self.cost_rt).sum() if not df_base.empty else 0.0
-                    filt_net = (df_filt["return_raw"] - self.cost_rt).sum() if not df_filt.empty else 0.0
+                    # [FIX-GOVERNOR-COST-01 2026-06-26] return_raw YA es neto de coste RT
+                    # (predict_oos.py:1815 y :1948 -> ret_bruto = ret - _GLOBAL_COST_RT). Restar
+                    # self.cost_rt aquí era DOBLE-COSTE: hundía el baseline real (+7.9% -> -4.07% con
+                    # N=48) -> rama "baseline <=0" -> nunca relajaba. Ver hallazgos §6.3.
+                    base_net = df_base["return_raw"].sum() if not df_base.empty else 0.0
+                    filt_net = df_filt["return_raw"].sum() if not df_filt.empty else 0.0
                     
                     comp_base_rets.append(base_net)
                     comp_filt_rets.append(filt_net)
@@ -129,9 +149,21 @@ class FilterGovernor:
                 except Exception as ex:
                     logger.warning(f"[FILTER-GOVERNOR] Error leyendo parquets de ventana W{w_num}: {ex}")
 
+        # [FIX-GOVERNOR-PATH-01 2026-06-26] Fail-loud (R16/A1): distinguir "datos ausentes" de
+        # "baseline real <=0". Antes ambos caían en la rama silenciosa "baseline 0.00%".
+        if len(comp_base_rets) == 0 and len(completed_nums) > 0:
+            logger.warning(
+                f"[FILTER-GOVERNOR][FIX-GOVERNOR-PATH-01] DATOS AUSENTES: 0 baselines encontrados para "
+                f"{len(completed_nums)} ventana(s) previa(s) (seed={self.seed}, sufijo='{_dir_sfx}'). "
+                f"NO es un baseline real <=0 — revisar naming dual-bot. Relaxation = 0.0 por seguridad."
+            )
+            print(f"[FIX-GOVERNOR-PATH-01] WARNING: 0 baselines de {len(completed_nums)} ventanas (sufijo='{_dir_sfx}') -> revisar paths.")  # RULE[fixbugsprints.md]
+            return 0.0
+
         # Calcular retornos acumulados netos
         r_baseline = sum(comp_base_rets)
         r_filtered = sum(comp_filt_rets)
+        print(f"[FIX-GOVERNOR-COST-01] r_baseline={r_baseline:.4f} r_filtered={r_filtered:.4f} (return_raw ya neto; sin doble-coste) | ventanas={len(comp_base_rets)}")  # RULE[fixbugsprints.md]
 
         # Regla de Oro 3: Si la baseline está en pérdida o es cero, no relajar
         if r_baseline <= 0:

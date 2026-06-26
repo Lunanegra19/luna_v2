@@ -26,5 +26,5 @@ This report summarizes the performance of the **Dynamic Filter Governor** and th
 
 ## Summary of Calibration changes
 - Kelly Position Sizer `pt_ratio` has been adjusted to `1.01` (from `1.2`) to align with empirical OOS Win/Loss ratios (~0.888) while satisfying positive asymmetry pre-flight constraints. This stops sizing negative-EV trades.
-- Report generated at: 2026-06-24T01:56:11.911951
-- Seed: 100
+- Report generated at: 2026-06-25T07:06:32.331679
+- Seed: 11835

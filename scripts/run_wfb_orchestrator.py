@@ -870,10 +870,10 @@ def main():
                     if _iter_pruned:
                         break  # salir del while
 
-                if process.returncode != 0:
-                    _iter_success = False
-                    print(f"🔴 Fallo worker seed {seed} dir {_current_dir.upper()} con código {process.returncode}")
-                    break # No lanzar la siguiente direccion si fallo
+                    if process.returncode != 0:
+                        _iter_success = False
+                        print(f"🔴 Fallo worker seed {seed} dir {_current_dir.upper()} con código {process.returncode}")
+                        break # No lanzar la siguiente direccion si fallo
                     
                 pruned = _iter_pruned
                 if pruned:

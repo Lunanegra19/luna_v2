@@ -21,14 +21,19 @@ def t29():
     
     if use_regimes:
         regimes = ["bull", "bear", "range"]
+        # [DUAL-BOT-PREFLIGHT-FIX 2026-06-24] en modo 'both' cada regimen entrena su direccion
+        # NATIVA (bear->short, resto->long), no '_both'. Ver train_xgboost_v2.py:303-323.
+        def _native(r):
+            return ("short" if r == "bear" else "long") if direction == "both" else direction
         found_models = []
         for r in regimes:
-            model = ROOT / f"data/models/xgboost_meta_{r}_{direction}.model"
-            sig   = ROOT / f"data/models/xgboost_meta_{r}_{direction}_signature.json"
+            dd = _native(r)
+            model = ROOT / f"data/models/xgboost_meta_{r}_{dd}.model"
+            sig   = ROOT / f"data/models/xgboost_meta_{r}_{dd}_signature.json"
             assert model.exists() and sig.exists(), f"Regime model/sig {r} missing: {model.name}"
             d = json.loads(sig.read_text(encoding="utf-8"))
             assert any(k in d for k in ["features","selected_features","feature_names"])
-            found_models.append(f"{r}:{model.stat().st_size//1024}KB")
+            found_models.append(f"{r}_{dd}:{model.stat().st_size//1024}KB")
         return " | ".join(found_models)
     else:
         model = ROOT/"data/models/xgboost_meta.model"
@@ -61,11 +66,15 @@ def t31():
     use_regimes = getattr(f2, "use_regime_agents", False) if f2 else False
 
     if use_regimes:
-        candidates = [
-            ROOT / f"data/models/metalabeler_v2_{direction}_lstm.pt",
-            ROOT / f"data/models/metalabeler_v2_{direction}_rf.joblib",
-            ROOT / f"data/models/metalabeler_v2_{direction}_config.json"
-        ]
+        # [DUAL-BOT-PREFLIGHT-FIX 2026-06-24] en modo 'both' existen MetaLabelers long Y short
+        _dirs = ["long", "short"] if direction == "both" else [direction]
+        candidates = []
+        for _dd in _dirs:
+            candidates += [
+                ROOT / f"data/models/metalabeler_v2_{_dd}_lstm.pt",
+                ROOT / f"data/models/metalabeler_v2_{_dd}_rf.joblib",
+                ROOT / f"data/models/metalabeler_v2_{_dd}_config.json"
+            ]
     else:
         candidates = [ROOT/"data/models/metalabeler_v2.pt",
                       ROOT/"data/models/metalabeler_v2.pkl",
@@ -78,7 +87,9 @@ def t31():
     # Detectar si hay un entrenamiento en progreso:
     # XGBoost existe pero MetaLabeler no -> pipeline corriendo, no es un error
     if use_regimes:
-        xgb_running = (ROOT / f"data/models/xgboost_meta_bull_{direction}.model").exists()
+        # [DUAL-BOT-PREFLIGHT-FIX 2026-06-24] bull es nativo long (tambien en modo 'both')
+        _bull_dir = "long" if direction == "both" else direction
+        xgb_running = (ROOT / f"data/models/xgboost_meta_bull_{_bull_dir}.model").exists()
     else:
         xgb_running = (ROOT/"data/models/xgboost_meta.model").exists()
     optuna_db   = list(ROOT.glob("data/models/*.db")) + list(ROOT.glob("*.db"))

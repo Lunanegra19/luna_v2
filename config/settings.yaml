@@ -128,7 +128,7 @@ session_gate:
   log_blocked: true
 fase2:
   # [DUAL-BOT-01 2026-06-22] Activar ejecución dual en el orquestador
-  direction_mode: both
+  direction_mode: long
   hmm_predictive: true
   lgbm_signal_min_prob: 0.0
   regime_mapping:
@@ -545,14 +545,14 @@ stat:
   brier_margin_default: 0.025
 temporal_splits:
   embargo_hours: 0
-  hmm_train_end: 2025-06-30
+  hmm_train_end: 2025-11-30
   hmm_train_start: '2020-01-01'
-  holdout_end: 2025-07-31
-  holdout_start: 2025-07-01
-  train_end: 2025-04-30
+  holdout_end: 2025-12-31
+  holdout_start: 2025-12-01
+  train_end: 2025-09-30
   train_start: '2017-08-17'
-  validation_end: 2025-06-30
-  validation_start: 2025-05-01
+  validation_end: 2025-11-30
+  validation_start: 2025-10-01
 wfb:
   # [ENSEMBLE-WINDOWS-FIX 2026-06-19] Semillas deben completar exactamente este número de ventanas para el ensamble
   ensemble_required_windows: 12  # Cantidad requerida de ventanas completadas
@@ -565,42 +565,23 @@ wfb:
   ensemble_consensus_threshold: 10
   consensus_bucket_hours: 2
   # [LIMIT-SEEDS-FIX 2026-06-20] Ajustado a 29 semillas activas para soportar el ensamble consolidado
-  max_seeds_to_explore: 29
-  min_seeds_to_approve: 29
+  # [CAP-3-TEST 2026-06-26] Capado a 3 para fase de testeo (baseline + palancas). El orquestador
+  # genera seeds aleatorias hasta max_seeds_to_explore; con 29 no paraba en las 3 fijas. RESTAURAR
+  # a 29 para el sign-off final (29 seeds + ensamble). Valores originales: explore=29, approve=29.
+  max_seeds_to_explore: 3
+  min_seeds_to_approve: 3
   prune_threshold: 0.0
   soft_embargo_enabled: true
   soft_embargo_hours: 6.0
   # [RESTORE-SEEDS 2026-06-20] Semillas validadas que completaron las 12 ventanas en OOS
+  # [CAP-3-TEST 2026-06-26] Reducido a 3 para fase de testeo (coherente con max_seeds_to_explore=3, TEST-82).
+  # RESTAURAR las 29 para el sign-off final. Lista completa original (29 validadas):
+  # 42,100,777,1337,2025,19519,22539,22971,24197,25680,27644,28019,32202,39836,42659,43480,
+  # 43609,45227,46415,48444,58320,72630,78771,81412,89479,96737,97393,97605,98715
   active_seeds:
   - 42
   - 100
   - 777
-  - 1337
-  - 2025
-  - 19519
-  - 22539
-  - 22971
-  - 24197
-  - 25680
-  - 27644
-  - 28019
-  - 32202
-  - 39836
-  - 42659
-  - 43480
-  - 43609
-  - 45227
-  - 46415
-  - 48444
-  - 58320
-  - 72630
-  - 78771
-  - 81412
-  - 89479
-  - 96737
-  - 97393
-  - 97605
-  - 98715
   circuit_breaker:
     enabled: true
     # [CONSENSUS-K10-FIX 2026-06-20] Correlacionado con ensemble_consensus_threshold >= 10 para pre-flight
