@@ -396,11 +396,15 @@ class FeatureClusterer:
             
             # 1. Discretizar (Binning) todas las features para acelerar EntropÃ­a Discreta
             X_binned = pd.DataFrame(index=X.index)
+            # [FIX-AE-DETERMINISM-01 2026-06-26] RNG seedeado para el ruido de desempate del binning
+            # C-MI. Antes np.random GLOBAL sin seed -> binning/clustering/seleccion del SFI no
+            # reproducible run-a-run (residual tras seedear el AE). Ver hallazgos 6.6.
+            _rng_cmi = np.random.default_rng(_LUNA_SEED)
             for col in X.columns:
                 # Saneamiento de tipo blindado: Sin infinitos y sin NaNs.
                 col_no_na = X[col].replace([np.inf, -np.inf], np.nan).fillna(0)
                 # AÃ±adir ruido infinitesimal para evitar bins idÃ©nticos
-                noise = np.random.normal(0, 1e-10, size=len(col_no_na))
+                noise = _rng_cmi.normal(0, 1e-10, size=len(col_no_na))  # [FIX-AE-DETERMINISM-01] RNG seedeado (antes np.random global)
                 try:
                     # pd.qcut puede generar pandas float array con NaNs si hay anomalÃÂ­as. Forzar int puro.
                     binned = pd.qcut(col_no_na + noise, q=20, labels=False, duplicates='drop')
@@ -521,13 +525,20 @@ class FeatureClusterer:
         # MEJORA-SFI-B03: cargar cache DSR del run anterior para score adaptativo.
         # Primera ejecucion: cache vacio -> usa ICIR solo.
         # Runs posteriores: max(ICIR_norm, DSR_previo_norm) dentro de cada cluster.
-        try:
-            logger.info("[FIX-SHADOW-JSON-01] Cargo cache DSR sin import local redundante.")
-            with open(DSR_CACHE) as f:
-                dsr_prev: dict = json.load(f)
-            logger.info(f"[B] Cache DSR cargado: {len(dsr_prev)} features del run anterior")
-        except Exception:
-            dsr_prev = {}  # primera ejecucion o cache no disponible
+        # [FIX-AE-DETERMINISM-01 2026-06-26] En run fresca (--nocache) NO cargar el DSR cache:
+        # es estado CROSS-RUN (score adaptativo del run anterior) -> rompe reproducibilidad.
+        import os as _os_nc_dsr
+        if _os_nc_dsr.environ.get("LUNA_NOCACHE") == "1":
+            dsr_prev = {}
+            logger.info("[FIX-AE-DETERMINISM-01] --nocache: DSR cache NO cargado (run fresca, determinismo) -> score = ICIR.")
+        else:
+            try:
+                logger.info("[FIX-SHADOW-JSON-01] Cargo cache DSR sin import local redundante.")
+                with open(DSR_CACHE) as f:
+                    dsr_prev: dict = json.load(f)
+                logger.info(f"[B] Cache DSR cargado: {len(dsr_prev)} features del run anterior")
+            except Exception:
+                dsr_prev = {}  # primera ejecucion o cache no disponible
 
         # Calcular retorno forward para ICIR (alineado con horizonte dinÃ¡mico promedio del TBM: 120H)
         if prices is not None and len(prices) == len(X):
@@ -1846,7 +1857,7 @@ class ShapRFEFeatureSelector:
                 model = XGBClassifier(
                     n_estimators=100, max_depth=4,
                     learning_rate=0.1, random_state=_LUNA_SEED,
-                    n_jobs=-1, verbosity=0
+                    n_jobs=1, verbosity=0  # [FIX-AE-DETERMINISM-01] 1 hilo: scoring DSR reproducible (multi-hilo wobblea importancias)
                 )
                 model.fit(Xv[:i * fold_size], yv[:i * fold_size])
                 proba = model.predict_proba(Xv[te_s:te_e])[:, 1]
@@ -1923,8 +1934,13 @@ class ShapRFEFeatureSelector:
             X_train = X_curr.loc[common]
             y_train = y.loc[common]
             
-            model = LGBMClassifier(n_estimators=100, max_depth=4, learning_rate=0.05, 
-                                   subsample=0.8, colsample_bytree=0.8, random_state=_LUNA_SEED, n_jobs=-1, verbose=-1)
+            # [FIX-AE-DETERMINISM-01 2026-06-26] deterministic=True + force_row_wise=True: LightGBM
+            # multi-hilo (n_jobs=-1) NO es reproducible por defecto (suma de histogramas en orden
+            # variable entre hilos) -> importancias distintas -> RFE elimina features distintas ->
+            # seleccion no reproducible (1 feature se volteaba entre runs). Ver hallazgos 6.6.
+            model = LGBMClassifier(n_estimators=100, max_depth=4, learning_rate=0.05,
+                                   subsample=0.8, colsample_bytree=0.8, random_state=_LUNA_SEED, n_jobs=1, verbose=-1,
+                                   deterministic=True, force_row_wise=True)  # [FIX-AE-DETERMINISM-01] n_jobs=1: LightGBM multi-hilo no es 100% reproducible ni con deterministic=True
             model.fit(X_train, y_train)
             
             try:
@@ -2647,8 +2663,16 @@ class FeatureSelectionPipelineE:
         _dsr_verified_lags = {}
         current_fp = _data_fingerprint(X_raw)
 
+        # [FIX-AE-DETERMINISM-01 2026-06-26] En run fresca (--nocache) NO reusar el lag cache:
+        # es estado CROSS-RUN (cada run reusa los lags del anterior -> dos runs frescas leen
+        # estados distintos -> 1 feature marginal flipea). --nocache = sin estado previo, lags
+        # se redescubren determinísticamente. Ver docs/hallazgos (base determinista).
+        import os as _os_nc_lag
+        _nocache_fresh = _os_nc_lag.environ.get("LUNA_NOCACHE") == "1"
+        if _nocache_fresh:
+            logger.info("[FIX-AE-DETERMINISM-01] --nocache: lag cache NO reusado (run fresca, determinismo) — lags se redescubren.")
         logger.info("[FIX-SHADOW-JSON-01] Leyendo _lag_cache.json sin import local redundante.")
-        if _lag_cache_path.exists():
+        if _lag_cache_path.exists() and not _nocache_fresh:
             try:
                 _cache_data = json.loads(_lag_cache_path.read_text(encoding='utf-8'))
                 if current_fp == _cache_data.get('mi_data_fingerprint'):

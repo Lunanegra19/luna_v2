@@ -1333,7 +1333,7 @@ class MetaLabelerV2Trainer:
                 else:
                     import xgboost as xgb
                     cv_clf = xgb.XGBClassifier(
-                        objective="binary:logistic", tree_method="hist", device="cuda", n_jobs=4, random_state=int(_os_meta.environ.get('LUNA_SEED', 42)), verbosity=0,  # [FIX-RANDOM-STATE-02b]
+                        objective="binary:logistic", tree_method="hist", device="cpu", n_jobs=4, random_state=int(_os_meta.environ.get('LUNA_SEED', 42)), verbosity=0,  # [FIX-RANDOM-STATE-02b]
                         **{k: v for k, v in b_params.items() if k not in ["objective", "tree_method", "device", "n_jobs", "random_state", "verbosity"]}
                     )
                 
@@ -1370,7 +1370,7 @@ class MetaLabelerV2Trainer:
                     else:
                         import xgboost as xgb
                         cv_clf = xgb.XGBClassifier(
-                            objective="binary:logistic", tree_method="hist", device="cuda", n_jobs=4, random_state=int(_os_meta.environ.get('LUNA_SEED', 42)), verbosity=0,  # [FIX-RANDOM-STATE-02b]
+                            objective="binary:logistic", tree_method="hist", device="cpu", n_jobs=4, random_state=int(_os_meta.environ.get('LUNA_SEED', 42)), verbosity=0,  # [FIX-RANDOM-STATE-02b]
                             **{k: v for k, v in b_params.items() if k not in ["objective", "tree_method", "device", "n_jobs", "random_state", "verbosity"]}
                         )
                     
@@ -1431,7 +1431,7 @@ class MetaLabelerV2Trainer:
                 # las muestras sin cobertura en vez de asignar 0.50 (que asume probabilidad neutral).
                 logger.info("  -> Entrenando XGBClassifier In-Sample (Fallback) para rellenar {} muestras", _uncovered)
                 fallback_clf = xgb.XGBClassifier(
-                    objective="binary:logistic", tree_method="hist", device="cuda", n_jobs=4,
+                    objective="binary:logistic", tree_method="hist", device="cpu", n_jobs=4,
                     n_estimators=50, max_depth=3, random_state=int(_os_meta.environ.get('LUNA_SEED', 42)), verbosity=0  # [FIX-RANDOM-STATE-02b]
                 )
                 

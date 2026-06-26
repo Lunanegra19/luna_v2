@@ -309,3 +309,31 @@ El baseline negativo **no es que el modelo no tenga señal** — XGBoost-solo es
 - [x] B y C seedeados con el mismo patrón + helper central. Imports OK, audit 0 crítico.
 - [ ] **End-to-end: 2× seed42 W1 → `oos_raw_probs`/`oos_trades` idénticos** (sella el "completamente seguro").
 - [ ] Confirmar diversidad entre seeds (42 ≠ 100) en el baseline (no colapso).
+
+---
+
+## 11. 🔒 BASE DETERMINISTA (2026-06-26) — tag `determinismo-base-20260626`
+
+Tras descubrir que dos runs frescas `--nocache` de la MISMA seed daban resultados distintos (WR 29% vs 75% en la misma ventana — §6.6), se cazaron y arreglaron **todas** las fuentes de no-determinismo. Validado con 18 runs de instrumentación + comparación byte a byte.
+
+### 11.1 Estado conseguido
+**PROBADO byte-idéntico** (checksums de instrumentación, run-a-run): **AutoEncoder, TODAS las features, matriz C-MI, y el ORDEN de columnas.** El núcleo del pipeline es reproducible.
+
+### 11.2 Fuentes arregladas (tag `[FIX-AE-DETERMINISM-01]`)
+| # | Fuente | Fix |
+|---|---|---|
+| 1-3 | **torch sin seed** (AE features, OOD AE, MetaLabeler clf) | `seed_everything()` (manual_seed+cuda+cudnn) + DataLoader generator seedeado. Helper `luna/utils/determinism.py`. |
+| 4 | **`np.random.normal` global** en binning C-MI del SFI | RNG seedeado (`np.random.default_rng(_LUNA_SEED)`). |
+| 5 | **LightGBM SHAP-RFE** (multi-hilo no reproducible) | `deterministic=True` + `force_row_wise=True` + `n_jobs=1`. |
+| 6 | **XGBoost en GPU** (`device="cuda"`) en MetaLabeler CV | → `device="cpu"` (GPU XGBoost no-determinista). |
+| 7 | **XGBoost scoring DSR** (`n_jobs=-1`) en el SFI | → `n_jobs=1`. |
+| 8 | **Cachés CROSS-RUN** (`_dsr_cache.json` + `_lag_cache.json`) | Orquestador los limpia al inicio + el SFI NO los reusa en `--nocache` (guards `LUNA_NOCACHE`). |
+
+### 11.3 Test guardián
+`scripts/pre_flight/test_determinism.py` (DET-1..7) — verifica estáticamente que los 8 puntos siguen en su sitio. **Integrado en el orquestador**: corre al inicio de cada WFB y alerta `*** DETERMINISMO ROTO ***` si un fix futuro lo desalinea. Concepto: reproducibilidad POR-seed + diversidad ENTRE seeds (no es overfitting).
+
+### 11.4 ⚠️ Residual conocido (aceptado como base)
+Persiste **1 feature de 13** que oscila entre 2-3 métricas on-chain **altamente correlacionadas** (Puell/MVRV/mt_vol, mismo cluster del SFI). Descartado de: torch, np.random, threading, GPU, cachés DSR/lag. Está enterrado en la lógica de selección del SFI (descubrimiento de lags / SHAP-RFE / cuotas) — sutil, NO RNG. **Efecto despreciable** (1-2 trades de diferencia, WR similar) → no contamina el screening de palancas fuertes. Pendiente para el sign-off de 29 seeds si una palanca sutil lo requiere. Decisión 2026-06-26: aceptar 12/13 como base y proceder con palancas.
+
+### 11.5 Reversión
+Esta es la **base determinista buena**. Tag git: `determinismo-base-20260626`. Para revertir: `git checkout determinismo-base-20260626`.

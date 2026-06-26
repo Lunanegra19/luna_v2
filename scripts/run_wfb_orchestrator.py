@@ -586,6 +586,40 @@ def main():
     # else:
     #     print("[*] No se ha detectado WFB corriendo. Se iniciara la cola inmediatamente.")
 
+    # [FIX-AE-DETERMINISM-01 2026-06-26] PRE-FLIGHT DE DETERMINISMO al inicio del WFB.
+    # Verifica que los 8 puntos del fix de determinismo siguen en su sitio. Si un cambio futuro
+    # los desalinea -> alerta CRITICAL visible (dos runs frescas ya no serian byte-identicas).
+    try:
+        import importlib.util as _ilu_det
+        _det_pf_path = _ROOT / "scripts" / "pre_flight" / "test_determinism.py"
+        _spec_det = _ilu_det.spec_from_file_location("test_determinism", _det_pf_path)
+        _mod_det = _ilu_det.module_from_spec(_spec_det); _spec_det.loader.exec_module(_mod_det)
+        _det_ok = _mod_det.assert_determinism(loud=True)
+        if not _det_ok:
+            print("[FIX-AE-DETERMINISM-01] *** ATENCION: el determinismo base esta ROTO (ver arriba). "
+                  "Los resultados de esta run NO seran reproducibles. ***")
+    except Exception as _e_det_pf:
+        print(f"[PRE-FLIGHT DETERMINISMO] no se pudo ejecutar el check (no bloqueante): {_e_det_pf}")
+
+    # [FIX-AE-DETERMINISM-01 2026-06-26] Limpiar cachés con ESTADO CROSS-RUN al inicio de runs frescas.
+    # El SFI lee _dsr_cache.json (scores DSR adaptativos) y _lag_cache.json (lags descubiertos) del
+    # run ANTERIOR -> dos runs consecutivas leen estados distintos -> seleccion de features NO
+    # reproducible (era el ultimo "wobble" del determinismo, tras seedear todo el pipeline).
+    # Limpiar aqui hace cada run fresca autocontenida y reproducible; la adaptacion DENTRO de la run
+    # (ventana-a-ventana) se preserva porque se reconstruye. Skip en --resume (continua estado a proposito).
+    # Ver docs/hallazgos_run_baseline_20260626.md (6.x) — base determinista.
+    if not getattr(args, "resume", False) and not getattr(args, "force_resume", False):
+        import glob as _glob_det
+        _det_removed = 0
+        for _pat in ("_dsr_cache.json", "_lag_cache.json"):
+            for _p in (_glob_det.glob(str(_ROOT / "data" / "features" / _pat))
+                       + _glob_det.glob(str(_ROOT / "data" / "wfb_cache" / "**" / _pat), recursive=True)):
+                try:
+                    os.remove(_p); _det_removed += 1
+                except OSError:
+                    pass
+        print(f"[FIX-AE-DETERMINISM-01] Caches cross-run DSR/lag limpiados al inicio (fresh run): {_det_removed} ficheros -> determinismo reproducible")  # RULE[fixbugsprints.md]
+
     seeds_to_run = list(args.seeds)
     _n_seeds_fixed = len(args.seeds)  # solo para logging; el límite real lo fija max_seeds_to_explore
     target_complete = _n_seeds_fixed   # placeholder — se reemplaza por _max_seeds_to_explore más abajo
