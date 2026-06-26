@@ -592,6 +592,10 @@ class MetaLabelerV2:
             def forward(self, x):
                 return self.sig(self.head(self.extractor(x)))
 
+        # [FIX-AE-DETERMINISM-01 2026-06-26] Seedear init del clf torch (sin seed -> meta-filtrado
+        # no reproducible). El loader (~628) es shuffle=False, no necesita generador.
+        from luna.utils.determinism import seed_everything as _seed_meta_clf
+        _seed_meta_clf()
         clf = _TempClassifier(self.extractor, self.extractor.hidden_dim)
         optimizer = Adam(clf.parameters(), lr=lr)
         criterion = nn.BCELoss()

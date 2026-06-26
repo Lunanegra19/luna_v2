@@ -175,12 +175,79 @@ El governor reproduce EXACTAMENTE el contrafáctico de §6.2 (+7.93% / −7.52%)
 
 ---
 
+## 6.6 🚨🚨 HALLAZGO CRÍTICO — el pipeline NO es reproducible (el ruido domina todo)
+> Investigación 2026-06-26 (post-relanzamiento). Comparación Run A (093845, governor roto) vs Run B (115409, governor fixed), MISMA seed 42, MISMA ventana W1 (julio 2025), ambas `--nocache`.
+
+**Nuestros cambios tuvieron efecto causal CERO en los resultados:**
+- Governor: `relaxation=0.0` en TODAS las ventanas de AMBAS runs (A por el bug; B porque filtrado adecuado). Mismo output → 0 trades cambiados.
+- Cap a 3 seeds: solo afecta el bucle del orquestador, no el trading por-ventana.
+
+**La causa real de que Run B (WR 75%) ≠ Run A (WR 29%) en la MISMA ventana/seed:**
+| Evidencia | Run A | Run B |
+|---|---|---|
+| XGBoost `prob_bear` (744 barras) | — | difiere hasta **0.34** vs A (NO determinista) |
+| SFI features seleccionadas | 12 (incl. `genetic_rule_1`) | 13 (incl. `ae_feat_0/49/51`) — solo **7 comunes** |
+| W1 trades | N=7, WR 29% | N=8, WR 75% |
+
+**Cadena:** features regeneradas distintas → SFI elige distinto → XGBoost entrena distinto → señales distintas → WR 29%↔75%.
+
+**RAÍZ (verificada en código, investigación 2ª pasada — descartado que sea bug del SFI):**
+- **NO es bug del SFI**: `feature_selection_e.py` es determinista (lag discovery ya seedeado por MI-FIX 2026-03-16; MI/RF con `random_state`; KMeans tribes seedeado). El SFI **propaga** el no-determinismo, no lo crea.
+- **NO es la data** (idéntica entre runs), **NO es XGBoost** (`tree_method='hist'` CPU + `random_state=42`), **NO es el HMM** (`random_state=_LUNA_SEED`).
+- **SÍ es el AutoEncoder**: `autoencoder_features.py` corre en CUDA (`device('cuda')`) y **NO tiene `torch.manual_seed`**. No existe `seed_everything` central → torch quedó fuera del seeding (que todo lo demás SÍ aplica). Cada run → AE distinto → `ae_feat_*` distintas (comprimen 158→64 features) → SFI elige distinto → modelo distinto → **13/14 trades difieren**. Amplificado por N=7-8 (WR salta 29%↔75%).
+
+**MATIZ CONCEPTUAL (importante):** reproducibilidad ≠ "todas las seeds iguales". Determinismo POR-seed (seed42 repetible) + diversidad ENTRE seeds (42≠100≠777, base del ensamble) son ambos deseables. Seedear el AE NO es overfitting (es determinismo de cómputo, ortogonal a generalización). La varianza enorme también revela un **edge frágil** → la robustez real viene del ENSAMBLE de muchas seeds, no del determinismo solo. Plan = reproducibilidad **+** muchas seeds.
+
+**FIX (seguro):** `seed_everything(LUNA_SEED)` central cubriendo torch (`manual_seed`+`cuda.manual_seed_all`+`cudnn.deterministic`), o correr el AE en CPU (minúsculo). Validar: 2 runs frescas seed42 → `ae_feat_*` idénticas → mismos trades.
+
+**IMPLICACIÓN:** el "+13%/WR 73%" de Run B es un golpe de suerte, no mejora real. Hasta cerrar la reproducibilidad + medir con muchas seeds, ningún resultado de 1 run es fiable. → **P0.**
+
+### 6.7 Datos de Run B (governor-fixed, 20260626_115409) — la "racha de suerte" regresa a la media
+seed42, W1-W6 (detenida tras esto para aplicar P0). Ambas runs son draws aleatorios del mismo proceso no-reproducible.
+
+| W | N | WR% | ret_sum | Sharpe~ |
+|---|---|---|---|---|
+| W1 | 8 | 75.0 | +5.76% | +1.43 |
+| W2 | 7 | 71.4 | +7.23% | +2.06 |
+| W3 | 5 | 80.0 | +3.26% | +1.24 |
+| W4 | 8 | 50.0 | −1.23% | −0.24 |
+| W5 | 5 | 20.0 | **−9.06%** | −2.18 |
+| W6 | 4 | 50.0 | +3.24% | +0.97 |
+| **Agreg.** | **37** | **59.5** | **+9.20%** | — |
+
+**Observación clave:** el agregado cayó de **WR 73% (W1-W2) → 59.5% (W1-W6)** conforme creció N → la racha inicial regresa a la media. Refuerza que los resultados tempranos eran ruido. (Run A W1-W5 ≈ WR 42%; el gap A↔B se estrecha con N, como debe pasar si la diferencia es varianza.)
+
+**Forense (investigado a fondo):** 0 crashes. 2 circuit breakers MANEJADOS (Modo Degradado = deshabilitar agentes de régimen, NO_OPERABLE):
+- **`GUARDIAN-05` (OOD Covariate Shift, KL>2.0 en 2/5 features top) → ventana W4, agente `range`.** El OOS de W4 difiere radicalmente del train → "el modelo no generalizará". Se capturó y W4 igual produjo 8 trades (WR 50%, −1.23% = ventana floja). Sus trades salen de un modelo marcado por shift.
+- **`GUARDIAN-01` (Top-WR 38.2% ≤ Bottom-WR 52.1% = inversión) → ventana W7 → 0 trades** (ventana muerta, fuera del panel W1-W6). **GUARDIAN-01 está SANO en W1-W6** (Top>Bottom casi siempre: n=414 37→72%, n=1095 46→65%); solo W7 se invirtió → el guardián cazó la única mala.
+
+**2 conclusiones:** (1) los guardianes FUNCIONAN y cazan los problemas ya identificados (GUARDIAN-01 = la misma inversión del §4; GUARDIAN-05 = edge frágil/OOD). (2) Son DATA-DRIVEN: Run A y Run B tuvieron **exactamente 1+1** guardianes → hay ventanas genuinamente duras (W4 covariate shift, W7 inversión) que cualquier run encuentra. Robusto y preocupante. Impacto en el panel: solo W4 marcada (floja, no infló); W7 fuera del panel.
+
+**Conclusión operativa:** ambas runs son draws no-reproducibles → ninguna es "el baseline". Se detiene la run para aplicar P0 (determinismo del AE) antes de medir nada más.
+
+### 6.8 ✅ FIX DE DETERMINISMO APLICADO (P0, 2026-06-26)
+Al implementar el fix se descubrió que NO era 1 componente torch sino **3** (el resto del pipeline ya estaba seedeado):
+
+| | Componente torch | Rol | Estado | Validación |
+|---|---|---|---|---|
+| **A** | `autoencoder_features.py` (DeepFeatureAutoEncoder → `ae_feat_*`) | features (causa de la divergencia de señales) | ✅ seedeado + cudnn determinista + shuffle seedeado | **byte-idéntico en GPU** (`max\|lat1−lat2\|=0.0`; seed distinta → distinto) |
+| **B** | `train_autoencoder.py` (DenoisingAutoEncoder) | OOD Guard (filtrado) | ✅ `seed_everything()` + shuffle seedeado | corre en CPU (determinismo total) |
+| **C** | `train_metalabeler_v2.py` (`_TempClassifier` torch) | meta-filtrado | ✅ `seed_everything()` antes del init | loader shuffle=False (orden temporal) |
+
+- Helper central nuevo: `luna/utils/determinism.py` (`seed_everything` / `seeded_generator`). Tag `[FIX-AE-DETERMINISM-01]`.
+- **Validación dura hecha:** misma seed → AE byte-idéntico; seed distinta → distinto (diversidad entre seeds preservada → confirma reproducibilidad ≠ "todas las seeds iguales", y NO es overfitting).
+- Imports OK, audit 0 CRÍTICO/ALTO.
+- **Prueba end-to-end PENDIENTE (al relanzar):** 2 runs frescas de seed42 deben dar `ae_feat_*` idénticas y **mismos trades**. Eso cierra el "completamente seguro" a nivel pipeline.
+
+---
+
 ## 7. Síntesis y palancas (por prioridad)
 El baseline negativo **no es que el modelo no tenga señal** — XGBoost-solo es rentable. El problema es el **stack de filtrado secundario que destruye esa señal, sin la red de seguridad que debería auto-corregirlo**.
 
 | # | Palanca | Tipo | Confianza | Acción (post-baseline, NO ahora) |
 |---|---|---|---|---|
-| **P1** | ~~Arreglar `FilterGovernor`~~ **✅ HECHO (2 bugs: path + doble-coste)** | bug-fix | **ALTA (SOLID)** | ver §6.5 — aplicado y validado (relaxation 0→1.0); en observación en la run nueva |
+| **P0** 🚨 | **REPRODUCIBILIDAD del pipeline** (seedear torch+CUDA en AE; forzar determinismo) | bug-fix | **CRÍTICA (SOLID)** | sin esto el ruido run-a-run (WR 29%↔75%) aplasta toda palanca. Ver §6.6. **Bloquea P2-P5.** |
+| **P1** | ~~Arreglar `FilterGovernor`~~ **✅ HECHO (2 bugs: path + doble-coste)** | bug-fix | **ALTA (SOLID)** | ver §6.5 — aplicado y validado (relaxation 0→1.0); efecto causal CERO en resultados (devolvió 0.0 en ambas runs) |
 | **P2** | **A/B desactivar/aligerar filtro MetaLabeler** | pipeline | ALTA | re-run con Meta off (o umbral relajado) vs on, mismo baseline 3-seed |
 | **P3** | Confirmar contrafáctico con 3 seeds (N≥30) | medición | — | repetir §6.2 con seed100/777 |
 | **P4** | Investigar por qué el Meta no tiene edge | investigación | media | features(19)/meta-label TBM/aporte LSTM |
@@ -214,3 +281,31 @@ El baseline negativo **no es que el modelo no tenga señal** — XGBoost-solo es
 | 10 | Pendiente menor | actualizar grafo graphify (toqué `filter_governor.py`) | ⏳ |
 
 > **Decisión de 3 seeds:** ver caja en §1 — es velocidad de iteración + instrucción del usuario, NO óptimo estadístico. 3 seeds = SCREENING; 29 + ensamble = SIGN-OFF.
+
+---
+
+## 10. Próximos pasos y revisiones (plan vivo)
+
+### 10.1 Secuencia inmediata (en curso)
+1. ✅ **Verificar 0 runs activas** antes de tocar nada.
+2. ⏳ **Commit del fix de determinismo** (`luna/utils/determinism.py` + A/B/C + este doc). NO se bundlea nada más (un fix a la vez).
+3. ⏳ **VALIDACIÓN END-TO-END (antes del baseline completo):** lanzar seed42 **dos veces** (`--seeds 42 --nocache`), dejar que cada una cierre W1, y comparar `oos_raw_probs_W1` (744 barras) + `oos_trades_W1`:
+   - **PASA** si byte-idénticas → determinismo confirmado a nivel pipeline → seguir a 10.2.
+   - **FALLA** → hay un residual (candidato: ruido de desempate del SFI `feature_selection_e.py:403` con `np.random` global) → cazarlo y arreglarlo ANTES de gastar horas.
+4. ⏳ Decidir nº de seeds del baseline (P0.5: subir de 3 → 5-8 ahora que cada seed es reproducible).
+
+### 10.2 Después del baseline reproducible
+- **P2 — A/B MetaLabeler** (desactivar/aligerar el filtro) vs baseline reproducible. Ahora SÍ es medible (la diferencia será por la palanca, no por ruido del AE).
+- **P5 — Limpieza calibrador** (deuda menor): dejar de entrenar calibradores no usados + silenciar el CRITICAL falso de DETECTION-3. No afecta resultados.
+
+### 10.3 Revisiones / investigaciones abiertas (no bloqueantes)
+- **Mapa de salud por ventana (guardianes como métrica de 1ª clase):** W4 sufre covariate shift (OOD, GUARDIAN-05) y W7 invierte (GUARDIAN-01). Tras el determinismo serán reproducibles → investigar QUÉ tienen esos periodos (oct-2025 / ene-2026) que rompen el modelo.
+- **Inversión del modelo (§4 + GUARDIAN-01):** confirmar con N≥30 si el MetaLabeler/XGBoost anti-correlaciona; conecta con P2.
+- **Robustez = ensamble de muchas seeds diversas** (no solo determinismo). El determinismo hace cada seed repetible; la señal real emerge al promediar muchas.
+- **SOP addendum (§sop A1-A5):** reconciliar R10 (calibración desactivada), R18 (Sniper-Mode asume edge del Meta), proponer R20 (naming dual-bot centralizado).
+
+### 10.4 Checklist de validación del fix de determinismo
+- [x] AE (A) validado byte-idéntico en GPU (misma seed → idéntico; seed distinta → distinto).
+- [x] B y C seedeados con el mismo patrón + helper central. Imports OK, audit 0 crítico.
+- [ ] **End-to-end: 2× seed42 W1 → `oos_raw_probs`/`oos_trades` idénticos** (sella el "completamente seguro").
+- [ ] Confirmar diversidad entre seeds (42 ≠ 100) en el baseline (no colapso).

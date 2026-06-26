@@ -83,6 +83,10 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
     """
     Entrena el AutoEncoder contra el dataset origen de variables crudas.
     """
+    # [FIX-AE-DETERMINISM-01 2026-06-26] Seedear ANTES de crear modelo y DataLoader. El OOD
+    # AutoEncoder (torch) estaba sin seed -> filtrado OOD no reproducible. Ver hallazgos 6.6.
+    from luna.utils.determinism import seed_everything as _seed_ood, seeded_generator as _gen_ood
+    _ood_seed = _seed_ood()
     p_data = Path(data_path)
     p_out = Path(output_dir)
     p_out.mkdir(parents=True, exist_ok=True)
@@ -157,7 +161,7 @@ def train_autoencoder(data_path: str, output_dir: str, epochs: int = 50, batch_s
     X_train = torch.tensor(X_scaled[:split_idx], dtype=torch.float32)
     X_val   = torch.tensor(X_scaled[split_idx:], dtype=torch.float32)
     
-    train_loader = DataLoader(TensorDataset(X_train, X_train), batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(TensorDataset(X_train, X_train), batch_size=batch_size, shuffle=True, generator=_gen_ood(_ood_seed))  # [FIX-AE-DETERMINISM-01] shuffle seedeado
     val_loader   = DataLoader(TensorDataset(X_val, X_val), batch_size=batch_size, shuffle=False)
     
     device = torch.device("cpu")

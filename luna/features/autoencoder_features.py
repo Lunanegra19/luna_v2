@@ -364,6 +364,21 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
             logger.warning(f"[AE] CUDA disponible pero falló kernel (ej. RTX 5070 no soportada en esta build): {e}. Fallback a CPU.")
             device = torch.device('cpu')
 
+    # [FIX-AE-DETERMINISM-01 2026-06-26] El AutoEncoder (torch/CUDA) era el UNICO componente del
+    # pipeline SIN seedear (HMM/SFI/genetico/XGBoost ya lo estaban). Resultado: ae_feat_* distintas
+    # cada run -> el SFI elegia features distintas -> ~todos los trades cambiaban con la MISMA
+    # ventana/seed (run A WR 29% vs run B WR 75%). Ver docs/hallazgos_run_baseline_20260626.md §6.6.
+    # El AE es shared step (seed-agnostico) -> seed fijo determinista. Cubre init de pesos + shuffle.
+    _ae_det_seed = int(_os_ae.environ.get("LUNA_SEED") or 42)
+    torch.manual_seed(_ae_det_seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(_ae_det_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    _ae_gen = torch.Generator()
+    _ae_gen.manual_seed(_ae_det_seed)
+    print(f"[FIX-AE-DETERMINISM-01] AE determinista: seed={_ae_det_seed} cudnn.deterministic=True (reproducibilidad)")  # RULE[fixbugsprints.md]
+
     autoencoder = DeepFeatureAutoEncoder(input_dim=len(feature_cols), bottleneck_size=bottleneck_size).to(device)
     
     # [WARM-START AE] Fase 3: Estabilidad del AutoEncoder
@@ -393,7 +408,7 @@ def apply_autoencoder(df: pd.DataFrame, train_end_date: str, bottleneck_size: in
 
     train_tensor = torch.tensor(X_train_scaled, dtype=torch.float32).to(device)
     dataset = TensorDataset(train_tensor, train_tensor)
-    loader = DataLoader(dataset, batch_size=256, shuffle=True)
+    loader = DataLoader(dataset, batch_size=256, shuffle=True, generator=_ae_gen)  # [FIX-AE-DETERMINISM-01] shuffle seedeado
     
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(autoencoder.parameters(), lr=1e-3, weight_decay=1e-5)
